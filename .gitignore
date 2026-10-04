@@ -1,0 +1,27 @@
+# Dependencies
+node_modules/
+
+# Builds
+dist/
+build/
+.svelte-kit/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Azure Functions
+local.settings.json
+
+# Capacitor / native
+apps/mobile/android/.gradle/
+apps/mobile/android/local.properties
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
