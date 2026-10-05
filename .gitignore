@@ -22,7 +22,7 @@ apps/mobile/android/.gradle/
 apps/mobile/android/local.properties
 
 # IDE
-.vscode/
+
 .idea/
 
 # OS
