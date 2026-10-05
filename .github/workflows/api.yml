@@ -6,8 +6,6 @@ on:
       - main
     paths:
       - 'api/**'
-      - 'package.json'
-      - 'package-lock.json'
       - '.github/workflows/api.yml'
 
   workflow_dispatch:
@@ -30,31 +28,15 @@ jobs:
         with:
           node-version: '22'
           cache: 'npm'
+          cache-dependency-path: api/package-lock.json
 
       - name: Install dependencies
+        working-directory: api
         run: npm ci
 
-      - name: Check API dependencies
-        run: |
-          echo "Root:"
-          test -d node_modules/@azure/functions && echo "FOUND root @azure/functions" || echo "NOT FOUND root @azure/functions"
-
-          echo "API:"
-          test -d api/node_modules/@azure/functions && echo "FOUND api @azure/functions" || echo "NOT FOUND api @azure/functions"
-
       - name: Build API
-        run: npm run build --workspace=api
-
-      - name: Install API production dependencies
         working-directory: api
-        run: npm install --omit=dev --workspaces=false
-
-      - name: Show API build output
-        run: |
-          echo "=== dist ==="
-          find api/dist -type f -print
-          echo "=== package.json main ==="
-          node -p "require('./api/package.json').main"
+        run: npm run build
 
       - name: Login to Azure
         uses: azure/login@v2
