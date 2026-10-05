@@ -37,6 +37,13 @@ jobs:
       - name: Build API
         run: npm run build --workspace=api
 
+      - name: Show API build output
+        run: |
+          echo "=== dist ==="
+          find api/dist -type f -print
+          echo "=== package.json main ==="
+          node -p "require('./api/package.json').main"
+
       - name: Login to Azure
         uses: azure/login@v2
         with:
