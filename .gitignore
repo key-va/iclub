@@ -6,6 +6,9 @@ dist/
 build/
 .svelte-kit/
 
+# Infra
+infra/*.json
+
 # Environment
 .env
 .env.*
