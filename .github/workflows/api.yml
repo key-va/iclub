@@ -34,6 +34,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Check API dependencies
+        run: |
+          echo "Root:"
+          test -d node_modules/@azure/functions && echo "FOUND root @azure/functions" || echo "NOT FOUND root @azure/functions"
+
+          echo "API:"
+          test -d api/node_modules/@azure/functions && echo "FOUND api @azure/functions" || echo "NOT FOUND api @azure/functions"
+
       - name: Build API
         run: npm run build --workspace=api
 
