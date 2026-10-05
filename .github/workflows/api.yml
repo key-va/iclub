@@ -45,6 +45,10 @@ jobs:
       - name: Build API
         run: npm run build --workspace=api
 
+      - name: Install API production dependencies
+        working-directory: api
+        run: npm install --omit=dev --workspaces=false
+
       - name: Show API build output
         run: |
           echo "=== dist ==="
