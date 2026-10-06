@@ -18,6 +18,7 @@ export async function about(request: HttpRequest, context: InvocationContext): P
 
 app.http('about', {
     methods: ['GET', 'POST'],
+    route: "system/about",
     authLevel: 'anonymous',
     handler: about
 });
