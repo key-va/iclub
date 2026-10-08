@@ -1,24 +1,60 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
+import { DefaultAzureCredential } from "@azure/identity";
+import { TableClient, odata } from "@azure/data-tables";
 
-export async function about(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
-    context.log(`Http function processed request for url "${request.url}"`);
+const storageAccount = process.env.ICLUB_STORAGE_ACCOUNT;
 
-    const name = request.query.get('name') || await request.text() || 'world';
+if (!storageAccount) {
+    throw new Error("ICLUB_STORAGE_ACCOUNT is not configured.");
+}
+
+const tableClient = new TableClient(
+    `https://${storageAccount}.table.core.windows.net`,
+    "guids",
+    new DefaultAzureCredential()
+);
+
+async function count(pk: string): Promise<number> {
+
+    let total = 0;
+
+    const entities = tableClient.listEntities({
+        queryOptions: {
+            filter: odata`PartitionKey eq ${pk}`,
+            select: ["RowKey"]
+        }
+    });
+
+    for await (const _ of entities) {
+        total++;
+    }
+
+    return total;
+}
+
+export async function systemAbout(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
+
+    const [users, clubs, ladders, matches] = await Promise.all([
+        count("user"),
+        count("club"),
+        count("ladder"),
+        count("match")
+    ]);
 
     return {
         status: 200,
         jsonBody: {
-            name: "Intra Club API",
-            status: "online",
-            version: "1.0.0",
-            timestamp: new Date().toISOString()
+            message: `Okay, Intra Club is up and running`,
+            data: [
+                { users, clubs, ladders, matches }
+            ]
         }
     };
-};
+}
 
-app.http('about', {
+app.http('systemAbout', {
     methods: ['GET', 'POST'],
     route: "system/about",
     authLevel: 'anonymous',
-    handler: about
+    handler: systemAbout
 });

@@ -19,7 +19,7 @@ const tableClient = new TableClient(
     credential
 );
 
-export async function restore(
+export async function systemRestore(
     request: HttpRequest,
     context: InvocationContext
 ): Promise<HttpResponseInit> {
@@ -119,9 +119,9 @@ export async function restore(
     }
 }
 
-app.http("restore", {
+app.http("systemRestore", {
     methods: ["POST"],
     route: "system/restore",
     authLevel: "anonymous",
-    handler: restore
+    handler: systemRestore
 });
