@@ -89,8 +89,7 @@ resource blobService 'Microsoft.Storage/storageAccounts/blobServices@2025-06-01'
       corsRules: [
         {
           allowedOrigins: [
-            'https://${staticWebApp.properties.defaultHostname}'
-            'https://app.intra.club'
+            'https://app.intra.club',
             'http://localhost:5173'
           ]
           allowedMethods: [
