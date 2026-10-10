@@ -32,6 +32,8 @@ jobs:
 
       - name: Build app
         working-directory: app
+        env:
+          VITE_PREFIX: ${{ vars.AZURE_RESOURCE_GROUP }}
         run: npm run build
 
       - name: Login to Azure

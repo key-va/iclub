@@ -83,6 +83,32 @@ resource logsTable 'Microsoft.Storage/storageAccounts/tableServices/tables@2025-
 resource blobService 'Microsoft.Storage/storageAccounts/blobServices@2025-06-01' = {
   parent: storage
   name: 'default'
+
+  properties: {
+    cors: {
+      corsRules: [
+        {
+          allowedOrigins: [
+            'https://${staticWebApp.properties.defaultHostname}'
+            'https://app.intra.club'
+            'http://localhost:5173'
+          ]
+          allowedMethods: [
+            'GET'
+            'HEAD'
+            'OPTIONS'
+          ]
+          allowedHeaders: [
+            '*'
+          ]
+          exposedHeaders: [
+            '*'
+          ]
+          maxAgeInSeconds: 3600
+        }
+      ]
+    }
+  }
 }
 
 resource publicContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2025-06-01' = {
