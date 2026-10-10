@@ -22,28 +22,25 @@ export interface SignatureVerificationInput {
     deviceId: string;
     url: string;
     signature: string;
-    payload: string;
 }
 
-// Host/scheme can differ behind proxies, so only path + query are signed,
-// e.g. "https://host/api/things?x=1" -> "/api/things?x=1".
-export function toPathAndQuery(url: string): string {
+// Host, scheme, and query can differ, so only the URL pathname is signed.
+export function toPath(url: string): string {
 
     const parsed = new URL(url, "http://localhost");
 
-    return parsed.pathname + parsed.search;
+    return parsed.pathname;
 }
 
 // Clients must sign exactly this string (UTF-8).
 export function buildSignedMessage(
-    input: Pick<SignatureVerificationInput, "callerId" | "deviceId" | "url" | "payload">
+    input: Pick<SignatureVerificationInput, "callerId" | "deviceId" | "url">
 ): string {
 
     return JSON.stringify([
         input.callerId,
         input.deviceId,
-        toPathAndQuery(input.url),
-        input.payload
+        toPath(input.url)
     ]);
 }
 
