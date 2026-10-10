@@ -1,82 +1,54 @@
-### Intra Club — AGENTS.md
-
-### 1. Application Description
+# Intra Club — AGENTS.md
 
 Intra Club is an application for tennis clubs to manage ladders, competitions and club teams.
 
-The application supports:
+Ladders - challenge matches between club members.
+Competitions - organised competitive events between club members.
+Teams - club teams that play in external events.
 
-- Ladders — challenge matches between club members.
-- Competitions — organised competitive events between club members.
-- Teams — club teams that play in external events.
+The application uses a graph-based data model. Users, clubs, ladders and other objects are represented as entities connected through relationships. App users start at their own entity and traverse the graph reaching any related entity.
 
-# User Experience
+This mono repo includes the infrastructure, back end api and front end app
 
-Users access Intra Club through a web application, with native Android and iOS applications planned.
-
-Users authenticate to establish their identity as a user. Authentication associates a user with a device and its cryptographic key, allowing subsequent API requests to be authenticated using the device's credentials.
-
-The application uses a graph-based data model. Users, clubs, ladders and other objects are represented as entities connected through relationships.
-
-Once authenticated, users navigate the application by traversing entities related to them. This provides a consistent way to discover their ladders, competitions, teams and other relevant information.
-
-The graph also represents permissions and participation. A user's ability to view or manage an entity depends on their identity, relationships and the applicable access rules.
-
-# Application URLs and Club Branding
-
-**app.intra.club** is the main, unbranded Intra Club application.
-
-Clubs may also have dedicated URLs, for example:
-
-**hptc.intra.club**
-
-These URLs serve the same application but may provide club-specific branding, including:
-
-- Club name and icon
-- Colours and visual styling
-
-A club URL establishes the context in which the application is presented. It is not a separate application or data store. Users may participate in multiple clubs and activities through the same identity.
-
-### 2. Data Structure
+## 1. Data Structure
 
 Intra Club uses a flexible, graph-based data model consisting of **entities** and **relations**. Both are stored in the same Azure Table.
 
-# Entities
+### Entities
 
 An entity represents something with its own identity.
 
 Each entity has:
 
-- `pk` — entity type
-- `rk` — unique entity identifier
-- `name` — every entity must have a name field
-- Additional attributes (optional) describing the entity
+'pk' - entity type
+'rk' - unique entity identifier
+'name' - every entity must have a name field
+Additional attributes (optional) describing the entity
 
-Entity identifiers are in the form entity_YYYY-MM-DD_HH-MM-SS_random where:
-entity is the entity type: user, ladder, team etc
-YYYY-MM-DD is the year month day
-HH-MM-SS is the hour min sec
-random is a 12 character random string
+Entity identifiers are in the form: entity_YYYY-MM-DD_HH-MM-SS_random
+where:
+entity - entity type: user, ladder, team etc
+YYYY-MM-DD - year month day
+HH-MM-SS - hour min sec
+random - 12 character random string
 
 An entity should contain attributes that describe the entity itself, independently of its relationships with other entities.
 
-# Relations
+### Relations
 
 A relation represents a connection between two entities.
 
 Relations use the identifiers of the connected entities as their keys:
 
-- `pk` — first entity ID
-- `rk` — second entity ID
-- Additional attributes (optional) describing the realtion between the entities
+'pk' - first entity ID
+'rk' - second entity ID
+Additional attributes (optional) describing the relation between the entities
 
-Every relation is stored in both directions, allowing the graph to be traversed from either entity.
-
-Both directions contain identical attributes, except for their reversed keys.
+Every relation is stored in both directions, allowing the graph to be traversed from either entity. Both directions contain identical attributes, except for their reversed keys.
 
 Relations may contain attributes describing the connection, including permissions, participation, configuration or mutable state.
 
-# Attribute Placement
+### Attribute Placement
 
 When introducing an attribute, determine what it describes:
 
@@ -93,11 +65,11 @@ Use stable machine-readable values for application logic rather than relying on 
 
 The model should remain flexible enough to accommodate new entity types and relationships without requiring changes to its fundamental structure.
 
-### 3. Infrastructure and Data Services
+## 2. Infrastructure and Data Services
 
-Intra Club uses Azure services for data storage, application hosting and backend operations.
+Intra Club uses Azure services for data storage, application hosting and back end operations.
 
-# Azure Table Storage
+### Azure Table Storage
 
 Azure Table Storage holds the application's structured data.
 
@@ -109,7 +81,7 @@ The main tables are:
 
 **logs** - Operational and application logging data.
 
-# Azure Blob Storage
+### Azure Blob Storage
 
 Blob Storage holds data consumed by the application and content that is more appropriately represented as files.
 
@@ -126,7 +98,7 @@ The exported representation uses:
 
 **Other blob content** - Images, club icons, player images and other file-based assets are stored in Blob Storage.
 
-# Hosting and Deployment
+### Hosting and Deployment
 
 - **Azure Static Web Apps** hosts the Svelte web client.
 - **Azure Functions** hosts the API.
@@ -139,7 +111,7 @@ Infrastructure changes should be maintained in the infrastructure code rather th
 
 Pipelines are in place to push infra api and app code
 
-### 4. Azure Functions API
+## 4. api
 
 Azure Functions provides the application's backend API.
 
@@ -150,7 +122,7 @@ The API is responsible for:
 - Coordinating changes across entities and relations.
 - Publishing updated data for client consumption.
 
-# Existing Helper Services
+### Existing Helper Services
 
 The API provides the following foundational services:
 
@@ -167,11 +139,11 @@ A business operation may involve multiple changes. Complete the required changes
 
 The Table remains authoritative; JSON exports are derived representations.
 
-### 4. Svelte Client
+## 5. app
 
 The web client is built using Svelte and SvelteKit and deployed as a static web application.
 
-# Reading Application Data
+### Reading Application Data
 
 The client reads `guids.json` from public Blob Storage to obtain application entities and relations.
 
@@ -183,13 +155,13 @@ The client may filter and traverse the available graph to construct the user exp
 
 Client-side filtering is a presentation mechanism, not a security boundary. Data requiring confidentiality must not be included in a publicly accessible export.
 
-# Modifying Application Data
+### Modifying Application Data
 
 The client must not directly modify Azure Table Storage or the exported JSON.
 
 All changes are made through the Azure Functions API.
 
-### 5. Development Approach
+## 6. Development Approach
 
 The API and Svelte client should be developed together when implementing new functionality.
 
@@ -202,7 +174,7 @@ When implementing a feature, consider:
 
 Prefer extending the existing model and services rather than introducing parallel mechanisms for new features.
 
-# Routing
+### Routing
 
 The Svelte client and API should share a consistent URL path structure identifying the entity and action.
 
@@ -219,7 +191,7 @@ The Svelte route provides the user interface, while the API performs the operati
 
 Creation and other operations without an existing entity ID may use an appropriate action path, such as `/api/ladder/create`.
 
-# API Request
+### API Request
 
 All API operations use the HTTP `POST` method.
 
@@ -243,14 +215,14 @@ Authenticated requests use the following structure:
 
 Do not duplicate the target entity ID in the payload when it is already identified by the URL.
 
-# Authentication and Signature Verification
+### Authentication and Signature Verification
 
 All requests from the app must be signed using the esisting ... service
 All operations at the api must verify the caller using the existing doSignatureVerification() service.
 
 Do not implement authentication or signing logic independently within individual features. Reuse the existing services.
 
-# API Response
+### API Response
 
 All API operations must return a consistent JSON response.
 
@@ -302,7 +274,7 @@ The API must await completion of the export before returning its response so tha
 
 The Azure Table remains the authoritative data source. `guids.json` is a derived representation and must not be modified independently.
 
-# App Response
+### App Response
 
 The Svelte client must follow a consistent sequence after every API response, regardless of success or failure:
 
@@ -320,7 +292,7 @@ If the refresh fails, the client must not navigate. It should report the refresh
 
 Redirect destinations must be relative application paths, not arbitrary external URLs.
 
-# Idempotency
+### Idempotency
 
 API operations should be designed so that repeating an identical request does not produce unintended additional effects.
 
@@ -330,7 +302,7 @@ Operations that cannot naturally be idempotent must explicitly handle duplicate 
 
 Requests do not include timestamps or nonces. Consequently, signatures do not provide general replay prevention. Features requiring stronger protection must address this explicitly.
 
-# Feature Implementation
+### Feature Implementation
 
 When developing a new feature:
 
@@ -344,7 +316,7 @@ When developing a new feature:
 
 Frontend and API changes should be developed and tested together so that their contracts remain consistent.
 
-### 6. Sample Data
+# 6. Sample Data
 
 The following sample guids.json shows how the entities and relations work
 
