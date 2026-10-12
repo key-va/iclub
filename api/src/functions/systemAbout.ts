@@ -1,6 +1,6 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
 import { DefaultAzureCredential } from "@azure/identity";
-import { TableClient, odata } from "@azure/data-tables";
+import { TableClient } from "@azure/data-tables";
 
 const storageAccount = process.env.ICLUB_STORAGE_ACCOUNT;
 
@@ -14,40 +14,24 @@ const tableClient = new TableClient(
     new DefaultAzureCredential()
 );
 
-async function count(pk: string): Promise<number> {
-
-    let total = 0;
-
-    const entities = tableClient.listEntities({
-        queryOptions: {
-            filter: odata`PartitionKey eq ${pk}`,
-            select: ["RowKey"]
-        }
-    });
-
-    for await (const _ of entities) {
-        total++;
-    }
-
-    return total;
-}
-
 export async function systemAbout(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
 
-    const [users, clubs, ladders, matches] = await Promise.all([
-        count("user"),
-        count("club"),
-        count("ladder"),
-        count("match")
-    ]);
+    // Entity rows have a bare type as pk (e.g. "user"); relation rows use entity ids (containing "_") as pk.
+    const counts: Record<string, number> = {};
+    let total = 0;
+
+    for await (const row of tableClient.listEntities({ queryOptions: { select: ["PartitionKey"] } })) {
+        const pk = row.partitionKey;
+        if (!pk || pk.includes("_")) continue;
+        counts[pk] = (counts[pk] ?? 0) + 1;
+        total++;
+    }
 
     return {
         status: 200,
         jsonBody: {
-            message: `Okay, Intra Club is up and running`,
-            data: [
-                { users, clubs, ladders, matches }
-            ]
+            message: `Okay, Intra Club is up and running with ${total} total entities`,
+            data: [counts]
         }
     };
 }
