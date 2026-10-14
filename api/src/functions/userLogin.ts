@@ -19,19 +19,19 @@ const tableClient = new TableClient(
 
 export async function userLogin(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
 
-    let body: { email?: string; phone?: string; otp?: string; key?: string };
+    let body: { data?: { email?: string; phone?: string; otp?: string; key?: string } };
 
     try {
         body = await request.json() as typeof body;
     } catch {
-        return { status: 400, jsonBody: { message: "Invalid JSON payload", data: [] } };
+        return { status: 400, jsonBody: { success: false, message: "Invalid JSON payload" } };
     }
 
-    const { email, phone, otp, key } = body ?? {};
+    const { email, phone, otp, key } = body?.data ?? {};
     const contact = email || phone;
 
     if (!contact || !otp || !key) {
-        return { status: 400, jsonBody: { message: "email or phone, otp and key are required", data: [] } };
+        return { status: 400, jsonBody: { success: false, message: "email or phone, otp and key are required" } };
     }
 
     try {
@@ -45,7 +45,7 @@ export async function userLogin(request: HttpRequest, context: InvocationContext
             throw new Error("Not an EC key");
         }
     } catch {
-        return { status: 400, jsonBody: { message: "key must be a Base64 SPKI EC public key", data: [] } };
+        return { status: 400, jsonBody: { success: false, message: "key must be a Base64 SPKI EC public key" } };
     }
 
     const entities = tableClient.listEntities({
@@ -62,7 +62,7 @@ export async function userLogin(request: HttpRequest, context: InvocationContext
     }
 
     if (!user || !user.otp || user.otp !== otp) {
-        return { status: 401, jsonBody: { message: "Invalid otp", data: [] } };
+        return { status: 401, jsonBody: { success: false, message: "Invalid otp" } };
     }
 
     const { partitionKey, rowKey, timestamp, etag, otp: used, ...properties } = user;
@@ -79,10 +79,10 @@ export async function userLogin(request: HttpRequest, context: InvocationContext
     return {
         status: 200,
         jsonBody: {
+            success: true,
             message: `Okay, user ${properties.name} logged in`,
-            data: [
-                { pk: userId, rk: deviceId }
-            ]
+            subject: userId,
+            data: { user_id: userId, device_id: deviceId }
         }
     };
 }

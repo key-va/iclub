@@ -175,6 +175,14 @@ resource functionApp 'Microsoft.Web/sites@2024-11-01' = {
       alwaysOn: true
       linuxFxVersion: 'NODE|22'
 
+      cors: {
+        allowedOrigins: [
+          'https://app.intra.club'
+          'https://${staticWebApp.properties.defaultHostname}'
+          'http://localhost:5173'
+        ]
+      }
+
       appSettings: [
         {
           name: 'FUNCTIONS_EXTENSION_VERSION'

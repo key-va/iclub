@@ -12,6 +12,9 @@ export const PUBLIC_URL = `https://${PREFIX}xsa.blob.core.windows.net/public`;
 
 export const GUIDS_URL = `${PUBLIC_URL}/guids.json`;
 
+// Function App hosting the API (named `${prefix}xfa` in infra/main.bicep).
+export const API_URL: string = import.meta.env.VITE_API_URL ?? `https://${PREFIX}xfa.azurewebsites.net/api`;
+
 export const ONESIGNAL_APP_ID: string = import.meta.env.DEV
 	? '19b595b2-a74d-4f12-8ef5-5c250d1e7064' // localhost
 	: '24ed781d-4a8b-4327-b388-467bf81dda37';

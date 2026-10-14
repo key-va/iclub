@@ -1,420 +1,262 @@
-# Intra Club — AGENTS.md
+# AGENTS.md - Application Architecture & Development Guide
 
-Intra Club is an application for tennis clubs to manage ladders, competitions and club teams.
+This monorepo provides a reusable pattern for developing applications. The solution uses generic components and a universal data structure to support different applications without changing the underlying architecture.
 
-Ladders - challenge matches between club members.
-Competitions - organised competitive events between club members.
-Teams - club teams that play in external events.
+## High Level Architecture
 
-The application uses a graph-based data model. Users, clubs, ladders and other objects are represented as entities connected through relationships. App users start at their own entity and traverse the graph reaching any related entity.
+The solution uses three primary Azure resources:
 
-This mono repo includes the infrastructure, back end api and front end app
+- **Azure Static Web App** - Hosts the SvelteKit frontend.
+- **Azure Function App** - Hosts the Node.js backend API.
+- **Azure Storage Account** - Provides persistent data storage.
 
-## 1. Data Structure
+The Storage Account contains a table named `guids` and a publicly accessible blob container named `public`, containing `guids.json`.
 
-Intra Club uses a flexible, graph-based data model consisting of **entities** and **relations**. Both are stored in the same Azure Table.
+The SvelteKit frontend reads data from `guids.json` and performs mutations through the Node.js backend API.
 
-### Entities
+Additional resources include:
 
-An entity represents something with its own identity.
+- **Key Vault, Application Insights and User Assigned Managed Identity** - Supporting infrastructure.
+- **auths table** - Stores user authentication data and is not publicly exported.
+- **public blob container** - Also stores images and other public resources.
 
-Each entity has:
+## Data Structure
 
-'pk' - entity type
-'rk' - unique entity identifier
-'name' - every entity must have a name field
-Additional attributes (optional) describing the entity
+The solution uses a lightweight property-graph model built on Azure Table Storage. It supports arbitrary data without changing the underlying database structure.
 
-Entity identifiers are in the form: entity_YYYY-MM-DD_HH-MM-SS_random
-where:
-entity - entity type: user, ladder, team etc
-YYYY-MM-DD - year month day
-HH-MM-SS - hour min sec
-random - 12 character random string
+Data is represented by two types of rows: **entities** and **relations**.
 
-An entity should contain attributes that describe the entity itself, independently of its relationships with other entities.
+### Entity Rows
 
-### Relations
+Entities represent independent objects.
 
-A relation represents a connection between two entities.
+Each entity must contain:
 
-Relations use the identifiers of the connected entities as their keys:
+- `pk` - Entity type.
+- `rk` - Globally unique ID in the format `entity_YYYY-MM-DD_HH-MM-SS_abc123abc123`.
+- `name` - Human-readable name.
 
-'pk' - first entity ID
-'rk' - second entity ID
-Additional attributes (optional) describing the relation between the entities
-
-Every relation is stored in both directions, allowing the graph to be traversed from either entity. Both directions contain identical attributes, except for their reversed keys.
-
-Relations may contain attributes describing the connection, including permissions, participation, configuration or mutable state.
-
-### Attribute Placement
-
-When introducing an attribute, determine what it describes:
-
-**Entity attribute** Describes the entity independently of other entities.
-**Relation attribute** Describes how two entities are connected or their state within that relationship.
-
-Do not duplicate attributes across entities and relations unnecessarily.
-
-Avoid storing relationships that can already be reliably derived by traversing the graph, unless the additional relationship has independent meaning.
-
-Use booleans for independent states that may coexist, and named values for classifications or mutually exclusive choices.
-
-Use stable machine-readable values for application logic rather than relying on display text.
-
-The model should remain flexible enough to accommodate new entity types and relationships without requiring changes to its fundamental structure.
-
-## 2. Infrastructure and Data Services
-
-Intra Club uses Azure services for data storage, application hosting and back end operations.
-
-### Azure Table Storage
-
-Azure Table Storage holds the application's structured data.
-
-The main tables are:
-
-**guids** - The authoritative source of application entities, relations and their attributes.
-
-**auths** - Private authentication and identity lookup data, including associations between contact identifiers and players.
-
-**logs** - Operational and application logging data.
-
-### Azure Blob Storage
-
-Blob Storage holds data consumed by the application and content that is more appropriately represented as files.
-
-**guids.json** - A JSON export of the `guids` table, containing entities and relations in a flat array. It is generated from the authoritative table data and should not be independently modified.
-
-The exported representation uses:
-
-- `pk` — PartitionKey
-- `rk` — RowKey
-- `ts` — Azure timestamp
-- `et` — Azure ETag
-
-**strings.json** - A public reference file for human-readable application content, such as descriptions, rules, labels and explanatory text. It separates changeable wording from the stable identifiers and values used by application logic.
-
-**Other blob content** - Images, club icons, player images and other file-based assets are stored in Blob Storage.
-
-### Hosting and Deployment
-
-- **Azure Static Web Apps** hosts the Svelte web client.
-- **Azure Functions** hosts the API.
-- **Managed Identity** is used for access to supported Azure resources.
-- **Azure Key Vault** holds secrets where required.
-- **Bicep** defines the Azure infrastructure.
-- **GitHub Actions** builds and deploys the application.
-
-Infrastructure changes should be maintained in the infrastructure code rather than relying on undocumented manual configuration.
-
-Pipelines are in place to push infra api and app code
-
-## 4. api
-
-Azure Functions provides the application's backend API.
-
-The API is responsible for:
-
-- Authenticating requests and enforcing permissions.
-- Applying business rules.
-- Coordinating changes across entities and relations.
-- Publishing updated data for client consumption.
-
-### Existing Helper Services
-
-The API provides the following foundational services:
-
-`doNewGuid()` - Generate entity identifiers
-`doUpsertAuth()` - Create or update and AUTH table entity or relation
-`doUpsertEntity()` - Create or update an entity
-`doUpsertRelation()` - Create or update both directions of a relation
-`doGuidsToPublic()` - Export the `guids` table to public `guids.json`
-`doSignatureVerification()` - Signature validation
-
-These services should be reused when implementing new API functionality.
-
-A business operation may involve multiple changes. Complete the required changes before publishing the updated `guids.json`, rather than exporting after every individual write.
-
-The Table remains authoritative; JSON exports are derived representations.
-
-## 5. app
-
-The web client is built using Svelte and SvelteKit and deployed as a static web application.
-
-### Reading Application Data
-
-The client reads `guids.json` from public Blob Storage to obtain application entities and relations.
-
-The client should use this data to build its views and navigate the graph, rather than requiring separate API endpoints for every read operation.
-
-Additional public reference content, such as `strings.json`, and file assets may also be loaded from Blob Storage.
-
-The client may filter and traverse the available graph to construct the user experience.
-
-Client-side filtering is a presentation mechanism, not a security boundary. Data requiring confidentiality must not be included in a publicly accessible export.
-
-### Modifying Application Data
-
-The client must not directly modify Azure Table Storage or the exported JSON.
-
-All changes are made through the Azure Functions API.
-
-## 6. Development Approach
-
-The API and Svelte client should be developed together when implementing new functionality.
-
-When implementing a feature, consider:
-
-- Which entities and relations represent its data.
-- Which information the client can read from the existing graph.
-- Which operations require API endpoints.
-- Which existing services can perform the required changes.
-
-Prefer extending the existing model and services rather than introducing parallel mechanisms for new features.
-
-### Routing
-
-The Svelte client and API should share a consistent URL path structure identifying the entity and action.
-
-The standard path is:
-
-`/{entityType}/{entityId}/{action}`
-
-For example:
-
-- Svelte: `/ladder/ladder_123/join`
-- API: `/api/ladder/ladder_123/join`
-
-The Svelte route provides the user interface, while the API performs the operation. An action does not necessarily require a dedicated Svelte page; it may be performed from an existing view.
-
-Creation and other operations without an existing entity ID may use an appropriate action path, such as `/api/ladder/create`.
-
-### API Request
-
-All API operations use the HTTP `POST` method.
-
-Operation parameters must be supplied in the request body rather than URL query parameters.
-
-Authenticated requests use the following structure:
+Additional attributes may describe the entity itself.
 
 ```json
 {
-  "caller_id": "user_123",
-  "device_id": "device_456",
-  "signature": "...",
-  "payload": {}
+  "pk": "user",
+  "rk": "user_2026-10-20_13-00-43_abc123abc123",
+  "name": "Jane Doe"
 }
 ```
 
-- `caller_id` identifies the user making the request.
-- `device_id` identifies the device used to authenticate the request.
-- `signature` proves possession of the device's registered private key.
-- `payload` contains operation-specific parameters and may be empty.
+The above example represents a user named Jane Doe with no additional attributes.
 
-Do not duplicate the target entity ID in the payload when it is already identified by the URL.
+### Relation Rows
 
-### Authentication and Signature Verification
+Relations represent connections between two entities.
 
-All requests from the app must be signed using the esisting ... service
-All operations at the api must verify the caller using the existing doSignatureVerification() service.
+Each relationship must contain two mirrored rows:
 
-Do not implement authentication or signing logic independently within individual features. Reuse the existing services.
+- `pk` - ID of one entity.
+- `rk` - ID of the related entity.
+- The second row swaps `pk` and `rk`.
+- All other attributes must be identical in both rows.
 
-### API Response
-
-All API operations must return a consistent JSON response.
-
-Successful operation:
-
-```json
-{
-  "success": true,
-  "message": "Match created successfully.",
-  "redirect": "/match/match_123",
-  "data": {
-    "id": "match_123"
-  }
-}
-```
-
-Failed operation:
-
-```json
-{
-  "success": false,
-  "message": "You are not permitted to create this match.",
-  "redirect": null,
-  "error": {
-    "code": "NOT_AUTHORISED"
-  }
-}
-```
-
-Response fields:
-
-- `success` — mandatory boolean indicating whether the operation succeeded.
-- `message` — mandatory human-readable message that the client can display for both successful and failed operations.
-- `redirect` — mandatory relative Svelte application path, or `null` when navigation is not required.
-- `data` — optional operation-specific result data.
-- `error` — optional error object containing a stable machine-readable `code`.
-
-Use appropriate HTTP status codes in addition to the JSON response.
-
-The API is responsible for generating the response message and navigation destination. The client should not need to construct these from the operation result.
-
-Do not return the complete application graph when the client can obtain the updated state from `guids.json`.
-
-Every API operation must refresh the public `guids.json` using `doGuidsToPublic()` before returning its response.
-
-When an operation involves multiple changes, complete those changes before publishing the updated JSON.
-
-The API must await completion of the export before returning its response so that the client can retrieve the latest data.
-
-The Azure Table remains the authoritative data source. `guids.json` is a derived representation and must not be modified independently.
-
-### App Response
-
-The Svelte client must follow a consistent sequence after every API response, regardless of success or failure:
-
-1. Receive the API response.
-2. Display the response `message`.
-3. Fetch the latest `guids.json` from Blob Storage.
-4. Replace the client's existing graph data with the refreshed data.
-5. Navigate to `redirect` if a destination was provided and the refresh succeeded.
-
-The client must await the refreshed data before navigating.
-
-The client should fetch a fresh copy rather than relying on a cached version of `guids.json`.
-
-If the refresh fails, the client must not navigate. It should report the refresh failure and allow the user to retry fetching the data without repeating the original API operation.
-
-Redirect destinations must be relative application paths, not arbitrary external URLs.
-
-### Idempotency
-
-API operations should be designed so that repeating an identical request does not produce unintended additional effects.
-
-For example, repeatedly joining the same ladder should not create duplicate participation.
-
-Operations that cannot naturally be idempotent must explicitly handle duplicate requests.
-
-Requests do not include timestamps or nonces. Consequently, signatures do not provide general replay prevention. Features requiring stronger protection must address this explicitly.
-
-### Feature Implementation
-
-When developing a new feature:
-
-1. Define the required entities, relations and attributes.
-2. Implement the API operation using existing helper services.
-3. Apply authentication, authorisation and business rules in the API.
-4. Implement the corresponding Svelte functionality using the agreed routing and request conventions.
-5. Handle the standard API response, including success and failure messages.
-6. Ensure the API publishes `guids.json` before responding.
-7. Ensure the client refreshes `guids.json` before following any redirect.
-
-Frontend and API changes should be developed and tested together so that their contracts remain consistent.
-
-# 6. Sample Data
-
-The following sample guids.json shows how the entities and relations work
-
-A user exists named "User Zero"
-A club exists named "Intra Club"
-Two Ladders exist named "Intra Club Singles Ladder" and "Intra Club Doubles Ladder"
-
-The user is an admin of both ladders and the club
-Both ladders are related to the club
-
-There are no users participating in either ladder yet
+Additional attributes may describe the relationship between the entities.
 
 ```json
 [
   {
-    "pk": "bot",
-    "rk": "bot_0000-00-00_00-00-00_bootstrap00b",
-    "name": "Intra Club Bot"
+    "pk": "user_2026-10-20_13-00-43_abc123abc123",
+    "rk": "ladder_2025-12-20_13-14-46_abc123abc123",
+    "rank": 4,
+    "state": "away"
   },
   {
-    "pk": "user",
-    "rk": "user_0000-00-00_00-00-00_bootstrap0uz",
-    "name": "User Zero"
-  },
-  {
-    "pk": "club",
-    "rk": "club_0000-00-00_00-00-00_bootstrap00c",
-    "name": "Intra Club",
-	"url": "app",
-    "foreground":"#00BFFF",
-    "background":"#E75480",
-    "street":"6/9 Dickens Street",
-    "suburb":"Elwood",
-    "postcode":"3184"
-  },
-  {
-    "pk": "club_0000-00-00_00-00-00_bootstrap00c",
-    "rk": "user_0000-00-00_00-00-00_bootstrap0uz",
-	"admin": true
-  },
-  {
-    "pk": "user_0000-00-00_00-00-00_bootstrap0uz",
-	"rk": "club_0000-00-00_00-00-00_bootstrap00c",
-	"admin": true
-  },
-  {
-    "pk": "ladder",
-    "rk": "ladder_0000-00-00_00-00-00_bootstrap00s",
-    "name": "Intra Club Singles Ladder",
-    "format": "singles",
-    "scoring": "super-set",
-    "playPeriod": "9",
-    "coolPeriod": "3"
-  },
-  {
-    "pk": "ladder_0000-00-00_00-00-00_bootstrap00s",
-    "rk": "user_0000-00-00_00-00-00_bootstrap0uz",
-    "admin": true
-  },
-  {
-    "pk": "user_0000-00-00_00-00-00_bootstrap0uz",
-    "rk": "ladder_0000-00-00_00-00-00_bootstrap00s",
-    "admin": true
-  },
-  {
-    "pk": "club_0000-00-00_00-00-00_bootstrap00c",
-    "rk": "ladder_0000-00-00_00-00-00_bootstrap00s"
-  },
-  {
-    "pk": "ladder_0000-00-00_00-00-00_bootstrap00s",
-    "rk": "club_0000-00-00_00-00-00_bootstrap00c"
-  },
-  {
-    "pk": "ladder",
-    "rk": "ladder_0000-00-00_00-00-00_bootstrap00d",
-    "name": "Intra Club Doubles Ladder",
-    "format": "doubles",
-    "scoring": "fast-four",
-    "playPeriod": "9",
-    "coolPeriod": "3"
-  },
-  {
-    "pk": "ladder_0000-00-00_00-00-00_bootstrap00d",
-    "rk": "user_0000-00-00_00-00-00_bootstrap0uz",
-    "admin": true
-  },
-  {
-    "pk": "user_0000-00-00_00-00-00_bootstrap0uz",
-    "rk": "ladder_0000-00-00_00-00-00_bootstrap00d",
-    "admin": true
-  },
-  {
-    "pk": "club_0000-00-00_00-00-00_bootstrap00c",
-    "rk": "ladder_0000-00-00_00-00-00_bootstrap00d"
-  },
-  {
-    "pk": "ladder_0000-00-00_00-00-00_bootstrap00d",
-    "rk": "club_0000-00-00_00-00-00_bootstrap00c"
+    "pk": "ladder_2025-12-20_13-14-46_abc123abc123",
+    "rk": "user_2026-10-20_13-00-43_abc123abc123",
+    "rank": 4,
+    "state": "away"
   }
 ]
 ```
+
+The above example represents a user ranked fourth in a ladder, with their participation state set to `away`.
+
+The `rank` and `state` attributes describe the user's relationship with the ladder, not either entity independently.
+
+### Core Principles
+
+1. Every object is an entity with a type and globally unique ID.
+2. Every relationship is represented by two mirrored rows for bidirectional lookup.
+3. Entity attributes describe objects; relation attributes describe associations.
+4. All entities and relations follow the same storage conventions.
+5. Application logic defines validation, meaning and behaviour independently of the storage model.
+6. Relationships are traversed by querying an entity's partition and following related IDs.
+
+## Application Development
+
+The backend API and frontend must be developed together. The API handles validation and data mutations, while the frontend handles presentation and user interaction.
+
+## Node.js Backend API
+
+The backend provides endpoints for application actions and reusable services for common operations.
+
+### Scaffolded Services
+
+The following services provide common functionality and should be reused rather than duplicated.
+
+- **doGuidsToPublic** - Exports the guids table to the public guids.json blob.
+- **doNewGuid** - Generates a new globally unique entity ID.
+- **doSignatureVerification** - Verifies the signature of an incoming API request.
+- **doUpsertAuth** - Creates or updates records in the auths table.
+- **doUpsertEntity** - Creates or updates an entity row in the guids table.
+- **doUpsertRelation** - Creates or updates both mirrored relation rows in the guids table.
+
+These services should cover the data access requirements of new endpoints without introducing additional storage services.
+
+### Scaffolded Endpoints
+
+The following endpoints are provided as part of the application scaffold:
+
+- **system/about** - Returns basic counts of the dataset in the guids table.
+- **system/restore** - Purges the guids table and rebuilds it from supplied JSON.
+- **user/login** - Authenticates a user.
+- **user/otp** - Handles one-time password verification.
+- **user/create** - Creates a new user.
+- **user/:user_id/update** - Updates an existing user.
+- **user/:user_id/delete** - Deletes an existing user.
+
+### Endpoint Development
+
+Each endpoint follows a parameterised route structure, identifying the target entity and action in the URL.
+
+- The HTTP method is always POST.
+- The URL identifies the entity type, entity ID and action.
+- Each endpoint must be idempotent, preventing repeated mutations or side effects.
+
+Each endpoint expects a JSON payload containing:
+
+- **device_id** - ID of the device.
+- **caller_id** - ID of the user.
+- **signature** - Signature of the device ID, caller ID and request path.
+- **data** - Optional attributes required by the action.
+
+Each endpoint returns a standard JSON response containing:
+
+- **success** - Boolean indicating success or failure.
+- **message** - Human-readable message for display to the user.
+- **subject** - Optional entity ID for client navigation.
+- **data** - Optional data as neccessary
+
+Each endpoint performs a specific action using the existing services:
+
+1. Verify the request signature using `doSignatureVerification`.
+2. Fetch the target entity and its relationships from the `guids` table.
+3. Validate the request and authorise the action where necessary.
+4. Apply the business rules and perform mutations using the existing services, usually `doNewGuid`, `doUpsertEntity` and `doUpsertRelation` as neccessary.
+5. Export the updated data using `doGuidsToPublic`.
+6. Return the standard response.
+
+Business rules should be implemented inline within the endpoint function. Shared services should handle common operations rather than domain-specific behaviour.
+
+The endpoint must derive existing relationships and context from the `guids` table, rather than requiring the client to supply them.
+
+Example: Complete a match
+
+POST https://app.intra.club/api/match/match_2025-12-20_13-14-46_abc123abc123/complete
+
+Request:
+
+```json
+{
+  "caller_id": "user_2026-10-20_13-00-43_abc123abc123",
+  "device_id": "device_2026-10-20_13-00-43_abc123abc123",
+  "signature": "generated_signature",
+  "data": {
+    "winner": "user_2025-12-20_13-14-46_abc123abc123",
+    "winnerScore": 8,
+    "loser": "user_2022-12-20_13-14-46_abc123abc123",
+    "loserScore": 3
+  }
+}
+```
+
+Response:
+
+```json
+{
+  "success": true,
+  "message": "Jane Doe defeats Mike Fox 8-3",
+  "subject": "match_2025-12-20_13-14-46_abc123abc123"
+}
+```
+
+The above example represents a completed match.
+
+The API retrieves the match entity and its related rows by querying the Match ID as the partition key. It then applies the relevant business rules based on the relationships found, such as updating ladder rankings or tournament progression.
+
+The match's context is determined by the existing data, not by the request URL or payload.
+
+## SvelteKit Frontend
+
+The frontend provides the user interface using SvelteKit, with reactive stores managing application data and the backend API handling mutations.
+
+### Scaffolded Stores
+
+Svelte stores provide shared, reactive application state.
+
+- **guids** - Contains the dataset loaded from `guids.json` and provides a functions related to the same.
+- **local** - Maintains the current user and authentication state and provides a generate_signature function used for API calls.
+
+The `guids` store is the common source of data for all pages and components.
+- The dataset is loaded into the store during application initialisation.
+- The dataset is updated/refreshed/merged every 90 seconds or on demand after an API is called.
+- Pages and components subscribe to the store rather than fetching guids.json independently.
+- Entities are identified by their rk.
+- Relationships are identified by filtering rows where pk matches an entity ID.
+- Entity and relation views are derived reactively from the store.
+- Updating the store automatically updates all dependent pages and components.
+- The store represents the current public dataset. It must not be directly modified to simulate backend mutations.
+
+### Scaffolded Components
+
+The following layouts and components provide common application functionality.
+
+- **userLogin** - Allows user creation or login flow (calling `user/create`, `user/otp` and `user/login` API endpoints)
+- **userUpdate** - Allows user email, phone and name updates (calling `user/:user_id/update` API endpoints)
+- **apiService** - Handles API requests, responses and loading
+
+Shared layouts and components should be reused rather than duplicated across pages.
+
+### Scaffolded Layout and Pages
+
+The following pages are provided as part of the application scaffold:
+
+- **+layout.svelte** - Provides the shared application layout (header, footer and navigation buttons) and initialises the stores.
+- **+page.svelte** - The root landing page shows login components or redirects to the user page if logged in.
+- **user route** - User page displaying user information and edit functionality.
+
+### App Development
+
+Each entity has a page following the parameterised route structure `/:entity/:entity_id`.
+
+Pages display the entity's attributes and use components to display related entities, including attributes describing their relationships.
+
+All pages and components read reactively from the shared `guids` store, ensuring changes to the dataset are automatically reflected in the UI.
+
+Example: User Page
+
+The scaffold includes a user page at `user/:user_id` that:
+
+- Displays the user's attributes from the user entity.
+- Shows a userUpdate component only when the displayed user is the currently logged-in user.
+
+The update component calls `user/:user_id/update` using the scaffolded API and signature services. After the response, the shared `guids` store is refreshed before any navigation.
+
+All new development should follow this pattern:
+
+- Each entity type has a page displaying its attributes.
+- Related entities are displayed using reusable components, with relation attributes providing context.
+- Components should work in either direction of a relationship. For example, a user page displays related ladders, while a ladder page displays related users.
+- Pages and components derive their data reactively from the shared `guids` store rather than maintaining separate copies.
+- Components and actions are made available to the user based on the data state.
+
+New features should extend this pattern, reusing existing components and services wherever possible.

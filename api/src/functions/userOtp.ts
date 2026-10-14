@@ -17,18 +17,18 @@ const tableClient = new TableClient(
 
 export async function userOtp(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
 
-    let body: { email?: string; phone?: string };
+    let body: { data?: { email?: string; phone?: string } };
 
     try {
         body = await request.json() as typeof body;
     } catch {
-        return { status: 400, jsonBody: { message: "Invalid JSON payload", data: [] } };
+        return { status: 400, jsonBody: { success: false, message: "Invalid JSON payload" } };
     }
 
-    const contact = body?.email || body?.phone;
+    const contact = body?.data?.email || body?.data?.phone;
 
     if (!contact) {
-        return { status: 400, jsonBody: { message: "email or phone is required", data: [] } };
+        return { status: 400, jsonBody: { success: false, message: "email or phone is required" } };
     }
 
     const entities = tableClient.listEntities({
@@ -44,8 +44,16 @@ export async function userOtp(request: HttpRequest, context: InvocationContext):
         break;
     }
 
+    // Unknown contact is not an error: the client uses it to start the create flow
     if (!user) {
-        return { status: 404, jsonBody: { message: "User not found", data: [] } };
+        return {
+            status: 200,
+            jsonBody: {
+                success: true,
+                message: "No user found, please enter your name to create one",
+                data: { exists: false }
+            }
+        };
     }
 
     const { partitionKey, rowKey, timestamp, etag, ...properties } = user;
@@ -59,10 +67,9 @@ export async function userOtp(request: HttpRequest, context: InvocationContext):
     return {
         status: 200,
         jsonBody: {
+            success: true,
             message: `Okay, Otp sent to ${properties.name}`,
-            data: [
-                { pk: userId }
-            ]
+            data: { exists: true }
         }
     };
 }

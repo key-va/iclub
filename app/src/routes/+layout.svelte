@@ -16,7 +16,7 @@
 	onMount(() => {
 		// load the guids snapshot once on startup, then keep it fresh
 		guids.load().catch((err) => console.error('[guids] initial load failed', err));
-		guids.startAutoRefresh(15000);
+		guids.startAutoRefresh(90000);
 
 		return () => guids.stopAutoRefresh();
 	});

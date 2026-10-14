@@ -30,6 +30,7 @@ export async function systemAbout(request: HttpRequest, context: InvocationConte
     return {
         status: 200,
         jsonBody: {
+            success: true,
             message: `Okay, Intra Club is up and running with ${total} total entities`,
             data: [counts]
         }

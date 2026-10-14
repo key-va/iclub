@@ -34,6 +34,36 @@ const initialState: GuidsState = {
 	autoRefreshMs: null
 };
 
+const rowKey = (row: GuidRow) => `${row.pk}|${row.rk}`;
+
+function sameRow(a: GuidRow, b: GuidRow): boolean {
+	const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
+
+	for (const key of keys) {
+		if (JSON.stringify(a[key]) !== JSON.stringify(b[key])) return false;
+	}
+
+	return true;
+}
+
+// Reuse the existing row objects where nothing changed, and return the previous
+// array untouched when the dataset is identical.
+function mergeRows(previous: GuidRow[], incoming: GuidRow[]): GuidRow[] {
+	const existing = new Map(previous.map((row) => [rowKey(row), row]));
+	let changed = previous.length !== incoming.length;
+
+	const merged = incoming.map((row, index) => {
+		const old = existing.get(rowKey(row));
+		const keep = old && sameRow(old, row) ? old : row;
+
+		if (keep !== previous[index]) changed = true;
+
+		return keep;
+	});
+
+	return changed ? merged : previous;
+}
+
 function createGuidsStore() {
 	const { subscribe, update, set } = writable<GuidsState>({ ...initialState });
 
@@ -72,15 +102,20 @@ function createGuidsStore() {
 				throw new Error('guids.json did not return an array');
 			}
 
-			update((state) => ({
-				...state,
-				items: json as GuidRow[],
-				loading: false,
-				refreshing: false,
-				loaded: true,
-				error: null,
-				lastFetchedAt: new Date().toISOString()
-			}));
+			update((state) => {
+				const items = mergeRows(state.items, json as GuidRow[]);
+
+				return {
+					...state,
+					// Same array when nothing changed, so dependants are not invalidated
+					items,
+					loading: false,
+					refreshing: false,
+					loaded: true,
+					error: null,
+					lastFetchedAt: new Date().toISOString()
+				};
+			});
 
 			return json as GuidRow[];
 		} catch (error) {

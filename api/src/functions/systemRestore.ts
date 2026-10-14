@@ -33,7 +33,7 @@ export async function systemRestore(
                 status: 400,
                 jsonBody: {
                     success: false,
-                    error: "POST body must contain a JSON array."
+                    message: "POST body must contain a JSON array."
                 }
             };
         }
@@ -50,7 +50,7 @@ export async function systemRestore(
                     status: 400,
                     jsonBody: {
                         success: false,
-                        error: "Every row must contain pk and rk."
+                        message: "Every row must contain pk and rk."
                     }
                 };
             }
@@ -97,9 +97,8 @@ export async function systemRestore(
             status: 200,
             jsonBody: {
                 success: true,
-                deleted,
-                restored,
-                exported
+                message: `Okay, restored ${restored} rows (${deleted} removed, ${exported} exported)`,
+                data: { deleted, restored, exported }
             }
         };
 
@@ -111,7 +110,7 @@ export async function systemRestore(
             status: 500,
             jsonBody: {
                 success: false,
-                error: error instanceof Error
+                message: error instanceof Error
                     ? error.message
                     : "Restore failed."
             }
