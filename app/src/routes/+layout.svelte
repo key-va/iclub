@@ -5,7 +5,7 @@
 	import { APP_VERSION, PUBLIC_URL } from '#lib/config.ts';
 	import { guids, nameOf } from '#lib/stores/guids.ts';
 	import { local } from '#lib/stores/local.ts';
-	import OneSignal from '#lib/components/OneSignal.svelte';
+	import { startPush } from '#lib/stores/push.ts';
 	import type { LayoutProps } from './$types';
 
 	let { children }: LayoutProps = $props();
@@ -18,7 +18,12 @@
 		guids.load().catch((err) => console.error('[guids] initial load failed', err));
 		guids.startAutoRefresh(90000);
 
-		return () => guids.stopAutoRefresh();
+		const stopPush = startPush();
+
+		return () => {
+			guids.stopAutoRefresh();
+			stopPush();
+		};
 	});
 
 	function back() {
@@ -36,8 +41,6 @@
 	<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
 	<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
 </svelte:head>
-
-<OneSignal />
 
 <div class="fixed-top">
 	<div class="row right">
