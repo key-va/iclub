@@ -27,7 +27,8 @@ export async function userLogin(request: HttpRequest, context: InvocationContext
         return { status: 400, jsonBody: { success: false, message: "Invalid JSON payload" } };
     }
 
-    const { email, phone, otp, key } = body?.data ?? {};
+    const { email: rawEmail, phone, otp, key } = body?.data ?? {};
+    const email = rawEmail?.trim().toLowerCase();
     const contact = email || phone;
 
     if (!contact || !otp || !key) {

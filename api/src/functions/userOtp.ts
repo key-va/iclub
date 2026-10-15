@@ -25,7 +25,7 @@ export async function userOtp(request: HttpRequest, context: InvocationContext):
         return { status: 400, jsonBody: { success: false, message: "Invalid JSON payload" } };
     }
 
-    const contact = body?.data?.email || body?.data?.phone;
+    const contact = body?.data?.email?.trim().toLowerCase() || body?.data?.phone;
 
     if (!contact) {
         return { status: 400, jsonBody: { success: false, message: "email or phone is required" } };

@@ -25,7 +25,8 @@ export async function doUpsertAuth(
         {
             partitionKey: pk,
             rowKey: rk,
-            ...properties
+            ...properties,
+            ...(typeof properties.email === "string" ? { email: properties.email.trim().toLowerCase() } : {})
         },
         "Replace"
     );

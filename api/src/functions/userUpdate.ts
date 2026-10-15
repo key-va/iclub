@@ -68,11 +68,19 @@ export async function userUpdate(request: HttpRequest, context: InvocationContex
     }
 
     const name = data?.name?.trim();
-    const email = data?.email?.trim();
-    const phone = data?.phone?.trim();
+    const email = data?.email?.trim().toLowerCase();
+    const phone = data?.phone?.replace(/[\s\-().+]/g, "");
 
     if (data?.name !== undefined && !name) {
         return { status: 400, jsonBody: { success: false, message: "name cannot be empty" } };
+    }
+
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        return { status: 400, jsonBody: { success: false, message: "email is not a valid address" } };
+    }
+
+    if (phone && !/^\d{8,15}$/.test(phone)) {
+        return { status: 400, jsonBody: { success: false, message: "phone must be 8 to 15 digits including country code" } };
     }
 
     // Email and phone identify a login, so they must stay unique

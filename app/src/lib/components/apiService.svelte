@@ -13,6 +13,8 @@
 		// false skips the confirmation overlay and runs immediately
 		confirm?: boolean;
 		disabled?: boolean;
+		// true renders just the button so it can sit inside a caller's own row
+		inline?: boolean;
 		onsuccess?: (result: ApiResponse) => void | Promise<void>;
 	}
 
@@ -24,6 +26,7 @@
 		signed = true,
 		confirm = true,
 		disabled = false,
+		inline = false,
 		onsuccess
 	}: Props = $props();
 
@@ -105,14 +108,22 @@
 	}
 </script>
 
-<div class="row right">
+{#snippet trigger()}
 	<button class={disabled ? 'grey' : 'pink'} aria-label={name} {disabled} onclick={start}>
 		<p>{name}</p>
 		<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
 			<path d="M5 12h14M13 5l7 7-7 7" />
 		</svg>
 	</button>
-</div>
+{/snippet}
+
+{#if inline}
+	{@render trigger()}
+{:else}
+	<div class="row right">
+		{@render trigger()}
+	</div>
+{/if}
 
 {#if isExpanded}
 	<div class="expanded" in:wipeIn={{ x: originX, y: originY, duration: 400 }} out:wipeOut={{ duration: 300 }}>
@@ -148,7 +159,6 @@
 	}
 
 	.confirmation {
-		border-top: solid 2px white;
 		border-bottom: solid 2px white;
 		padding: 0.5rem;
 		margin: 1rem 0;

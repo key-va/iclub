@@ -29,7 +29,8 @@ export async function userCreate(request: HttpRequest, context: InvocationContex
         return { status: 400, jsonBody: { success: false, message: "Invalid JSON payload" } };
     }
 
-    const { name, email, phone, key } = body?.data ?? {};
+    const { name, email: rawEmail, phone, key } = body?.data ?? {};
+    const email = rawEmail?.trim().toLowerCase();
 
     if (!name || !email || !key) {
         return { status: 400, jsonBody: { success: false, message: "name, email and key are required" } };
