@@ -10,14 +10,20 @@
 	</div>
 
 	<div class="row center">
-			<div class="round-icon-big" style="background-image: url('/favicons/splash-512.png');"></div>
-		</div>
+		<div class="round-icon-big" style="background-image: url('/favicons/splash-512.png');"></div>
+	</div>
 
 	<UserLogin />
+
+	<div class="row center">
+		<p>or <strong>browse</strong> as a guest</p>
+	</div>		
+	
 </div>
 
 <style>
 	.page {
 		width: 100%;
 	}
+
 </style>

@@ -52,7 +52,7 @@
 </script>
 
 <div class="login">
-	<div class="row right">
+	<div class="row right white">
 		<input
 			type="email"
 			placeholder="email@example.com"
@@ -61,7 +61,7 @@
 			onkeydown={(e) => e.key === 'Enter' && getOtp()}
 		/>
 		<button aria-label="Go" disabled={isLoading} onclick={getOtp}>
-			<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+			<svg viewBox="0 0 24 24" width="1rem" height="1rem" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" role="img">
 				<path d="M5 12h14M13 5l7 7-7 7" />
 			</svg>
 		</button>
