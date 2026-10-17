@@ -1,23 +1,27 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { PUBLIC_URL } from '#lib/config.ts';
+	import { local } from '#lib/stores/local.ts';
 	import { guids, entityOf } from '#lib/stores/guids.ts';
 
-	import GencEntityCard from '#lib/components/gencEntityCard.svelte';
+	import GencRoutLink from '#lib/components/gencRoutLink.svelte';
 
-	const userId = $derived(page.params.user_id ?? '');
-	const user = $derived(entityOf($guids.items, userId));
+	const { caller_id, device_id } = $local;
+
+	const user_id = $derived(page.params.user_id ?? '');
+	const user_entity = $derived(entityOf($guids.items, user_id));
+
 </script>
 
 <div class="page">
-	{#if user}
+	{#if user_entity}
 		<div class="row right">
-			<p class="truncate"><strong>{user.name}</strong><br />user</p>
+			<p class="truncate"><strong>{user_entity.name}</strong><br />{#if user_id === caller_id}you{:else}user{/if}</p>
 			<div class="blank-icon-small"></div>
 		</div>
 
 		<div class="row center">
-			<div class="round-icon-big" style="background-image: url('{PUBLIC_URL}/{user.rk}.jpg');"></div>
+			<div class="round-icon-big" style="background-image: url('{PUBLIC_URL}/{user_entity.rk}.jpg');"></div>
 		</div>
 	{:else}
 		<div class="row right">
@@ -26,10 +30,13 @@
 		</div>
 	{/if}
 
-	<GencEntityCard
-		description="example entity"
-		guid="ladder_0000-00-00_00-00-00_bootstrap00s"
-	/>
+	<GencRoutLink
+			href={`/`}
+			title='Test'
+			description='placeholder for content'
+			white={true}
+		/>
+
 </div>
 
 <style>

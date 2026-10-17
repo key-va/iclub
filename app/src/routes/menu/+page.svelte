@@ -21,7 +21,7 @@
 
 	{#if caller_id && device_id}
 
-		<GencRoutLink href="/user/edit" title="Profile" description="edit your profile" white={true} />
+		<GencRoutLink href="/user/{caller_id}/edit" title="Profile" description="edit your profile" white={true} />
 
 	{:else}
 

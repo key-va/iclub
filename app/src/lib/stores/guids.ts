@@ -181,17 +181,14 @@ export const guids = createGuidsStore();
 // Graph helpers
 
 export const isRelation = (row: GuidRow) => row.pk.includes('_');
+export const isEntity = (row: GuidRow) => !isRelation(row);
 
-// Entity type is the prefix of the entity id, e.g. "user_2026-..." -> "user".
 export const typeOf = (id: string) => id.split('_')[0];
+export function nameOf(items: GuidRow[], id: string): string {return entityOf(items, id)?.name ?? id;}
 
-export function entityOf(items: GuidRow[], id: string): GuidRow | undefined {
-	return items.find((row) => row.pk === typeOf(id) && row.rk === id);
-}
+export function entityOf(items: GuidRow[], id: string): GuidRow | undefined {return items.find((row) => row.pk === typeOf(id) && row.rk === id);}
 
-export function nameOf(items: GuidRow[], id: string): string {
-	return entityOf(items, id)?.name ?? id;
-}
+
 
 export function entitiesOfType(items: GuidRow[], type: string): GuidRow[] {
 	return items.filter((row) => row.pk === type);

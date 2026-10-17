@@ -73,6 +73,10 @@
 		</div>
 
 		<div class="row right">
+			<input type="text" placeholder="image" />
+		</div>
+
+		<div class="row right">
 			<input type="text" placeholder="name" autocomplete="name" bind:value={name} />
 		</div>
 
