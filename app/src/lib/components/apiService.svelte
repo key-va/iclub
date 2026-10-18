@@ -54,10 +54,12 @@
 		isError = false;
 	}
 
+	function radiusFrom(x: number, y: number) {
+		return Math.hypot(Math.max(x, window.innerWidth - x), Math.max(y, window.innerHeight - y));
+	}
+
 	function wipeIn(_node: Element, { x, y, duration = 350 }: { x: number; y: number; duration?: number }) {
-		const maxX = Math.max(x, window.innerWidth - x);
-		const maxY = Math.max(y, window.innerHeight - y);
-		const radius = Math.sqrt(maxX * maxX + maxY * maxY);
+		const radius = radiusFrom(x, y);
 
 		return {
 			duration,
@@ -71,6 +73,27 @@
 			duration,
 			easing: cubicOut,
 			css: (t: number) => `clip-path: inset(0 0 0 ${(1 - t) * 100}%);`
+		};
+	}
+
+	// white edge that rides the clip-path: a growing ring in, a sweeping line out
+	function edgeIn(_node: Element, { x, y, duration = 350 }: { x: number; y: number; duration?: number }) {
+		const radius = radiusFrom(x, y);
+
+		return {
+			duration,
+			easing: cubicIn,
+			css: (t: number) =>
+				`opacity: 1; left: ${x}px; top: ${y}px; width: ${t * radius * 2}px; height: ${t * radius * 2}px; border-radius: 50%; transform: translate(-50%, -50%);`
+		};
+	}
+
+	function edgeOut(_node: Element, { duration = 300 }: { duration?: number }) {
+		return {
+			duration,
+			easing: cubicOut,
+			css: (t: number) =>
+				`opacity: 1; left: ${(1 - t) * 100}%; top: 50%; width: 0; height: 100vh; border-radius: 0; transform: translate(-1px, -50%);`
 		};
 	}
 
@@ -126,6 +149,12 @@
 {/if}
 
 {#if isExpanded}
+	<div
+		class="edge"
+		aria-hidden="true"
+		in:edgeIn={{ x: originX, y: originY, duration: 400 }}
+		out:edgeOut={{ duration: 300 }}
+	></div>
 	<div class="expanded" in:wipeIn={{ x: originX, y: originY, duration: 400 }} out:wipeOut={{ duration: 300 }}>
 		<div class="confirmation">
 			<div class="row center">
@@ -147,6 +176,14 @@
 {/if}
 
 <style>
+	.edge {
+		position: fixed;
+		box-sizing: border-box;
+		border: solid 2px white;
+		opacity: 0;
+		pointer-events: none;
+		z-index: 11;
+	}
 	.expanded {
 		position: fixed;
 		inset: 0;

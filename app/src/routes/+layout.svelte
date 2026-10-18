@@ -1,7 +1,7 @@
 <script lang="ts">
 	import '#lib/style.css';
 	import { onMount } from 'svelte';
-	import { goto } from '$app/navigation';
+	import { goto, onNavigate } from '$app/navigation';
 	import { APP_VERSION, PUBLIC_URL } from '#lib/config.ts';
 	import { guids, nameOf } from '#lib/stores/guids.ts';
 	import { local } from '#lib/stores/local.ts';
@@ -12,8 +12,41 @@
 
 	const callerId = $derived($local.caller_id);
 	const isLoggedIn = $derived(Boolean($local.caller_id && $local.device_id));
+	const homeHref = $derived(isLoggedIn && callerId ? `/user/${callerId}` : '/login');
+
+	let originX = innerWidth;
+	let originY = innerHeight;
+
+	// forward navigations wipe out from the tap; back navigations (popstate) wipe back into it
+	onNavigate((navigation) => {
+		if (!document.startViewTransition || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+		const root = document.documentElement;
+		const maxX = Math.max(originX, innerWidth - originX);
+		const maxY = Math.max(originY, innerHeight - originY);
+
+		root.style.setProperty('--wipe-x', `${originX}px`);
+		root.style.setProperty('--wipe-y', `${originY}px`);
+		root.style.setProperty('--wipe-r', `${Math.hypot(maxX, maxY)}px`);
+		root.dataset.nav = navigation.type === 'popstate' ? 'back' : 'forward';
+
+		return new Promise((resolve) => {
+			const transition = document.startViewTransition(async () => {
+				resolve();
+				await navigation.complete;
+			});
+
+			transition.finished.finally(() => delete root.dataset.nav);
+		});
+	});
 
 	onMount(() => {
+		const track = (e: PointerEvent) => {
+			originX = e.clientX;
+			originY = e.clientY;
+		};
+		addEventListener('pointerdown', track, true);
+
 		// load the guids snapshot once on startup, then keep it fresh
 		guids.load().catch((err) => console.error('[guids] initial load failed', err));
 		guids.startAutoRefresh(90000);
@@ -21,6 +54,7 @@
 		const stopPush = startPush();
 
 		return () => {
+			removeEventListener('pointerdown', track, true);
 			guids.stopAutoRefresh();
 			stopPush();
 		};
@@ -41,6 +75,8 @@
 	<link rel="icon" type="image/png" sizes="32x32" href="/favicons/favicon-32.png" />
 	<link rel="icon" type="image/png" sizes="16x16" href="/favicons/favicon-16.png" />
 </svelte:head>
+
+<div class="wipe-edge" aria-hidden="true"></div>
 
 <div class="fixed-top">
 	<div class="row right">
@@ -75,7 +111,7 @@
 			<p>back</p>
 		</button>
 		<div class="right">
-			<a class="button" href="/" aria-label="home">
+			<a class="button" href={homeHref} aria-label="home">
 				{#if isLoggedIn && callerId}
 					<button
 						style="background-image: url('{PUBLIC_URL}/{callerId}.jpg');"

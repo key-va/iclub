@@ -5,6 +5,7 @@
 	import { guids, entityOf } from '#lib/stores/guids.ts';
 	import { local, clear_local_data } from '#lib/stores/local.ts';
 	import ApiService from '#lib/components/apiService.svelte';
+	import MoreOptions from '#lib/components/moreOptions.svelte';
 
 	const userId = $derived($local.caller_id ?? '');
 	const user = $derived(entityOf($guids.items, userId));
@@ -15,16 +16,6 @@
 	let image = $state('');
 	let imageError = $state('');
 	let fileInput = $state<HTMLInputElement>();
-	let showMore = $state(false);
-
-	// Hide the extra options again 30 seconds after they were revealed
-	$effect(() => {
-		if (!showMore) return;
-
-		const timer = setTimeout(() => (showMore = false), 30000);
-
-		return () => clearTimeout(timer);
-	});
 
 	// Seed the form once the user has loaded, and again if the stored name changes
 	$effect(() => {
@@ -169,25 +160,16 @@
 			onsuccess={clearForm}
 		/>
 
-		<div class="row right">
-			{#if showMore}
-				<button class="blue" aria-label="log out" onclick={logout}><p>log out</p></button>
-				<ApiService
-					inline
-					name="delete account"
-					message="delete your account? this cannot be undone"
-					endpoint={`user/${userId}/delete`}
-					onsuccess={logout}
-				/>
-			{:else}
-				<button class="blue" aria-label="more" onclick={() => (showMore = true)}>
-					<p>more</p>
-					<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-						<path d="M12 5v14M5 12h14" />
-					</svg>
-				</button>
-			{/if}
-		</div>
+		<MoreOptions>
+			<button class="blue" aria-label="log out" onclick={logout}><p>log out</p></button>
+			<ApiService
+				inline
+				name="delete account"
+				message="delete your account? this cannot be undone"
+				endpoint={`user/${userId}/delete`}
+				onsuccess={logout}
+			/>
+		</MoreOptions>
 	{:else}
 		<div class="row right">
 			<p class="truncate"><strong>{$guids.loaded ? 'Not found' : 'Loading'}</strong><br />edit</p>

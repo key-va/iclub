@@ -164,3 +164,70 @@ table {
 .sixty {
     width: 60%;
 }
+
+/* page navigation wipe: forward grows from the tap, back sweeps left to right; a white edge follows the wipe */
+::view-transition-old(root),
+::view-transition-new(root) {
+    animation: none;
+    mix-blend-mode: normal;
+}
+:root[data-nav='forward']::view-transition-new(root) {
+    z-index: 2;
+    animation: wipe-open 400ms cubic-bezier(0.32, 0, 0.67, 0) both;
+}
+:root[data-nav='back']::view-transition-old(root) {
+    z-index: 2;
+    animation: wipe-close 400ms cubic-bezier(0.33, 1, 0.68, 1) both;
+}
+@keyframes wipe-open {
+    from { clip-path: circle(0 at var(--wipe-x) var(--wipe-y)); }
+    to { clip-path: circle(var(--wipe-r) at var(--wipe-x) var(--wipe-y)); }
+}
+@keyframes wipe-close {
+    from { clip-path: inset(0 0 0 0); }
+    to { clip-path: inset(0 0 0 100%); }
+}
+
+.wipe-edge {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 1px;
+    height: 1px;
+    pointer-events: none;
+}
+:root[data-nav] .wipe-edge {
+    display: block;
+    view-transition-name: wipe-edge;
+}
+::view-transition-old(wipe-edge),
+::view-transition-new(wipe-edge) {
+    display: none;
+}
+::view-transition-group(wipe-edge) {
+    z-index: 3;
+    box-sizing: border-box;
+    animation-fill-mode: both;
+    animation-duration: 400ms;
+}
+:root[data-nav='forward']::view-transition-group(wipe-edge) {
+    border: 2px solid white;
+    border-radius: 50%;
+    translate: calc(var(--wipe-x) - 50%) calc(var(--wipe-y) - 50%);
+    animation-name: edge-open;
+    animation-timing-function: cubic-bezier(0.32, 0, 0.67, 0);
+}
+:root[data-nav='back']::view-transition-group(wipe-edge) {
+    background: white;
+    animation-name: edge-sweep;
+    animation-timing-function: cubic-bezier(0.33, 1, 0.68, 1);
+}
+@keyframes edge-open {
+    from { width: 0; height: 0; }
+    to { width: calc(var(--wipe-r) * 2); height: calc(var(--wipe-r) * 2); }
+}
+@keyframes edge-sweep {
+    from { width: 2px; height: 100vh; translate: -2px 0; }
+    to { width: 2px; height: 100vh; translate: 100vw 0; }
+}
