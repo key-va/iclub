@@ -78,6 +78,7 @@
 	<link rel="icon" type="image/png" sizes="16x16" href="/favicons/favicon-16.png" />
 </svelte:head>
 
+<div class="wipe-tint" aria-hidden="true"></div>
 <div class="wipe-edge" aria-hidden="true"></div>
 
 <div class="fixed-top">
