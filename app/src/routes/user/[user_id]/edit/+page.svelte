@@ -12,6 +12,19 @@
 	let name = $state('');
 	let email = $state('');
 	let phone = $state('');
+	let image = $state('');
+	let imageError = $state('');
+	let fileInput = $state<HTMLInputElement>();
+	let showMore = $state(false);
+
+	// Hide the extra options again 30 seconds after they were revealed
+	$effect(() => {
+		if (!showMore) return;
+
+		const timer = setTimeout(() => (showMore = false), 30000);
+
+		return () => clearTimeout(timer);
+	});
 
 	// Seed the form once the user has loaded, and again if the stored name changes
 	$effect(() => {
@@ -32,22 +45,56 @@
 		Boolean(user) &&
 			!emailError &&
 			!phoneError &&
-			(nameChanged || (cleanEmail !== '' && emailValid) || (cleanPhone !== '' && phoneValid))
+			(image !== '' || nameChanged || (cleanEmail !== '' && emailValid) || (cleanPhone !== '' && phoneValid))
 	);
 
 	const updateData = $derived({
 		...(nameChanged ? { name: name.trim() } : {}),
 		...(cleanEmail !== '' && emailValid ? { email: cleanEmail } : {}),
-		...(cleanPhone !== '' && phoneValid ? { phone: cleanPhone } : {})
+		...(cleanPhone !== '' && phoneValid ? { phone: cleanPhone } : {}),
+		...(image !== '' ? { image } : {})
 	});
 
-	const updateMessage = $derived(
-		`update your ${Object.keys(updateData).join(', ').replace(/, ([^,]*)$/, ' and $1')}?`
+	const changes = $derived(
+		Object.keys(updateData).map((key) => (key === 'image' ? 'profile image' : key))
 	);
+
+	const updateMessage = $derived(`update your ${changes.join(', ').replace(/, ([^,]*)$/, ' and $1')}?`);
+
+	// Centre-crop to a square and shrink to a small JPEG so the upload stays well under the API limit
+	async function pickImage() {
+		const file = fileInput?.files?.[0];
+
+		imageError = '';
+		image = '';
+
+		if (!file) return;
+
+		try {
+			const bitmap = await createImageBitmap(file);
+			const size = Math.min(512, bitmap.width, bitmap.height);
+			const side = Math.min(bitmap.width, bitmap.height);
+			const canvas = document.createElement('canvas');
+
+			canvas.width = size;
+			canvas.height = size;
+
+			canvas
+				.getContext('2d')!
+				.drawImage(bitmap, (bitmap.width - side) / 2, (bitmap.height - side) / 2, side, side, 0, 0, size, size);
+
+			bitmap.close();
+			image = canvas.toDataURL('image/jpeg', 0.85);
+		} catch {
+			imageError = 'that file could not be read as an image';
+		}
+	}
 
 	function clearForm() {
 		email = '';
 		phone = '';
+		image = '';
+		if (fileInput) fileInput.value = '';
 	}
 
 	function logout() {
@@ -68,17 +115,32 @@
 		</div>
 
 		<div class="row center">
-			<div class="round-icon-big" style="background-image: url('{PUBLIC_URL}/{user.rk}.jpg');"></div>
-			
-		</div>
-
-		<div class="row right">
-			<input type="text" placeholder="image" />
+			<div
+				class="round-icon-big"
+				style="background-image: url('{image || `${PUBLIC_URL}/${user.rk}.jpg`}');"
+			></div>
 		</div>
 
 		<div class="row right">
 			<input type="text" placeholder="name" autocomplete="name" bind:value={name} />
+			<button class="blue" aria-label="image" onclick={() => fileInput?.click()}>
+				<svg viewBox="0 0 24 24" width="1rem" height="1rem" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="Camera">
+					<path d="M2.5 7h4l1.5-3h8l1.5 3h4v13h-19z" />
+					<circle cx="12" cy="13.5" r="4" />
+				</svg>
+			</button>
+			<input
+				type="file"
+				accept="image/*"
+				aria-label="profile image"
+				hidden
+				bind:this={fileInput}
+				onchange={pickImage}
+			/>
 		</div>
+		{#if imageError}
+			<div class="row right"><p class="error">{imageError}</p></div>
+		{/if}
 
 		<div class="row center">
 			<p>Your email and phone number is <strong>not</strong> shown here, but entering them will update the information on file</p>
@@ -108,14 +170,23 @@
 		/>
 
 		<div class="row right">
-			<button class="blue" aria-label="log out" onclick={logout}><p>log out</p></button>
-			<ApiService
-				inline
-				name="delete account"
-				message="delete your account? this cannot be undone"
-				endpoint={`user/${userId}/delete`}
-				onsuccess={logout}
-			/>
+			{#if showMore}
+				<button class="blue" aria-label="log out" onclick={logout}><p>log out</p></button>
+				<ApiService
+					inline
+					name="delete account"
+					message="delete your account? this cannot be undone"
+					endpoint={`user/${userId}/delete`}
+					onsuccess={logout}
+				/>
+			{:else}
+				<button class="blue" aria-label="more" onclick={() => (showMore = true)}>
+					<p>more</p>
+					<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+						<path d="M12 5v14M5 12h14" />
+					</svg>
+				</button>
+			{/if}
 		</div>
 	{:else}
 		<div class="row right">

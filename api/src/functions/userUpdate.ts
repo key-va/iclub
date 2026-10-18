@@ -5,6 +5,9 @@ import { doSignatureVerification } from "../services/doSignatureVerification";
 import { doUpsertEntity } from "../services/doUpsertEntity";
 import { doUpsertAuth } from "../services/doUpsertAuth";
 import { doGuidsToPublic } from "../services/doGuidsToPublic";
+import { doAssetToPublic } from "../services/doAssetToPublic";
+
+const maxImageBytes = 1024 * 1024;
 
 const storageAccount = process.env.ICLUB_STORAGE_ACCOUNT;
 
@@ -25,7 +28,7 @@ export async function userUpdate(request: HttpRequest, context: InvocationContex
         caller_id?: string;
         device_id?: string;
         signature?: string;
-        data?: { name?: string; email?: string; phone?: string };
+        data?: { name?: string; email?: string; phone?: string; image?: string };
     };
 
     try {
@@ -83,6 +86,23 @@ export async function userUpdate(request: HttpRequest, context: InvocationContex
         return { status: 400, jsonBody: { success: false, message: "phone must be 8 to 15 digits including country code" } };
     }
 
+    // Optional profile image: a Base64 JPEG (raw or as a data URL)
+    let image: Buffer | undefined;
+
+    if (data?.image) {
+        image = Buffer.from(data.image.replace(/^data:image\/jpe?g;base64,/i, ""), "base64");
+
+        if (image.length === 0 || image.length > maxImageBytes) {
+            return { status: 400, jsonBody: { success: false, message: "image must be a JPEG of 1MB or less" } };
+        }
+
+        const isJpeg = image[0] === 0xff && image[1] === 0xd8 && image[2] === 0xff;
+
+        if (!isJpeg) {
+            return { status: 400, jsonBody: { success: false, message: "image must be a JPEG of 1MB or less" } };
+        }
+    }
+
     // Email and phone identify a login, so they must stay unique
     for (const [field, value] of [["email", email], ["phone", phone]] as const) {
         if (!value) continue;
@@ -125,6 +145,10 @@ export async function userUpdate(request: HttpRequest, context: InvocationContex
         ...(email ? { email } : {}),
         ...(phone ? { phone } : {})
     });
+
+    if (image) {
+        await doAssetToPublic(image, `${userId}.jpg`);
+    }
 
     // 5. Publish
     await doGuidsToPublic();

@@ -19,7 +19,7 @@
 	</div>
 
 	<div class="row center">
-		<div class="round-icon-big" style="background-image: url('/favicons/splash-512.png');"></div>
+		<div class="round-icon-big" style="background-image: url('/favicons/icon-512.png');"></div>
 	</div>
 
     <div class="row right white">

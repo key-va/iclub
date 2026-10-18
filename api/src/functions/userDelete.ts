@@ -4,6 +4,7 @@ import { TableClient, odata } from "@azure/data-tables";
 import { doSignatureVerification } from "../services/doSignatureVerification";
 import { doGuidsToPublic } from "../services/doGuidsToPublic";
 import { doUpsertEntity } from "../services/doUpsertEntity";
+import { doAssetToPublic } from "../services/doAssetToPublic";
 
 const storageAccount = process.env.ICLUB_STORAGE_ACCOUNT;
 
@@ -59,6 +60,9 @@ export async function userDelete(request: HttpRequest, context: InvocationContex
     } catch (err: any) {
         if (err?.statusCode !== 404) throw err;
     }
+
+    // Replace the user's avatar with the removed-user placeholder
+    await doAssetToPublic("user-99.jpg", `${userId}.jpg`);
 
     // 4. Remove everything in auths so the user can no longer log in
     // (deleting a missing row is a no-op, so repeating the call is safe)

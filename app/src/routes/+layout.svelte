@@ -36,10 +36,10 @@
 	<link rel="manifest" href="/manifest.webmanifest" />
 	<meta name="theme-color" content="#00bfff" />
 
-	<link rel="apple-touch-icon" sizes="180x180" href="/favicons/icon-180.png" />
-	<link rel="icon" href="/favicon.ico" sizes="any" />
-	<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
-	<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
+	<link rel="apple-touch-icon" sizes="180x180" href="/favicons/favicon-180.png" />
+	<link rel="icon" href="/favicons/favicon.ico" sizes="any" />
+	<link rel="icon" type="image/png" sizes="32x32" href="/favicons/favicon-32.png" />
+	<link rel="icon" type="image/png" sizes="16x16" href="/favicons/favicon-16.png" />
 </svelte:head>
 
 <div class="fixed-top">

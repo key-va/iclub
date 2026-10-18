@@ -6,6 +6,7 @@ import { doNewGuid } from "../services/doNewGuid";
 import { doUpsertEntity } from "../services/doUpsertEntity";
 import { doUpsertAuth } from "../services/doUpsertAuth";
 import { doGuidsToPublic } from "../services/doGuidsToPublic";
+import { doAssetToPublic } from "../services/doAssetToPublic";
 
 const storageAccount = process.env.ICLUB_STORAGE_ACCOUNT;
 
@@ -70,6 +71,10 @@ export async function userCreate(request: HttpRequest, context: InvocationContex
     await doUpsertAuth(userId, deviceId, { key });
     await doUpsertAuth("user", userId, { name, email, ...(phone ? { phone } : {}) });
     await doUpsertEntity("user", userId, { name });
+
+    // Random placeholder avatar user-01 to user-25 (00 and 99 are reserved)
+    const avatar = String(Math.floor(Math.random() * 25) + 1).padStart(2, "0");
+    await doAssetToPublic(`user-${avatar}.jpg`, `${userId}.jpg`);
 
     await doGuidsToPublic();
 
