@@ -19,6 +19,8 @@
 
 	// forward navigations wipe out from the tap; back navigations (popstate) wipe back into it
 	onNavigate((navigation) => {
+		// the root page only redirects on load, so it shouldn't animate
+		if (navigation.from?.url.pathname === '/') return;
 		if (!document.startViewTransition || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
 		const root = document.documentElement;
