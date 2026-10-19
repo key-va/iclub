@@ -52,8 +52,8 @@ export function startPush(): () => void {
 	OneSignal().push(() => {
 		if (disposed) return;
 
-		// Only sync once the SDK reports it has initialised.
-		w().OneSignal.on('initialized', () => {
+		// Only sync once the SDK reports it has initialised (the public event is "initialize").
+		w().OneSignal.on('initialize', () => {
 			if (disposed) return;
 			ready = true;
 			console.log('[OneSignal] ready');
