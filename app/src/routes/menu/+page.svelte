@@ -4,7 +4,7 @@
 	import { guids, entityOf } from '#lib/stores/guids.ts';
 	import { local } from '#lib/stores/local.ts';
 
-	import GencRoutLink from '#lib/components/gencRoutLink.svelte';
+	import GencRouteLink from '#lib/components/gencRouteLink.svelte';
 
 	const { caller_id, device_id } = $local;
 </script>
@@ -21,16 +21,16 @@
 
 	{#if caller_id && device_id}
 
-		<GencRoutLink href="/user/{caller_id}/edit" title="Profile" description="edit your profile" white={true} />
+		<GencRouteLink href="/user/{caller_id}/edit" title="Profile" description="edit your profile" isWhite={true} />
 
 	{:else}
 
-		<GencRoutLink href="/login" title="Login" description="login or create account" white={true} />
+		<GencRouteLink href="/login" title="Login" description="login or create account" isWhite={true} />
 
 	{/if}
 
-	<GencRoutLink href="/browse" title="Browse" description="ladders, events and teams" white={false} />
-	<GencRoutLink href="/about" title="About" description="help and about" white={false} />
+	<GencRouteLink href="/browse" title="Browse" description="ladders, events and teams" isWhite={false} />
+	<GencRouteLink href="/about" title="About" description="help and about" isWhite={false} />
 
 </div>
 

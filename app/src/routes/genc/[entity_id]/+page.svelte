@@ -4,7 +4,7 @@
 	import { local } from '#lib/stores/local.ts';
 	import { guids, entityOf, relatedEntities } from '#lib/stores/guids.ts';
 
-    import GencRoutLink from '#lib/components/gencRoutLink.svelte';
+    import GencRouteLink from '#lib/components/gencRouteLink.svelte';
 
 	const { caller_id, device_id } = $local;
 
@@ -33,20 +33,20 @@
 
 	{#if related_entities.length > 0}
 		{#each related_entities as related_entity}
-			<GencRoutLink
+			<GencRouteLink
 				href={`/genc/${related_entity.rk}`}
 				title={related_entity.name??'no name'}
 				description={related_entity.pk}
-				white={related_entity.rk === caller_id}
+				isWhite={related_entity.rk === caller_id}
 				image={PUBLIC_URL + '/' + related_entity.rk + '.jpg'}
 			/>
 		{/each}
 	{:else}
-		<GencRoutLink
+		<GencRouteLink
 			href={`/`}
 			title='None'
 			description='no relations found'
-			white={false}
+			isWhite={false}
 		/>
 	{/if}
 

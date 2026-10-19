@@ -5,7 +5,7 @@
 	import { guids, entityOf } from '#lib/stores/guids.ts';
 	import { local, clear_local_data } from '#lib/stores/local.ts';
 	import ApiService from '#lib/components/apiService.svelte';
-	import MoreOptions from '#lib/components/moreOptions.svelte';
+	import GencRouteLink from '#lib/components/gencRouteLink.svelte';
 
 	const userId = $derived($local.caller_id ?? '');
 	const user = $derived(entityOf($guids.items, userId));
@@ -134,6 +134,10 @@
 		{/if}
 
 		<div class="row center">
+			<p>Profile image updates may <strong>take some time</strong> while the cache clears</p>
+		</div>
+
+		<div class="row center">
 			<p>Your email and phone number is <strong>not</strong> shown here, but entering them will update the information on file</p>
 		</div>
 
@@ -160,7 +164,7 @@
 			onsuccess={clearForm}
 		/>
 
-		<MoreOptions>
+		<GencRouteLink hasMoreOptions title="More" description="log out or delete account">
 			<button class="blue" aria-label="log out" onclick={logout}><p>log out</p></button>
 			<ApiService
 				inline
@@ -169,7 +173,7 @@
 				endpoint={`user/${userId}/delete`}
 				onsuccess={logout}
 			/>
-		</MoreOptions>
+		</GencRouteLink>
 	{:else}
 		<div class="row right">
 			<p class="truncate"><strong>{$guids.loaded ? 'Not found' : 'Loading'}</strong><br />edit</p>

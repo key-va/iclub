@@ -3,7 +3,7 @@
 	import { local } from '#lib/stores/local.ts';
 	import { entities } from '#lib/stores/guids.ts';
 
-	import GencRoutLink from '#lib/components/gencRoutLink.svelte';
+	import GencRouteLink from '#lib/components/gencRouteLink.svelte';
 
 	const { caller_id, device_id } = $local;
     
@@ -37,11 +37,11 @@
 	</div>
 
 	{#each $entities as entity}
-		<GencRoutLink
+		<GencRouteLink
 			href={`/genc/${entity.rk}`}
 			title={entity.name??'no name'}
 			description={entity.pk}
-			white={entity.rk === caller_id}
+			isWhite={entity.rk === caller_id}
 			image={PUBLIC_URL + '/' + entity.rk + '.jpg'}
 		/>
 	{/each}

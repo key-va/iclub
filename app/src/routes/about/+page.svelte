@@ -4,7 +4,7 @@
 	import { guids, entityOf } from '#lib/stores/guids.ts';
 	import { local } from '#lib/stores/local.ts';
 
-	import GencRoutLink from '#lib/components/gencRoutLink.svelte';
+	import GencRouteLink from '#lib/components/gencRouteLink.svelte';
 
 	const { caller_id, device_id } = $local;
 </script>

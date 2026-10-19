@@ -4,7 +4,7 @@
 	import { local } from '#lib/stores/local.ts';
 	import { guids, entityOf } from '#lib/stores/guids.ts';
 
-	import GencRoutLink from '#lib/components/gencRoutLink.svelte';
+	import GencRouteLink from '#lib/components/gencRouteLink.svelte';
 
 	const { caller_id, device_id } = $local;
 
@@ -30,11 +30,11 @@
 		</div>
 	{/if}
 
-	<GencRoutLink
+	<GencRouteLink
 			href={`/`}
 			title='Test'
 			description='placeholder for content'
-			white={true}
+			isWhite={true}
 		/>
 
 </div>
