@@ -205,6 +205,10 @@ resource functionApp 'Microsoft.Web/sites@2024-11-01' = {
           value: storage.name
         }
         {
+          name: 'ICLUB_ONE_SIGNAL_KEY'
+          value: '<YOUR_ONE_SIGNAL_KEY_HERE>'
+        }
+        {
           name: 'AZURE_CLIENT_ID'
           value: userAssignedManagedIdentity.properties.clientId
         }
