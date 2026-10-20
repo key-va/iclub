@@ -102,7 +102,7 @@
 	{#if user}
 		<div class="row right">
 			<p class="truncate"><strong>{user.name}</strong><br />edit</p>
-			<div class="round-icon-small" style="background-image: url('{PUBLIC_URL}/{user.rk}.jpg');"></div>
+			<div class="blank-icon-small"></div>
 		</div>
 
 		<div class="row center">
@@ -134,7 +134,7 @@
 		{/if}
 
 		<div class="row center">
-			<p>Profile image updates may <strong>take some time</strong> while the cache clears</p>
+			<p>Updates to your <strong>profile image</strong> may take some time to show</p>
 		</div>
 
 		<div class="row center">
@@ -164,11 +164,11 @@
 			onsuccess={clearForm}
 		/>
 
-		<GencRouteLink hasMoreOptions title="More" description="log out or delete account">
-			<button class="blue" aria-label="log out" onclick={logout}><p>log out</p></button>
+		<GencRouteLink hasMoreOptions title="More" description="logout or delete account">
+			<button class="blue" aria-label="logout" onclick={logout}><p>logout</p></button>
 			<ApiService
 				inline
-				name="delete account"
+				name="delete"
 				message="delete your account? this cannot be undone"
 				endpoint={`user/${userId}/delete`}
 				onsuccess={logout}

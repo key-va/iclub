@@ -1,11 +1,9 @@
 import { DefaultAzureCredential } from "@azure/identity";
 import { TableClient } from "@azure/data-tables";
 
-const storageAccount = process.env.ICLUB_STORAGE_ACCOUNT;
+import { resourceName, resourceSuffix } from "../stores/resourceNames";
 
-if (!storageAccount) {
-    throw new Error("ICLUB_STORAGE_ACCOUNT is not configured.");
-}
+const storageAccount = resourceName(resourceSuffix.storageAccount);
 
 const credential = new DefaultAzureCredential();
 

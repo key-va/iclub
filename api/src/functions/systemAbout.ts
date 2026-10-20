@@ -2,17 +2,17 @@ import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/fu
 import { DefaultAzureCredential } from "@azure/identity";
 import { TableClient } from "@azure/data-tables";
 
-const storageAccount = process.env.ICLUB_STORAGE_ACCOUNT;
+import { resourceName, resourceSuffix } from "../stores/resourceNames";
 
-if (!storageAccount) {
-    throw new Error("ICLUB_STORAGE_ACCOUNT is not configured.");
-}
+const storageAccount = resourceName(resourceSuffix.storageAccount);
 
 const tableClient = new TableClient(
     `https://${storageAccount}.table.core.windows.net`,
     "guids",
     new DefaultAzureCredential()
 );
+
+const pushAppId = process.env.ONESIGNAL_APP_ID;
 
 export async function systemAbout(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
 
@@ -32,7 +32,10 @@ export async function systemAbout(request: HttpRequest, context: InvocationConte
         jsonBody: {
             success: true,
             message: `Okay, Intra Club is up and running with ${total} total entities`,
-            data: [counts]
+            data: {
+                pushAppId: pushAppId && !pushAppId.startsWith('@Microsoft.KeyVault(') ? pushAppId : null,
+                counts
+            }
         }
     };
 }

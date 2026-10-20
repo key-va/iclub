@@ -16,6 +16,10 @@
 	<UserLogin />
 
 	<div class="row center">
+		<p>Install the <strong>Intra Club</strong> app to get the best experience</p>
+	</div>
+
+	<div class="row center">
 		<p>or <strong>browse</strong> as a guest</p>
 	</div>		
 	

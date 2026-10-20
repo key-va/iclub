@@ -16,7 +16,7 @@
 <div class="page">
 	{#if user_entity}
 		<div class="row right">
-			<p class="truncate"><strong>{user_entity.name}</strong><br />{#if user_id === caller_id}you{:else}user{/if}</p>
+			<p class="truncate"><strong>{user_entity.name}</strong><br />{user_entity.pk}</p>
 			<div class="blank-icon-small"></div>
 		</div>
 

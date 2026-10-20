@@ -14,6 +14,8 @@ const SDK_URL = 'https://cdn.onesignal.com/sdks/OneSignalSDK.js';
 export function startPush(): () => void {
 	let disposed = false;
 	let ready = false;
+	// iOS only allows the permission prompt from a user gesture, so it is requested on the next tap.
+	let askPending = false;
 
 	if (!document.querySelector(`script[src="${SDK_URL}"]`)) {
 		const script = document.createElement('script');
@@ -36,8 +38,13 @@ export function startPush(): () => void {
 					const perm =
 						(await w().OneSignal.getNotificationPermission?.()) || w().Notification.permission;
 
-					if (perm === 'default') {
-						await w().OneSignal.registerForPushNotifications();
+					if (perm === 'default' && !askPending) {
+						askPending = true;
+						const ask = () => {
+							askPending = false;
+							w().OneSignal.registerForPushNotifications();
+						};
+						document.addEventListener('pointerup', ask, { once: true });
 					}
 				} catch (err) {
 					console.error('[OneSignal] error setting user or requesting permission', err);

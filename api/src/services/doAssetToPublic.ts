@@ -3,11 +3,9 @@ import { basename, extname, join, resolve } from "path";
 import { DefaultAzureCredential } from "@azure/identity";
 import { BlobServiceClient } from "@azure/storage-blob";
 
-const storageAccount = process.env.ICLUB_STORAGE_ACCOUNT;
+import { resourceName, resourceSuffix } from "../stores/resourceNames";
 
-if (!storageAccount) {
-    throw new Error("ICLUB_STORAGE_ACCOUNT is not configured.");
-}
+const storageAccount = resourceName(resourceSuffix.storageAccount);
 
 const blobServiceClient = new BlobServiceClient(
     `https://${storageAccount}.blob.core.windows.net`,

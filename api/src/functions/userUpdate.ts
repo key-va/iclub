@@ -10,11 +10,9 @@ import { doSendPush } from "../services/doSendPush";
 
 const maxImageBytes = 1024 * 1024;
 
-const storageAccount = process.env.ICLUB_STORAGE_ACCOUNT;
+import { resourceName, resourceSuffix } from "../stores/resourceNames";
 
-if (!storageAccount) {
-    throw new Error("ICLUB_STORAGE_ACCOUNT is not configured.");
-}
+const storageAccount = resourceName(resourceSuffix.storageAccount);
 
 const credential = new DefaultAzureCredential();
 const endpoint = `https://${storageAccount}.table.core.windows.net`;

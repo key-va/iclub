@@ -3,11 +3,9 @@ import { DefaultAzureCredential } from "@azure/identity";
 import { TableClient, odata } from "@azure/data-tables";
 import { doUpsertAuth } from "../services/doUpsertAuth";
 
-const storageAccount = process.env.ICLUB_STORAGE_ACCOUNT;
+import { resourceName, resourceSuffix } from "../stores/resourceNames";
 
-if (!storageAccount) {
-    throw new Error("ICLUB_STORAGE_ACCOUNT is not configured.");
-}
+const storageAccount = resourceName(resourceSuffix.storageAccount);
 
 const tableClient = new TableClient(
     `https://${storageAccount}.table.core.windows.net`,

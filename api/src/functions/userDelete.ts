@@ -6,11 +6,9 @@ import { doGuidsToPublic } from "../services/doGuidsToPublic";
 import { doUpsertEntity } from "../services/doUpsertEntity";
 import { doAssetToPublic } from "../services/doAssetToPublic";
 
-const storageAccount = process.env.ICLUB_STORAGE_ACCOUNT;
+import { resourceName, resourceSuffix } from "../stores/resourceNames";
 
-if (!storageAccount) {
-    throw new Error("ICLUB_STORAGE_ACCOUNT is not configured.");
-}
+const storageAccount = resourceName(resourceSuffix.storageAccount);
 
 const credential = new DefaultAzureCredential();
 const endpoint = `https://${storageAccount}.table.core.windows.net`;
