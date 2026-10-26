@@ -1,8 +1,8 @@
 import { InvocationContext } from "@azure/functions";
 
 const oneSignalAppId = process.env.ONESIGNAL_APP_ID;
-const publicUrl = "https://app.intra.club";
-const pushIcon = "https://iclubxsa.blob.core.windows.net/public/favicon-android.png";
+const publicUrl = process.env.ONESIGNAL_APP_URL;
+const pushIcon = "https://"+process.env.RESOURCE_GROUP_PREFIX+".blob.core.windows.net/public/favicon-android.png";
 
 export interface PushMessage {
     userIds: string[];
