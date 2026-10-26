@@ -1,6 +1,6 @@
 import { InvocationContext } from "@azure/functions";
 
-const oneSignalAppId = "24ed781d-4a8b-4327-b388-467bf81dda37";
+const oneSignalAppId = process.env.ONESIGNAL_APP_ID;
 const publicUrl = "https://app.intra.club";
 const pushIcon = "https://iclubxsa.blob.core.windows.net/public/favicon-android.png";
 
