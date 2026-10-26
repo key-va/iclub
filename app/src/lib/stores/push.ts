@@ -12,8 +12,8 @@ const SDK_URL = 'https://cdn.onesignal.com/sdks/OneSignalSDK.js';
 // The OneSignal app ID lives in the API's configuration (Key Vault), so it can be set after
 // the app is deployed. Null means it is not configured yet.
 async function fetchAppId(): Promise<string | null> {
-	const result = await callApi<{ pushAppId: string | null }>('system/about', {}, false);
-	return result.data?.pushAppId ?? null;
+	const result = await callApi<{ ONESIGNAL_APP_ID: string | null }>('system/about', {}, false);
+	return result.data?.ONESIGNAL_APP_ID ?? null;
 }
 
 // Loads and initialises OneSignal, then links the subscription to the signed in user

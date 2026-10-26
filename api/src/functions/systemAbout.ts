@@ -12,7 +12,7 @@ const tableClient = new TableClient(
     new DefaultAzureCredential()
 );
 
-const pushAppId = process.env.ONESIGNAL_APP_ID;
+const oneSignalAppId = process.env.ONESIGNAL_APP_ID;
 
 export async function systemAbout(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
 
@@ -33,7 +33,7 @@ export async function systemAbout(request: HttpRequest, context: InvocationConte
             success: true,
             message: `Okay, Intra Club is up and running with ${total} total entities`,
             data: {
-                pushAppId: pushAppId && !pushAppId.startsWith('@Microsoft.KeyVault(') ? pushAppId : null,
+                ONESIGNAL_APP_ID: oneSignalAppId && !oneSignalAppId.startsWith('@Microsoft.KeyVault(') ? oneSignalAppId : null,
                 counts
             }
         }
