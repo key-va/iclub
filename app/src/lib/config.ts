@@ -14,8 +14,5 @@ export const GUIDS_URL = `${PUBLIC_URL}/guids.json`;
 // Function App hosting the API
 export const API_URL: string = import.meta.env.VITE_API_URL ?? `https://${PREFIX}xfa.azurewebsites.net/api`;
 
-// Optional until OneSignal is configured; push setup reports an error if it is missing.
-export const ONESIGNAL_APP_ID: string | undefined = import.meta.env.VITE_ONESIGNAL_APP_ID;
-
 // App version
 export const APP_VERSION = 'v.26.10.10 alpha';
