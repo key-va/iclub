@@ -12,6 +12,11 @@ const SDK_URL = 'https://cdn.onesignal.com/sdks/OneSignalSDK.js';
 // Loads and initialises OneSignal, then links the subscription to the signed in user
 // (and unlinks on logout). Returns a function that stops it.
 export function startPush(): () => void {
+	if (!ONESIGNAL_APP_ID) {
+		console.error('[OneSignal] VITE_ONESIGNAL_APP_ID is not configured; push notifications are unavailable.');
+		return () => {};
+	}
+
 	let disposed = false;
 	let ready = false;
 	// iOS only allows the permission prompt from a user gesture, so it is requested on the next tap.

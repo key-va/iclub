@@ -240,6 +240,10 @@
            value: '@Microsoft.KeyVault(VaultName=${keyVault.name};SecretName=onesignal-api-key)'
          }
          {
+           name: 'ONESIGNAL_APP_URL'
+           value: '@Microsoft.KeyVault(VaultName=${keyVault.name};SecretName=onesignal-app-url)'
+         }
+         {
            name: 'AZURE_CLIENT_ID'
            value: userAssignedManagedIdentity.properties.clientId
          }

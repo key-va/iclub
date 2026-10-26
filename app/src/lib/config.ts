@@ -7,16 +7,15 @@ if (!PREFIX) {
 	throw new Error('VITE_PREFIX is not configured (see app/.env.example).');
 }
 
-// Public Blob Storage container holding guids.json, strings.json and image assets.
+// Public Blob Storage container
 export const PUBLIC_URL = `https://${PREFIX}xsa.blob.core.windows.net/public`;
-
 export const GUIDS_URL = `${PUBLIC_URL}/guids.json`;
 
-// Function App hosting the API (named `${prefix}xfa` in infra/main.bicep).
+// Function App hosting the API
 export const API_URL: string = import.meta.env.VITE_API_URL ?? `https://${PREFIX}xfa.azurewebsites.net/api`;
 
-export const ONESIGNAL_APP_ID: string = import.meta.env.DEV
-	? '19b595b2-a74d-4f12-8ef5-5c250d1e7064' // localhost
-	: '24ed781d-4a8b-4327-b388-467bf81dda37';
+// Optional until OneSignal is configured; push setup reports an error if it is missing.
+export const ONESIGNAL_APP_ID: string | undefined = import.meta.env.VITE_ONESIGNAL_APP_ID;
 
+// App version
 export const APP_VERSION = 'v.26.10.10 alpha';
