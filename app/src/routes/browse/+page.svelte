@@ -8,7 +8,13 @@
 	const { caller_id, device_id } = $local;
     
 	let filter = $state('');
-	function clearFilter() { filter = ''; }  
+	function clearFilter() { filter = ''; }
+
+	const filtered = $derived.by(() => {
+		const q = filter.trim().toLowerCase();
+		if (!q) return $entities;
+		return $entities.filter((e) => `${e.name ?? ''} ${e.pk}`.toLowerCase().includes(q));
+	});
 
 </script>
 
@@ -36,7 +42,7 @@
 		</button>
 	</div>
 
-	{#each $entities as entity}
+	{#each filtered as entity (entity.rk)}
 		<GencRouteLink
 			href={`/genc/${entity.rk}`}
 			title={entity.name??'no name'}
