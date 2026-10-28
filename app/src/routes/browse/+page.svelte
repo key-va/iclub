@@ -51,7 +51,15 @@
 			image={PUBLIC_URL + '/' + entity.rk + '.jpg'}
 		/>
 	{/each}
-    
+
+	{#if caller_id && device_id && filter.trim() && filtered.length === 0}
+		<GencRouteLink
+			href={`/ladder/create?name=${encodeURIComponent(filter.trim())}`}
+			title="New Ladder"
+			description={`create a ladder named ${filter.trim()}`}
+			isWhite={false}
+		/>
+	{/if}    
 </div>
 
 <style>

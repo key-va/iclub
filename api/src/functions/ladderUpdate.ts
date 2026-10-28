@@ -67,7 +67,7 @@ export async function ladderUpdate(request: HttpRequest, context: InvocationCont
     try {
         const relation = await guidsClient.getEntity(ladderId, caller_id);
 
-        if (relation.isAdmin !== true) throw new Error("not admin");
+        if (relation.is_admin !== true) throw new Error("not admin");
     } catch {
         return { status: 403, jsonBody: { success: false, message: "Only a ladder admin can update the ladder" } };
     }

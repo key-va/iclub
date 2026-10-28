@@ -1,11 +1,12 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { page } from '$app/state';
 	import { onMount } from 'svelte';
 	import { local } from '#lib/stores/local.ts';
 	import ApiService from '#lib/components/apiService.svelte';
 	import { ladderSettings } from '#lib/strings.ts';
 
-	let name = $state('');
+	let name = $state(page.url.searchParams.get('name') ?? '');
 	// Number fields start empty (showing the default as a placeholder) and fall back to the default on the API
 	let values = $state<Record<string, string | number | null>>(
 		Object.fromEntries(

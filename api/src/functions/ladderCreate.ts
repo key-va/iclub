@@ -91,7 +91,7 @@ export async function ladderCreate(request: HttpRequest, context: InvocationCont
     const ladderId = doNewGuid("ladder");
 
     await doUpsertEntity("ladder", ladderId, { name, ...settings });
-    await doUpsertRelation(ladderId, caller_id, { isAdmin: true });
+    await doUpsertRelation(ladderId, caller_id, { is_admin: true });
     await doAssetToPublic(image ?? "user-00.jpg", `${ladderId}.jpg`);
 
     // 4. Publish

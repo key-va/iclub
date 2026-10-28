@@ -128,7 +128,7 @@
 				name="delete"
 				message="delete this ladder? this cannot be undone"
 				endpoint={`ladder/${ladderId}/delete`}
-				onsuccess={() => goto('/admin')}
+				onsuccess={() => goto('/browse')}
 			/>
 		</GencRouteLink>
 	{:else}
