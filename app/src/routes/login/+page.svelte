@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { fly } from 'svelte/transition';
+	import { PUBLIC_URL } from '#lib/config.ts';
 	import UserLogin from '#lib/components/userLogin.svelte';
 	import InstallApp from '#lib/components/installApp.svelte';
 	import GencRouteLink from '#lib/components/gencRouteLink.svelte';
@@ -29,7 +29,8 @@
 
 	{#if isLoggedIn}
 		<GencRouteLink
-			href={`/user/${$local.caller_id}`}
+			href={`/user/${$local.caller_id}/edit`}
+			image={PUBLIC_URL + '/' + $local.caller_id + '.jpg'}
 			title="Profile"
 			description="edit your profile"
 			isWhite={true}
