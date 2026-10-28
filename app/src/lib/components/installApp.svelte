@@ -36,6 +36,6 @@
 
 <div class="install">
 	<div class="row center white">
-		<p>Looks like you're using the app in a browser. <strong>Install</strong> the app first, then you'll be able to experience the propper logged in experience<br/><br/>{message || 'install the app to login'}</p>
+		<p>Looks like you're using the app in a browser. <strong>Install</strong> the app first, then experience the full logged in experience<br/><br/>{message || 'install the app to login'}</p>
 	</div>
 </div>

@@ -1,262 +1,227 @@
-# AGENTS.md - Application Architecture & Development Guide
+# AGENTS.md - Intra Club Scaffold Development Guide
 
-This monorepo provides a reusable pattern for developing applications. The solution uses generic components and a universal data structure to support different applications without changing the underlying architecture.
+This repository is a reusable scaffold/template for future apps.
 
-## High Level Architecture
+Today it intentionally contains **no domain-specific product logic** beyond basic user/account flows. Its purpose is to provide a stable implementation baseline for:
 
-The solution uses three primary Azure resources:
+- a generic graph-style data model in Azure Table Storage
+- a SvelteKit frontend that reads from a published `guids.json`
+- an Azure Functions API that performs signed mutations
+- optional OneSignal web push wiring
 
-- **Azure Static Web App** - Hosts the SvelteKit frontend.
-- **Azure Function App** - Hosts the Node.js backend API.
-- **Azure Storage Account** - Provides persistent data storage.
+Use this guide to keep future AI-driven feature development consistent with the existing architecture.
 
-The Storage Account contains a table named `guids` and a publicly accessible blob container named `public`, containing `guids.json`.
+---
 
-The SvelteKit frontend reads data from `guids.json` and performs mutations through the Node.js backend API.
+## 1) Architecture Snapshot (Current Implementation)
 
-Additional resources include:
+Primary resources and roles:
 
-- **Key Vault, Application Insights and User Assigned Managed Identity** - Supporting infrastructure.
-- **auths table** - Stores user authentication data and is not publicly exported.
-- **public blob container** - Also stores images and other public resources.
+- **Azure Static Web App**: hosts the SvelteKit app
+- **Azure Function App**: hosts the Node API
+- **Azure Storage Account**:
+  - `guids` table (public app graph data source)
+  - `auths` table (private auth/device data)
+  - `public` blob container (`guids.json`, profile images, public assets)
+- **Key Vault**: stores OneSignal and other secrets
+- **App Insights + User Assigned Managed Identity**: telemetry and auth for Azure SDK access
 
-## Data Structure
+Frontend data flow:
 
-The solution uses a lightweight property-graph model built on Azure Table Storage. It supports arbitrary data without changing the underlying database structure.
+1. Load and periodically refresh `public/guids.json`
+2. Render entities/relations reactively from store state
+3. Send mutations to API endpoints
+4. API republishes `guids.json`
+5. Frontend refreshes from latest export
 
-Data is represented by two types of rows: **entities** and **relations**.
+---
+
+## 2) Data Model Contract (Keep As-Is)
+
+The storage model is a generic property graph with two row shapes.
+
+### Entity row
 
-### Entity Rows
+- `pk`: entity type (for example `user`, `team`, `event`)
+- `rk`: globally unique ID in format `type_YYYY-MM-DD_HH-MM-SS_<hex>`
+- `name`: display label (recommended)
+- additional fields: entity attributes
+
+### Relation row
+
+- two mirrored rows are required:
+  - row A: `pk = entityAId`, `rk = entityBId`
+  - row B: `pk = entityBId`, `rk = entityAId`
+- all non-key fields must match in both rows
+- additional fields describe the relationship, not the entities
+
+### Core invariants
+
+1. Every entity has a stable type + ID.
+2. Every relation is mirrored bidirectionally.
+3. Entity attributes stay on entity rows.
+4. Relation attributes stay on relation rows.
+5. Business semantics live in API logic, not in storage schema.
+
+---
+
+## 3) Backend API (Azure Functions, Node/TypeScript)
+
+Current endpoints in `api/src/functions/`:
+
+- `system/about` ([systemAbout.ts](./api/src/functions/systemAbout.ts))
+  - returns entity counts from `guids`
+  - returns `ONESIGNAL_APP_ID` when configured
+- `system/restore` ([systemRestore.ts](./api/src/functions/systemRestore.ts))
+  - replaces `guids` table from posted array, then republishes `guids.json`
+- `user/otp` ([userOtp.ts](./api/src/functions/userOtp.ts))
+  - checks if contact exists, sets placeholder OTP for existing users
+- `user/login` ([userLogin.ts](./api/src/functions/userLogin.ts))
+  - validates OTP + EC public key, registers device, returns `user_id` + `device_id`
+- `user/create` ([userCreate.ts](./api/src/functions/userCreate.ts))
+  - creates user entity/auth rows, registers first device, seeds avatar, republishes
+- `user/{user_id}/update` ([userUpdate.ts](./api/src/functions/userUpdate.ts))
+  - signature-verified self-update (name/email/phone/image), republishes, sends push
+- `user/{user_id}/delete` ([userDelete.ts](./api/src/functions/userDelete.ts))
+  - signature-verified self-delete flow (anonymise entity, purge auth, placeholder avatar, republish)
 
-Entities represent independent objects.
+### Reusable services (use these first)
 
-Each entity must contain:
+Located in `api/src/services/`:
 
-- `pk` - Entity type.
-- `rk` - Globally unique ID in the format `entity_YYYY-MM-DD_HH-MM-SS_abc123abc123`.
-- `name` - Human-readable name.
+- [doNewGuid.ts](./api/src/services/doNewGuid.ts): ID generation
+- [doUpsertEntity.ts](./api/src/services/doUpsertEntity.ts): entity row upsert
+- [doUpsertRelation.ts](./api/src/services/doUpsertRelation.ts): mirrored relation upsert
+- [doUpsertAuth.ts](./api/src/services/doUpsertAuth.ts): auth table upsert
+- [doSignatureVerification.ts](./api/src/services/doSignatureVerification.ts): request signature verification
+- [doGuidsToPublic.ts](./api/src/services/doGuidsToPublic.ts): full table export to `public/guids.json`
+- [doAssetToPublic.ts](./api/src/services/doAssetToPublic.ts): publish assets/images to `public`
+- [doSendPush.ts](./api/src/services/doSendPush.ts): OneSignal push dispatch
 
-Additional attributes may describe the entity itself.
+### Endpoint development rules
+
+When adding a new endpoint:
 
-```json
-{
-  "pk": "user",
-  "rk": "user_2026-10-20_13-00-43_abc123abc123",
-  "name": "Jane Doe"
-}
-```
+1. Validate request payload and required params.
+2. Verify signature for authenticated actions (`doSignatureVerification`).
+3. Read existing graph/auth state from storage.
+4. Apply business rules inline in the endpoint.
+5. Persist via existing helpers (`doUpsertEntity`, `doUpsertRelation`, `doUpsertAuth`).
+6. Republish with `doGuidsToPublic` if public graph changes.
+7. Return standard response shape:
+   - `success: boolean`
+   - `message: string`
+   - optional `subject: string`
+   - optional `data: object`
 
-The above example represents a user named Jane Doe with no additional attributes.
+Do not introduce new storage abstractions unless a real gap is proven.
 
-### Relation Rows
+---
 
-Relations represent connections between two entities.
+## 4) Frontend (SvelteKit + Svelte 5 runes)
 
-Each relationship must contain two mirrored rows:
+### Core stores (`app/src/lib/stores/`)
 
-- `pk` - ID of one entity.
-- `rk` - ID of the related entity.
-- The second row swaps `pk` and `rk`.
-- All other attributes must be identical in both rows.
+- [guids.ts](./app/src/lib/stores/guids.ts)
+  - stateful loader/refresher for `guids.json`
+  - auto-refresh timer support
+  - merge strategy to preserve object identity when unchanged
+  - helpers: `entityOf`, `relationsOf`, `relatedEntities`, `entitiesOfType`, `nameOf`
+- [local.ts](./app/src/lib/stores/local.ts)
+  - persisted device-local auth context (`caller_id`, `device_id`, `connect_key`)
+  - signature generation compatible with API verification
+- [remote.ts](./app/src/lib/stores/remote.ts)
+  - API caller (`callApi`) with signed/unsigned modes
+  - keypair generation for login/create flow
+- [push.ts](./app/src/lib/stores/push.ts)
+  - loads OneSignal SDK
+  - reads app ID from `system/about`
+  - links external user ID and requests permission on next gesture
 
-Additional attributes may describe the relationship between the entities.
+### Reusable components (`app/src/lib/components/`)
 
-```json
-[
-  {
-    "pk": "user_2026-10-20_13-00-43_abc123abc123",
-    "rk": "ladder_2025-12-20_13-14-46_abc123abc123",
-    "rank": 4,
-    "state": "away"
-  },
-  {
-    "pk": "ladder_2025-12-20_13-14-46_abc123abc123",
-    "rk": "user_2026-10-20_13-00-43_abc123abc123",
-    "rank": 4,
-    "state": "away"
-  }
-]
-```
+- [apiService.svelte](./app/src/lib/components/apiService.svelte)
+  - consistent action button + confirmation/execute UX
+  - API call + `guids.refresh()` + optional redirect by `subject`
+- [gencRouteLink.svelte](./app/src/lib/components/gencRouteLink.svelte)
+  - standard route-list row UI
+  - optional expandable "more options" mode
+- [userLogin.svelte](./app/src/lib/components/userLogin.svelte)
+  - otp/create/login entry flow
+- [installApp.svelte](./app/src/lib/components/installApp.svelte)
+  - browser/platform-specific install guidance text
 
-The above example represents a user ranked fourth in a ladder, with their participation state set to `away`.
+### Current page scaffold
 
-The `rank` and `state` attributes describe the user's relationship with the ladder, not either entity independently.
+- root redirect: [app/src/routes/+page.svelte](./app/src/routes/+page.svelte)
+- shared layout/init: [app/src/routes/+layout.svelte](./app/src/routes/+layout.svelte)
+- login gate: [app/src/routes/login/+page.svelte](./app/src/routes/login/+page.svelte)
+- browse/filter list: [app/src/routes/browse/+page.svelte](./app/src/routes/browse/+page.svelte)
+- generic entity view: [app/src/routes/genc/[entity_id]/+page.svelte](./app/src/routes/genc/[entity_id]/+page.svelte)
+- user view/edit: [app/src/routes/user/[user_id]/+page.svelte](./app/src/routes/user/[user_id]/+page.svelte), [app/src/routes/user/[user_id]/edit/+page.svelte](./app/src/routes/user/[user_id]/edit/+page.svelte)
+- menu/about: [app/src/routes/menu/+page.svelte](./app/src/routes/menu/+page.svelte), [app/src/routes/about/+page.svelte](./app/src/routes/about/+page.svelte)
 
-### Core Principles
+### Push-related static files
 
-1. Every object is an entity with a type and globally unique ID.
-2. Every relationship is represented by two mirrored rows for bidirectional lookup.
-3. Entity attributes describe objects; relation attributes describe associations.
-4. All entities and relations follow the same storage conventions.
-5. Application logic defines validation, meaning and behaviour independently of the storage model.
-6. Relationships are traversed by querying an entity's partition and following related IDs.
+- [manifest.webmanifest](./app/static/manifest.webmanifest)
+- [OneSignalSDKWorker.js](./app/static/OneSignalSDKWorker.js)
+- [service.js](./app/static/service.js)
 
-## Application Development
+---
 
-The backend API and frontend must be developed together. The API handles validation and data mutations, while the frontend handles presentation and user interaction.
+## 5) Template Intent for Future Apps
 
-## Node.js Backend API
+This repo should be used as a **starting template**:
 
-The backend provides endpoints for application actions and reusable services for common operations.
+1. Stand up scaffold/infrastructure
+2. Keep shared mechanics stable (auth signatures, graph export, reusable UI/service helpers)
+3. Add feature-specific endpoints/pages/components on top
+4. Prefer extending existing helpers/components over creating parallel versions
 
-### Scaffolded Services
+The default assumption for AI workflows is:
 
-The following services provide common functionality and should be reused rather than duplicated.
+- reuse existing helper/service/component first
+- add a new primitive only when the existing one cannot cleanly support the feature
+- keep new feature logic in endpoints/pages, not in duplicated infrastructure glue
 
-- **doGuidsToPublic** - Exports the guids table to the public guids.json blob.
-- **doNewGuid** - Generates a new globally unique entity ID.
-- **doSignatureVerification** - Verifies the signature of an incoming API request.
-- **doUpsertAuth** - Creates or updates records in the auths table.
-- **doUpsertEntity** - Creates or updates an entity row in the guids table.
-- **doUpsertRelation** - Creates or updates both mirrored relation rows in the guids table.
+---
 
-These services should cover the data access requirements of new endpoints without introducing additional storage services.
+## 6) Extension Rules for Agentic Feature Development
 
-### Scaffolded Endpoints
+When implementing a new feature:
 
-The following endpoints are provided as part of the application scaffold:
+### Backend
 
-- **system/about** - Returns basic counts of the dataset in the guids table.
-- **system/restore** - Purges the guids table and rebuilds it from supplied JSON.
-- **user/login** - Authenticates a user.
-- **user/otp** - Handles one-time password verification.
-- **user/create** - Creates a new user.
-- **user/:user_id/update** - Updates an existing user.
-- **user/:user_id/delete** - Deletes an existing user.
+- Start from an endpoint in `api/src/functions/`.
+- Reuse `doSignatureVerification` for caller-authenticated actions.
+- Use `doUpsertEntity`/`doUpsertRelation`/`doUpsertAuth` for persistence.
+- Call `doGuidsToPublic` after any public graph mutation.
+- Reuse `doAssetToPublic` for image/blob publishing.
+- Reuse `doSendPush` for notification fan-out when needed.
 
-### Endpoint Development
+### Frontend
 
-Each endpoint follows a parameterised route structure, identifying the target entity and action in the URL.
+- Consume graph data from `guids` store helpers.
+- Use `apiService.svelte` for mutation actions where possible.
+- Use `gencRouteLink.svelte` for list-style navigation rows.
+- Keep auth/session state in `local` store only.
+- Keep API traffic through `callApi`.
 
-- The HTTP method is always POST.
-- The URL identifies the entity type, entity ID and action.
-- Each endpoint must be idempotent, preventing repeated mutations or side effects.
+### New helper/service/component policy
 
-Each endpoint expects a JSON payload containing:
+Add new shared primitives only if:
 
-- **device_id** - ID of the device.
-- **caller_id** - ID of the user.
-- **signature** - Signature of the device ID, caller ID and request path.
-- **data** - Optional attributes required by the action.
+1. the need appears in multiple features, and
+2. reuse of existing primitives would create brittle or duplicated code.
 
-Each endpoint returns a standard JSON response containing:
+If added, document it in this file under the relevant section.
 
-- **success** - Boolean indicating success or failure.
-- **message** - Human-readable message for display to the user.
-- **subject** - Optional entity ID for client navigation.
-- **data** - Optional data as neccessary
+---
 
-Each endpoint performs a specific action using the existing services:
+## 7) Current Non-Goals (Intentional)
 
-1. Verify the request signature using `doSignatureVerification`.
-2. Fetch the target entity and its relationships from the `guids` table.
-3. Validate the request and authorise the action where necessary.
-4. Apply the business rules and perform mutations using the existing services, usually `doNewGuid`, `doUpsertEntity` and `doUpsertRelation` as neccessary.
-5. Export the updated data using `doGuidsToPublic`.
-6. Return the standard response.
+- No domain-specific ladder/event/team business workflows yet
+- No advanced role/permission system beyond current self-ownership checks
+- No specialized analytics/reporting model beyond base telemetry
 
-Business rules should be implemented inline within the endpoint function. Shared services should handle common operations rather than domain-specific behaviour.
-
-The endpoint must derive existing relationships and context from the `guids` table, rather than requiring the client to supply them.
-
-Example: Complete a match
-
-POST https://app.intra.club/api/match/match_2025-12-20_13-14-46_abc123abc123/complete
-
-Request:
-
-```json
-{
-  "caller_id": "user_2026-10-20_13-00-43_abc123abc123",
-  "device_id": "device_2026-10-20_13-00-43_abc123abc123",
-  "signature": "generated_signature",
-  "data": {
-    "winner": "user_2025-12-20_13-14-46_abc123abc123",
-    "winnerScore": 8,
-    "loser": "user_2022-12-20_13-14-46_abc123abc123",
-    "loserScore": 3
-  }
-}
-```
-
-Response:
-
-```json
-{
-  "success": true,
-  "message": "Jane Doe defeats Mike Fox 8-3",
-  "subject": "match_2025-12-20_13-14-46_abc123abc123"
-}
-```
-
-The above example represents a completed match.
-
-The API retrieves the match entity and its related rows by querying the Match ID as the partition key. It then applies the relevant business rules based on the relationships found, such as updating ladder rankings or tournament progression.
-
-The match's context is determined by the existing data, not by the request URL or payload.
-
-## SvelteKit Frontend
-
-The frontend provides the user interface using SvelteKit, with reactive stores managing application data and the backend API handling mutations.
-
-### Scaffolded Stores
-
-Svelte stores provide shared, reactive application state.
-
-- **guids** - Contains the dataset loaded from `guids.json` and provides a functions related to the same.
-- **local** - Maintains the current user and authentication state and provides a generate_signature function used for API calls.
-
-The `guids` store is the common source of data for all pages and components.
-- The dataset is loaded into the store during application initialisation.
-- The dataset is updated/refreshed/merged every 90 seconds or on demand after an API is called.
-- Pages and components subscribe to the store rather than fetching guids.json independently.
-- Entities are identified by their rk.
-- Relationships are identified by filtering rows where pk matches an entity ID.
-- Entity and relation views are derived reactively from the store.
-- Updating the store automatically updates all dependent pages and components.
-- The store represents the current public dataset. It must not be directly modified to simulate backend mutations.
-
-### Scaffolded Components
-
-The following layouts and components provide common application functionality.
-
-- **userLogin** - Allows user creation or login flow (calling `user/create`, `user/otp` and `user/login` API endpoints)
-- **userUpdate** - Allows user email, phone and name updates (calling `user/:user_id/update` API endpoints)
-- **apiService** - Handles API requests, responses and loading
-
-Shared layouts and components should be reused rather than duplicated across pages.
-
-### Scaffolded Layout and Pages
-
-The following pages are provided as part of the application scaffold:
-
-- **+layout.svelte** - Provides the shared application layout (header, footer and navigation buttons) and initialises the stores.
-- **+page.svelte** - The root landing page shows login components or redirects to the user page if logged in.
-- **user route** - User page displaying user information and edit functionality.
-
-### App Development
-
-Each entity has a page following the parameterised route structure `/:entity/:entity_id`.
-
-Pages display the entity's attributes and use components to display related entities, including attributes describing their relationships.
-
-All pages and components read reactively from the shared `guids` store, ensuring changes to the dataset are automatically reflected in the UI.
-
-Example: User Page
-
-The scaffold includes a user page at `user/:user_id` that:
-
-- Displays the user's attributes from the user entity.
-- Shows a userUpdate component only when the displayed user is the currently logged-in user.
-
-The update component calls `user/:user_id/update` using the scaffolded API and signature services. After the response, the shared `guids` store is refreshed before any navigation.
-
-All new development should follow this pattern:
-
-- Each entity type has a page displaying its attributes.
-- Related entities are displayed using reusable components, with relation attributes providing context.
-- Components should work in either direction of a relationship. For example, a user page displays related ladders, while a ladder page displays related users.
-- Pages and components derive their data reactively from the shared `guids` store rather than maintaining separate copies.
-- Components and actions are made available to the user based on the data state.
-
-New features should extend this pattern, reusing existing components and services wherever possible.
+This is deliberate: the scaffold is meant to stay generic and composable for future app builds.

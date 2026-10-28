@@ -1,10 +1,5 @@
 <script lang="ts">
-	import { page } from '$app/state';
-	import { PUBLIC_URL } from '#lib/config.ts';
-	import { guids, entityOf } from '#lib/stores/guids.ts';
 	import { local } from '#lib/stores/local.ts';
-
-	import GencRouteLink from '#lib/components/gencRouteLink.svelte';
 
 	const { caller_id, device_id } = $local;
 </script>
