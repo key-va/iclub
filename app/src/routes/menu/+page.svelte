@@ -23,6 +23,8 @@
 
 		<GencRouteLink href="/user/{caller_id}/edit" title="Profile" description="edit your profile" isWhite={true} />
 
+		<GencRouteLink href="/admin" title="Admin" description="create and manage ladders" isWhite={false} />
+
 	{:else}
 
 		<GencRouteLink href="/login" title="Login" description="login or create account" isWhite={true} />

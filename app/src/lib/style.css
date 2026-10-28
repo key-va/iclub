@@ -33,7 +33,7 @@ input {
 }
 
 select {
-    width: 100%; min-height:3rem; padding: 1rem; margin:0.5rem auto; 
+    width: 100%; min-height:3rem; padding: 1rem; margin:0.5rem; 
     background-color: whitesmoke; color: #0d0d0d;
     border: none; border-radius: 0.5rem;
 }

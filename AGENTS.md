@@ -96,6 +96,7 @@ Located in `api/src/services/`:
 - [doSignatureVerification.ts](./api/src/services/doSignatureVerification.ts): request signature verification
 - [doGuidsToPublic.ts](./api/src/services/doGuidsToPublic.ts): full table export to `public/guids.json`
 - [doAssetToPublic.ts](./api/src/services/doAssetToPublic.ts): publish assets/images to `public`
+- [doAssetFromPublic.ts](./api/src/services/doAssetFromPublic.ts): remove an asset/image from `public`
 - [doSendPush.ts](./api/src/services/doSendPush.ts): OneSignal push dispatch
 
 ### Endpoint development rules
