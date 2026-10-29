@@ -179,6 +179,10 @@
 			<p class="truncate"><strong>{$guids.loaded ? 'Not found' : 'Loading'}</strong><br />edit</p>
 			<div class="blank-icon-small"></div>
 		</div>
+
+		<div class="row right">
+			<button class="blue" aria-label="logout" onclick={logout}><p>reset</p></button>
+		</div>
 	{/if}
 </div>
 
