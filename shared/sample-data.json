@@ -141,22 +141,22 @@
   {
     "pk": "ladder_0000-00-00_00-00-00_bootstrap00s",
     "rk": "user_0000-00-00_00-00-00_bootstrap0uz",
-    "admin": true
+    "is_admin": true
   },
   {
     "pk": "user_0000-00-00_00-00-00_bootstrap0uz",
     "rk": "ladder_0000-00-00_00-00-00_bootstrap00s",
-    "admin": true
+    "is_admin": true
   },
   {
     "pk": "ladder_0000-00-00_00-00-00_bootstrap00d",
     "rk": "user_0000-00-00_00-00-00_bootstrap0uz",
-    "admin": true
+    "is_admin": true
   },
   {
     "pk": "user_0000-00-00_00-00-00_bootstrap0uz",
     "rk": "ladder_0000-00-00_00-00-00_bootstrap00d",
-    "admin": true
+    "is_admin": true
   },
   {
     "pk": "ladder_0000-00-00_00-00-00_bootstrap00s",

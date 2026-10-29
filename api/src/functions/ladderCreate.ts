@@ -137,14 +137,18 @@ export async function ladderCreate(request: HttpRequest, context: InvocationCont
         }
     }
 
+    context.log(`Club ${clubId} admins to notify: ${clubAdmins.length}`);
+
     if (clubAdmins.length > 0) {
-        await doSendPush({
+        const sent = await doSendPush({
             userIds: clubAdmins,
             heading: "New ladder",
             content: `${name} has been created and is pending approval`,
             path: `ladder/${ladderId}`,
             collapseId: ladderId
         }, context);
+
+        context.log(`Push to club admins ${sent ? "sent" : "not sent"}`);
     }
 
     context.log(`Created ladder ${ladderId} for ${caller_id}`);
