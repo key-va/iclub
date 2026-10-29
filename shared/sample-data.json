@@ -114,6 +114,16 @@
   },
   {
     "pk": "club_0000-00-00_00-00-00_bootstrap00c",
+    "rk": "user_0000-00-00_00-00-00_bootstrap0uz",
+    "is_admin": true
+  },
+  {
+    "pk": "user_0000-00-00_00-00-00_bootstrap0uz",
+    "rk": "club_0000-00-00_00-00-00_bootstrap00c",
+    "is_admin": true
+  },
+  {
+    "pk": "club_0000-00-00_00-00-00_bootstrap00c",
     "rk": "ladder_0000-00-00_00-00-00_bootstrap00s"
   },
   {

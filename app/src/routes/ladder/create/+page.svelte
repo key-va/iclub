@@ -61,8 +61,12 @@
 
 	const numbersValid = $derived(Object.keys(ladderSettings).every(numberOk));
 
+	// Intra Club is the only club for now; this becomes a user choice later
+	const CLUB_ID = 'club_0000-00-00_00-00-00_bootstrap00c';
+
 	const createData = $derived({
 		name: cleanName,
+		club_id: CLUB_ID,
 		...Object.fromEntries(Object.entries(values).filter(([, value]) => value !== null)),
 		...(image !== '' ? { image } : {})
 	});

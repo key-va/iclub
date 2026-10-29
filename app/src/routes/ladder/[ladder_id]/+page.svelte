@@ -2,9 +2,10 @@
 	import { page } from '$app/state';
 	import { PUBLIC_URL } from '#lib/config.ts';
 	import { local } from '#lib/stores/local.ts';
-	import { guids, entityOf, relatedEntities } from '#lib/stores/guids.ts';
+	import { guids, entityOf, relatedEntities, relationsOf } from '#lib/stores/guids.ts';
 	import { ladderSettings } from '#lib/strings.ts';
 
+	import ApiService from '#lib/components/apiService.svelte';
 	import GencRouteLink from '#lib/components/gencRouteLink.svelte';
 
 	const { caller_id } = $local;
@@ -12,6 +13,11 @@
 	const ladderId = $derived(page.params.ladder_id ?? '');
 	const ladder = $derived(entityOf($guids.items, ladderId));
 	const related_entities = $derived(relatedEntities($guids.items, ladderId));
+
+	const clubId = $derived(relatedEntities($guids.items, ladderId, 'club')[0]?.rk ?? '');
+	const isClubAdmin = $derived(
+		relationsOf($guids.items, clubId).some((relation) => relation.rk === caller_id && relation.is_admin === true)
+	);
 </script>
 
 <div class="page">
@@ -24,6 +30,21 @@
 		<div class="row center">
 			<div class="round-icon-big" style="background-image: url('{PUBLIC_URL}/{ladder.rk}.jpg');"></div>
 		</div>
+
+		<GencRouteLink
+			href={`/ladder/${ladderId}`}
+			title={String(ladder.state ?? 'pending')}
+			description="state"
+			isWhite={true}
+		/>
+
+		{#if ladder.state === 'pending' && isClubAdmin}
+			<ApiService
+				name="accept"
+				message={`accept the ladder ${ladder.name} and make it active?`}
+				endpoint={`ladder/${ladderId}/activate`}
+			/>
+		{/if}
 
 		{#each Object.entries(ladderSettings) as [key, setting] (key)}
 			<GencRouteLink

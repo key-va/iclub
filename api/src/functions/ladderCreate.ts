@@ -1,13 +1,26 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
+import { DefaultAzureCredential } from "@azure/identity";
+import { TableClient, odata } from "@azure/data-tables";
 import { doSignatureVerification } from "../services/doSignatureVerification";
 import { doNewGuid } from "../services/doNewGuid";
 import { doUpsertEntity } from "../services/doUpsertEntity";
 import { doUpsertRelation } from "../services/doUpsertRelation";
 import { doGuidsToPublic } from "../services/doGuidsToPublic";
 import { doAssetToPublic } from "../services/doAssetToPublic";
+import { doSendPush } from "../services/doSendPush";
 import { ladderSettings, ladderSettingDefaults } from "../stores/strings";
 
+import { resourceName, resourceSuffix } from "../stores/resourceNames";
+
 const maxImageBytes = 1024 * 1024;
+
+const storageAccount = resourceName(resourceSuffix.storageAccount);
+
+const guidsClient = new TableClient(
+    `https://${storageAccount}.table.core.windows.net`,
+    "guids",
+    new DefaultAzureCredential()
+);
 
 export async function ladderCreate(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
 
@@ -41,7 +54,7 @@ export async function ladderCreate(request: HttpRequest, context: InvocationCont
     }
 
     // 2. Validate the name and settings
-    const { name: rawName, image: rawImage, ...rawSettings } = data ?? {};
+    const { name: rawName, image: rawImage, club_id: rawClubId, ...rawSettings } = data ?? {};
     const name = typeof rawName === "string" ? rawName.trim() : "";
 
     if (!name) {
@@ -87,15 +100,52 @@ export async function ladderCreate(request: HttpRequest, context: InvocationCont
         settings[key] = value;
     }
 
-    // 3. Create the ladder and make the caller its admin
+    // 3. Create the ladder (pending) under the chosen club and make the caller its admin
+    if (typeof rawClubId !== "string" || !rawClubId.startsWith("club_")) {
+        return { status: 400, jsonBody: { success: false, message: "club_id is required" } };
+    }
+
+    try {
+        await guidsClient.getEntity("club", rawClubId);
+    } catch (err: any) {
+        if (err?.statusCode === 404) {
+            return { status: 404, jsonBody: { success: false, message: "Club not found" } };
+        }
+        throw err;
+    }
+
+    const clubId = rawClubId;
+
     const ladderId = doNewGuid("ladder");
 
-    await doUpsertEntity("ladder", ladderId, { name, ...settings });
+    await doUpsertEntity("ladder", ladderId, { name, ...settings, state: "pending" });
+    await doUpsertRelation(ladderId, clubId);
     await doUpsertRelation(ladderId, caller_id, { is_admin: true });
     await doAssetToPublic(image ?? "icon-00.jpg", `${ladderId}.jpg`);
 
     // 4. Publish
     await doGuidsToPublic();
+
+    // Ask the club admins to approve the new ladder
+    const clubAdmins: string[] = [];
+
+    for await (const relation of guidsClient.listEntities({
+        queryOptions: { filter: odata`PartitionKey eq ${clubId}` }
+    })) {
+        if (relation.is_admin === true && (relation.rowKey as string).startsWith("user_")) {
+            clubAdmins.push(relation.rowKey as string);
+        }
+    }
+
+    if (clubAdmins.length > 0) {
+        await doSendPush({
+            userIds: clubAdmins,
+            heading: "New ladder",
+            content: `${name} has been created and is pending approval`,
+            path: `ladder/${ladderId}`,
+            collapseId: ladderId
+        }, context);
+    }
 
     context.log(`Created ladder ${ladderId} for ${caller_id}`);
 

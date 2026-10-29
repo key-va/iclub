@@ -60,3 +60,9 @@ export const ladderSettings: Record<string, LadderSetting> = {
 export const ladderSettingDefaults: Record<string, string | number> = Object.fromEntries(
     Object.entries(ladderSettings).map(([key, setting]) => [key, setting.default])
 );
+
+export const ladderStates: Record<string, string> = {
+    pending: "waiting for the club admin to approve the ladder",
+    active: "approved and open for play",
+    complete: "finished and closed"
+};
