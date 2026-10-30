@@ -14,10 +14,10 @@ export interface PushMessage {
 
 // Sends a OneSignal push to the given users (external ids). Never throws: a failed push must not fail the caller.
 export async function doSendPush(message: PushMessage, context?: InvocationContext): Promise<boolean> {
-    const apiKey = process.env.ICLUB_ONE_SIGNAL_KEY;
+    const apiKey = process.env.ONESIGNAL_API_KEY;
 
     if (!apiKey) {
-        context?.warn("ICLUB_ONE_SIGNAL_KEY is not configured; push not sent.");
+        context?.warn("ONESIGNAL_API_KEY is not configured; push not sent.");
         return false;
     }
 
