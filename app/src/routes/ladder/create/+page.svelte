@@ -16,7 +16,7 @@
 	let image = $state('');
 	let imageError = $state('');
 	let fileInput = $state<HTMLInputElement>();
-	let infoKey = $state('');
+	let showHelp = $state(false);
 
 	const cleanName = $derived(name.trim());
 
@@ -115,7 +115,7 @@
 			{#if setting.type === 'enum'}
 				<select aria-label={setting.label} bind:value={values[key]}>
 					{#each Object.keys(setting.values) as option (option)}
-						<option value={option}>{setting.label}: {option}</option>
+						<option value={option}>{option}</option>
 					{/each}
 				</select>
 			{:else}
@@ -130,15 +130,11 @@
 					bind:value={values[key]}
 				/>
 			{/if}
-			<button class="blue" aria-label={`about ${setting.label}`} onclick={() => (infoKey = infoKey === key ? '' : key)}>
-				<svg viewBox="0 0 24 24" width="1rem" height="1rem" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="Details">
-					<path d="M12 5v14M5 12h14" />
-				</svg>
-			</button>
 		</div>
-		{#if infoKey === key}
-			<div class="row left white">
+		{#if showHelp}
+			<div class="row left white help">
 				<p>
+					<strong>{setting.label}</strong>: {setting.description}<br />
 					{#if setting.type === 'enum'}
 						{#each Object.entries(setting.values) as [option, description], i (option)}
 							{#if i > 0}<br />{/if}<strong>{option}</strong>: {description}
@@ -160,11 +156,21 @@
 		endpoint="ladder/create"
 		data={createData}
 		disabled={cleanName === '' || !numbersValid}
-	/>
+	>
+		<button class="blue" aria-label="help" aria-pressed={showHelp} onclick={() => (showHelp = !showHelp)}>
+			<svg viewBox="0 0 24 24" width="1rem" height="1rem" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="Help">
+				<path d="M9 9a3 3 0 1 1 4.5 2.6c-1 .6-1.5 1.2-1.5 2.4" />
+				<path d="M12 18h.01" />
+			</svg>
+		</button>
+	</ApiService>
 </div>
 
 <style>
 	.page {
 		width: 100%;
+	}
+	.help p {
+		padding: 1em 2em;
 	}
 </style>

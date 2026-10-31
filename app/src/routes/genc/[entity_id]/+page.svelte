@@ -2,9 +2,9 @@
 	import { page } from '$app/state';
 	import { PUBLIC_URL } from '#lib/config.ts';
 	import { local } from '#lib/stores/local.ts';
-	import { guids, entityOf, relatedEntities } from '#lib/stores/guids.ts';
+	import { guids, entityOf, relatedEntities, hrefOf, imageOf } from '#lib/stores/guids.ts';
 
-    import GencRouteLink from '#lib/components/gencRouteLink.svelte';
+    import RouteLink from '#lib/components/routeLink.svelte';
 
 	const { caller_id, device_id } = $local;
 
@@ -33,16 +33,16 @@
 
 	{#if related_entities.length > 0}
 		{#each related_entities as related_entity}
-			<GencRouteLink
-				href={`/genc/${related_entity.rk}`}
+			<RouteLink
+				href={hrefOf(related_entity.rk)}
 				title={related_entity.name??'no name'}
 				description={related_entity.pk}
 				isWhite={related_entity.rk === caller_id}
-				image={PUBLIC_URL + '/' + related_entity.rk + '.jpg'}
+				image={imageOf(related_entity.rk)}
 			/>
 		{/each}
 	{:else}
-		<GencRouteLink
+		<RouteLink
 			href={`/`}
 			title='None'
 			description='no relations found'

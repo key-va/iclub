@@ -144,7 +144,7 @@ Do not introduce new storage abstractions unless a real gap is proven.
 - [apiService.svelte](./app/src/lib/components/apiService.svelte)
   - consistent action button + confirmation/execute UX
   - API call + `guids.refresh()` + optional redirect by `subject`
-- [gencRouteLink.svelte](./app/src/lib/components/gencRouteLink.svelte)
+- [routeLink.svelte](./app/src/lib/components/routeLink.svelte)
   - standard route-list row UI
   - optional expandable "more options" mode
 - [userLogin.svelte](./app/src/lib/components/userLogin.svelte)
@@ -204,7 +204,8 @@ When implementing a new feature:
 
 - Consume graph data from `guids` store helpers.
 - Use `apiService.svelte` for mutation actions where possible.
-- Use `gencRouteLink.svelte` for list-style navigation rows.
+- Use `routeLink.svelte` for list-style navigation rows.
+- Link to entities with `hrefOf(id)` (`/<type>/<id>`) and `imageOf(id)` from the `guids` store; never link to `genc/...` from new code.
 - Keep auth/session state in `local` store only.
 - Keep API traffic through `callApi`.
 

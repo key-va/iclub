@@ -1,8 +1,9 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import type { Snippet } from 'svelte';
 	import { cubicIn, cubicOut } from 'svelte/easing';
 	import { callApi, type ApiResponse } from '#lib/stores/remote.ts';
-	import { guids } from '#lib/stores/guids.ts';
+	import { guids, hrefOf } from '#lib/stores/guids.ts';
 
 	interface Props {
 		name?: string;
@@ -16,6 +17,8 @@
 		// true renders just the button so it can sit inside a caller's own row
 		inline?: boolean;
 		onsuccess?: (result: ApiResponse) => void | Promise<void>;
+		// extra controls rendered to the left of the button (ignored when inline)
+		children?: Snippet;
 	}
 
 	let {
@@ -27,7 +30,8 @@
 		confirm = true,
 		disabled = false,
 		inline = false,
-		onsuccess
+		onsuccess,
+		children
 	}: Props = $props();
 
 	let isExpanded = $state(false);
@@ -118,7 +122,7 @@
 			await guids.refresh();
 			await onsuccess?.(result);
 
-			if (result.subject) await goto(`/${result.subject.split('_')[0]}/${result.subject}`);
+			if (result.subject) await goto(hrefOf(result.subject));
 		} catch (e) {
 			// The action succeeded but the fresh data could not be loaded; allow a retry of the refresh only
 			shown = `${result.message} (could not refresh: ${e instanceof Error ? e.message : 'unknown error'})`;
@@ -134,9 +138,11 @@
 {#snippet trigger()}
 	<button class={disabled ? 'grey' : 'pink'} aria-label={name} {disabled} onclick={start}>
 		<p>{name}</p>
-		<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-			<path d="M5 12h14M13 5l7 7-7 7" />
-		</svg>
+		{#if !inline}
+			<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+				<path d="M5 12h14M13 5l7 7-7 7" />
+			</svg>
+		{/if}
 	</button>
 {/snippet}
 
@@ -144,6 +150,7 @@
 	{@render trigger()}
 {:else}
 	<div class="row right">
+		{@render children?.()}
 		{@render trigger()}
 	</div>
 {/if}

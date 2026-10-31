@@ -1,5 +1,5 @@
 import { derived, writable } from 'svelte/store';
-import { GUIDS_URL } from '#lib/config.ts';
+import { GUIDS_URL, PUBLIC_URL } from '#lib/config.ts';
 
 // A row in guids.json is either an entity (pk = entity type, rk = entity id)
 // or one direction of a relation (pk = first entity id, rk = second entity id).
@@ -184,6 +184,9 @@ export const isRelation = (row: GuidRow) => row.pk.includes('_');
 export const isEntity = (row: GuidRow) => !isRelation(row);
 
 export const typeOf = (id: string) => id.split('_')[0];
+// Every entity page lives at /<type>/<id>, and its image is published as <id>.jpg
+export const hrefOf = (id: string) => `/${typeOf(id)}/${id}`;
+export const imageOf = (id: string) => `${PUBLIC_URL}/${id}.jpg`;
 export function nameOf(items: GuidRow[], id: string): string {return entityOf(items, id)?.name ?? id;}
 
 export function entityOf(items: GuidRow[], id: string): GuidRow | undefined {return items.find((row) => row.pk === typeOf(id) && row.rk === id);}

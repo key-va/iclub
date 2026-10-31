@@ -3,7 +3,7 @@
 	import { onMount } from 'svelte';
 	import { goto, onNavigate } from '$app/navigation';
 	import { APP_VERSION, PUBLIC_URL } from '#lib/config.ts';
-	import { guids, nameOf } from '#lib/stores/guids.ts';
+	import { guids, nameOf, hrefOf } from '#lib/stores/guids.ts';
 	import { local } from '#lib/stores/local.ts';
 	import { startPush } from '#lib/stores/push.ts';
 	import type { LayoutProps } from './$types';
@@ -12,7 +12,7 @@
 
 	const callerId = $derived($local.caller_id);
 	const isLoggedIn = $derived(Boolean($local.caller_id && $local.device_id));
-	const homeHref = $derived(isLoggedIn && callerId ? `/user/${callerId}` : '/login');
+	const homeHref = $derived(isLoggedIn && callerId ? hrefOf(callerId) : '/login');
 
 	let originX = innerWidth;
 	let originY = innerHeight;

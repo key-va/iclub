@@ -1,19 +1,20 @@
 <script lang="ts">
-	import { PUBLIC_URL } from '#lib/config.ts';
 	import { local } from '#lib/stores/local.ts';
-	import { entities } from '#lib/stores/guids.ts';
+	import { entities, hrefOf, imageOf } from '#lib/stores/guids.ts';
 
-	import GencRouteLink from '#lib/components/gencRouteLink.svelte';
+	import RouteLink from '#lib/components/routeLink.svelte';
 
 	const { caller_id, device_id } = $local;
     
 	let filter = $state('');
 	function clearFilter() { filter = ''; }
 
+	const browsable = $derived($entities.filter((e) => e.pk === 'user' || e.pk === 'ladder'));
+
 	const filtered = $derived.by(() => {
 		const q = filter.trim().toLowerCase();
-		if (!q) return $entities;
-		return $entities.filter((e) => `${e.name ?? ''} ${e.pk}`.toLowerCase().includes(q));
+		if (!q) return browsable;
+		return browsable.filter((e) => `${e.name ?? ''} ${e.pk}`.toLowerCase().includes(q));
 	});
 
 </script>
@@ -43,17 +44,17 @@
 	</div>
 
 	{#each filtered as entity (entity.rk)}
-		<GencRouteLink
-			href={`/genc/${entity.rk}`}
+		<RouteLink
+			href={hrefOf(entity.rk)}
 			title={entity.name??'no name'}
 			description={entity.pk}
 			isWhite={entity.rk === caller_id}
-			image={PUBLIC_URL + '/' + entity.rk + '.jpg'}
+			image={imageOf(entity.rk)}
 		/>
 	{/each}
 
 	{#if caller_id && device_id && filter.trim() && filtered.length === 0}
-		<GencRouteLink
+		<RouteLink
 			href={`/ladder/create?name=${encodeURIComponent(filter.trim())}`}
 			title="New Ladder"
 			description={`create a ladder named ${filter.trim()}`}

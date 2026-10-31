@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { PUBLIC_URL } from '#lib/config.ts';
-	import { guids, entityOf } from '#lib/stores/guids.ts';
+	import { guids, entityOf, hrefOf } from '#lib/stores/guids.ts';
 	import { local } from '#lib/stores/local.ts';
 
-	import GencRouteLink from '#lib/components/gencRouteLink.svelte';
+	import RouteLink from '#lib/components/routeLink.svelte';
 
 	const { caller_id, device_id } = $local;
 </script>
@@ -21,16 +21,17 @@
 
 	{#if caller_id && device_id}
 
-		<GencRouteLink href="/user/{caller_id}/edit" title="Profile" description="edit your profile" isWhite={true} />
+		<RouteLink href="/browse" title="Browse" description="ladders, events and teams" isWhite={true} />
+		<RouteLink href="{hrefOf(caller_id)}/edit" title="Profile" description="edit your profile" isWhite={false} />
 
 	{:else}
 
-		<GencRouteLink href="/login" title="Login" description="login or create account" isWhite={true} />
+		<RouteLink href="/login" title="Login" description="login or create account" isWhite={true} />
+		<RouteLink href="/browse" title="Browse" description="ladders, events and teams" isWhite={false} />
 
 	{/if}
-
-	<GencRouteLink href="/browse" title="Browse" description="ladders, events and teams" isWhite={false} />
-	<GencRouteLink href="/about" title="About" description="help and about" isWhite={false} />
+	
+	<RouteLink href="/about" title="About" description="help and about" isWhite={false} />
 
 </div>
 

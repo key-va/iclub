@@ -2,8 +2,9 @@
 	import { PUBLIC_URL } from '#lib/config.ts';
 	import UserLogin from '#lib/components/userLogin.svelte';
 	import InstallApp from '#lib/components/installApp.svelte';
-	import GencRouteLink from '#lib/components/gencRouteLink.svelte';
+	import RouteLink from '#lib/components/routeLink.svelte';
 	import { local } from '#lib/stores/local.ts';
+	import { hrefOf, imageOf } from '#lib/stores/guids.ts';
 
 	const isLoggedIn = $derived(Boolean($local.caller_id && $local.device_id));
 	let isInstalled = $state(false);
@@ -28,23 +29,23 @@
 	</div>
 
 	{#if isLoggedIn}
-		<GencRouteLink
-			href={`/user/${$local.caller_id}/edit`}
-			image={PUBLIC_URL + '/' + $local.caller_id + '.jpg'}
+		<RouteLink
+			href={`${hrefOf($local.caller_id ?? '')}/edit`}
+			image={imageOf($local.caller_id ?? '')}
 			title="Profile"
 			description="edit your profile"
 			isWhite={true}
 		/>
 	{:else if isInstalled}
 		<UserLogin />
-		<GencRouteLink 
+		<RouteLink 
 		href="/browse"
 		title="Guest"
 		description="browse the app as a guest"
 	/>	
 	{:else}
 		<InstallApp />
-		<GencRouteLink 
+		<RouteLink 
 		href="/browse"
 		title="Guest"
 		description="browse the app as a guest"

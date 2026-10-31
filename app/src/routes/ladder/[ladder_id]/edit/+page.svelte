@@ -6,7 +6,7 @@
 	import { guids, entityOf } from '#lib/stores/guids.ts';
 	import { local } from '#lib/stores/local.ts';
 	import ApiService from '#lib/components/apiService.svelte';
-	import GencRouteLink from '#lib/components/gencRouteLink.svelte';
+	import RouteLink from '#lib/components/routeLink.svelte';
 
 	const ladderId = $derived(page.params.ladder_id ?? '');
 	const ladder = $derived(entityOf($guids.items, ladderId));
@@ -122,7 +122,7 @@
 			onsuccess={clearForm}
 		/>
 
-		<GencRouteLink hasMoreOptions title="More" description="delete ladder">
+		<RouteLink hasMoreOptions title="More" description="delete ladder">
 			<ApiService
 				inline
 				name="delete"
@@ -130,7 +130,7 @@
 				endpoint={`ladder/${ladderId}/delete`}
 				onsuccess={() => goto('/browse')}
 			/>
-		</GencRouteLink>
+		</RouteLink>
 	{:else}
 		<div class="row right">
 			<p class="truncate"><strong>{$guids.loaded ? 'Not found' : 'Loading'}</strong><br />edit</p>

@@ -66,3 +66,11 @@ export const ladderStates: Record<string, string> = {
     active: "approved and open for play",
     complete: "finished and closed"
 };
+
+// A player's state on a ladder, held on the user ↔ ladder relation
+export const ladderPlayerStates: Record<string, string> = {
+    active: "available to challenge and be challenged",
+    cooling: "serving the cool period after a loss",
+    busy: "in an accepted challenge that is yet to be played",
+    away: "temporarily unavailable"
+};
