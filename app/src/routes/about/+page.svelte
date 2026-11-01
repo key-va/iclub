@@ -14,8 +14,10 @@
 		<div class="round-icon-big" style="background-image: url('/favicons/icon-512.png');"></div>
 	</div>
 
-    <div class="row center white">
-        <p>Intra Club is an application designed to help you manage and participate in club activities, including ladders, events, and teams.</p>
+    <div class="group">
+        <div class="row center">
+            <p>Intra Club is an application designed to help you manage and participate in club activities, including ladders, events, and teams.</p>
+        </div>
     </div>
 
 </div>

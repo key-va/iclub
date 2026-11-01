@@ -1,4 +1,4 @@
-// Keep identical to api/src/stores/strings.ts (API validates, app generates the form).
+// Labels, descriptions and options for the app. The API validates the same rules inline in api/src/functions/ladderCreate.ts.
 
 export type LadderSetting =
 	| { type: 'enum'; label: string; default: string; description: string; values: Record<string, string> }

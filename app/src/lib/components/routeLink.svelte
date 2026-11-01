@@ -65,9 +65,9 @@
 	{/if}
 {/snippet}
 
-<div>
+<div class={isWhite ? 'group' : ''}>
 	{#if hasMoreOptions}
-		<div class="row right {isWhite ? 'white' : ''}">
+		<div class="row right">
 			{#if open}
 				<div
 					class="options"
@@ -93,7 +93,7 @@
 		</div>
 	{:else}
 		<a class="route-link" {href}>
-			<div class="row right {isWhite ? 'white' : ''}">
+			<div class="row right">
 				<p class="truncate"><strong>{title}</strong><br />{description}</p>
 				<div class="round-icon-small blue" style="background-image: url('{image}');">
 					{@render icon()}

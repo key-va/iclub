@@ -24,7 +24,18 @@
 	const isClubAdmin = $derived(
 		relationsOf($guids.items, clubId).some((relation) => relation.rk === caller_id && relation.is_admin === true)
 	);
-	const isMember = $derived(leaderboard.some((player) => player.rk === caller_id));
+	const myRelation = $derived(
+		relatedEntities($guids.items, ladderId, 'user').find((user) => user.rk === caller_id)?.relation
+	);
+
+	// Players who asked to join and are waiting for a ladder admin to accept
+	const pending = $derived(
+		relatedEntities($guids.items, ladderId, 'user').filter((user) => user.relation.state === 'pending')
+	);
+	const isPending = $derived(pending.some((user) => user.rk === caller_id));
+	const isLadderAdmin = $derived(
+		relationsOf($guids.items, ladderId).some((relation) => relation.rk === caller_id && relation.is_admin === true)
+	);
 
 	let showHelp = $state(false);
 </script>
@@ -40,62 +51,53 @@
 			<div class="round-icon-big" style="background-image: url('{PUBLIC_URL}/{ladder.rk}.jpg');"></div>
 		</div>
 
-		<div class="row right white">
-			<div class="leaderboard">
-				{#each leaderboard as player (player.rk)}
-					<RouteLink
-						href={hrefOf(player.rk)}
-						title={player.name ?? 'no name'}
-						description={`rank ${player.rank}`}
-						isWhite={false}
-						image={imageOf(player.rk)}
-					/>
-				{:else}
-					<div class="row right">
-						<p class="truncate"><strong>No participants</strong><br />leaderboard</p>
-						<div class="blank-icon-small"></div>
-					</div>
-				{/each}
-			</div>
+		<div class="group">
+			{#each leaderboard as player (player.rk)}
+				<RouteLink
+					href={hrefOf(player.rk)}
+					title={player.name ?? 'no name'}
+					description={`rank ${player.rank}`}
+					isWhite={false}
+					image={imageOf(player.rk)}
+				/>
+			{:else}
+				<div class="row right">
+					<p class="truncate"><strong>No participants</strong><br />leaderboard</p>
+					<div class="blank-icon-small"></div>
+				</div>
+			{/each}
 		</div>
 
-		{#if showHelp}
-			<div class="row left white help">
-				<div>
-					{#each Object.entries(ladderSettings) as [key, setting] (key)}
-						{@const value = String(ladder[key] ?? setting.default)}
-						<p>
-							<strong>{setting.label}: {value}</strong><br />
-							{setting.type === 'enum' ? (setting.values[value] ?? setting.description) : setting.description}
-						</p>
-					{/each}
-				</div>
+		{#if isLadderAdmin && pending.length > 0}
+			<div class="group">
+				{#each pending as player (player.rk)}
+					<RouteLink
+						hasMoreOptions
+						href={hrefOf(player.rk)}
+						title={player.name ?? 'no name'}
+						description="waiting to join"
+						image={imageOf(player.rk)}
+					>
+						<ApiService
+							inline
+							name="accept"
+							message={`accept ${player.name ?? 'this player'} onto the ladder?`}
+							endpoint={`ladder/${ladderId}/accept`}
+							data={{ user_id: player.rk }}
+						/>
+					</RouteLink>
+				{/each}
 			</div>
 		{/if}
-
-		{#snippet helpButton()}
-			<button class="blue" aria-label="help" aria-pressed={showHelp} onclick={() => (showHelp = !showHelp)}>
-				<svg viewBox="0 0 24 24" width="1rem" height="1rem" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="Help">
-					<path d="M9 9a3 3 0 1 1 4.5 2.6c-1 .6-1.5 1.2-1.5 2.4" />
-					<path d="M12 18h.01" />
-				</svg>
-			</button>
-		{/snippet}
 
 		{#if ladder.state === 'pending' && isClubAdmin}
 			<ApiService
 				name="accept"
 				message={`accept the ladder ${ladder.name} and make it active?`}
 				endpoint={`ladder/${ladderId}/activate`}
-			>
-				{@render helpButton()}
-			</ApiService>
-		{:else if ladder.state === 'active'}
-			<ApiService name="join" message={`join the ladder ${ladder.name}?`} endpoint={`ladder/${ladderId}/join`} disabled={!caller_id || isMember}>
-				{@render helpButton()}
-			</ApiService>
-		{:else}
-			<div class="row right">{@render helpButton()}</div>
+			/>
+		{:else if ladder.state === 'active' && myRelation?.is_participant !== true && !isPending}
+			<ApiService name="join" message={`join the ladder ${ladder.name}?`} endpoint={`ladder/${ladderId}/join`} disabled={!caller_id} />
 		{/if}
 	{:else}
 		<div class="row right">
@@ -107,15 +109,6 @@
 
 <style>
 	.page {
-		width: 100%;
-	}
-	.help p {
-		padding: 0.5em 2em;
-	}
-	.help > div {
-		width: 100%;
-	}
-	.leaderboard {
 		width: 100%;
 	}
 </style>

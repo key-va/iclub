@@ -89,66 +89,68 @@
 		></div>
 	</div>
 
-	<div class="row right">
-		<input type="text" placeholder="ladder name" autocomplete="off" bind:value={name} />
-		<button class="blue" aria-label="image" onclick={() => fileInput?.click()}>
-			<svg viewBox="0 0 24 24" width="1rem" height="1rem" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="Camera">
-				<path d="M2.5 7h4l1.5-3h8l1.5 3h4v13h-19z" />
-				<circle cx="12" cy="13.5" r="4" />
-			</svg>
-		</button>
-		<input
-			type="file"
-			accept="image/*"
-			aria-label="ladder image"
-			hidden
-			bind:this={fileInput}
-			onchange={pickImage}
-		/>
-	</div>
-	{#if imageError}
-		<div class="row right"><p class="error">{imageError}</p></div>
-	{/if}
-
-	{#each Object.entries(ladderSettings) as [key, setting] (key)}
+	<div class="group">
 		<div class="row right">
-			{#if setting.type === 'enum'}
-				<select aria-label={setting.label} bind:value={values[key]}>
-					{#each Object.keys(setting.values) as option (option)}
-						<option value={option}>{option}</option>
-					{/each}
-				</select>
-			{:else}
-				<input
-					type="number"
-					inputmode="numeric"
-					placeholder={`${setting.label} (${setting.default})`}
-					aria-label={setting.label}
-					min={setting.min}
-					max={setting.max}
-					step="1"
-					bind:value={values[key]}
-				/>
-			{/if}
+			<input type="text" placeholder="ladder name" autocomplete="off" bind:value={name} />
+			<button class="blue" aria-label="image" onclick={() => fileInput?.click()}>
+				<svg viewBox="0 0 24 24" width="1rem" height="1rem" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="Camera">
+					<path d="M2.5 7h4l1.5-3h8l1.5 3h4v13h-19z" />
+					<circle cx="12" cy="13.5" r="4" />
+				</svg>
+			</button>
+			<input
+				type="file"
+				accept="image/*"
+				aria-label="ladder image"
+				hidden
+				bind:this={fileInput}
+				onchange={pickImage}
+			/>
 		</div>
-		{#if showHelp}
-			<div class="row left white help">
-				<p>
-					<strong>{setting.label}</strong>: {setting.description}<br />
-					{#if setting.type === 'enum'}
-						{#each Object.entries(setting.values) as [option, description], i (option)}
-							{#if i > 0}<br />{/if}<strong>{option}</strong>: {description}
+		{#if imageError}
+			<div class="row right"><p class="error">{imageError}</p></div>
+		{/if}
+
+		{#each Object.entries(ladderSettings) as [key, setting] (key)}
+			<div class="row right">
+				{#if setting.type === 'enum'}
+					<select aria-label={setting.label} bind:value={values[key]}>
+						{#each Object.keys(setting.values) as option (option)}
+							<option value={option}>{option}</option>
 						{/each}
-					{:else}
-						from {setting.min} to {setting.max}, default {setting.default}
-					{/if}
-				</p>
+					</select>
+				{:else}
+					<input
+						type="number"
+						inputmode="numeric"
+						placeholder={`${setting.label} (${setting.default})`}
+						aria-label={setting.label}
+						min={setting.min}
+						max={setting.max}
+						step="1"
+						bind:value={values[key]}
+					/>
+				{/if}
 			</div>
-		{/if}
-		{#if setting.type === 'number' && !numberOk(key)}
-			<div class="row right"><p class="error">{setting.label} must be a whole number from {setting.min} to {setting.max}</p></div>
-		{/if}
-	{/each}
+			{#if showHelp}
+				<div class="row left help">
+					<p>
+						<strong>{setting.label}</strong>: {setting.description}<br />
+						{#if setting.type === 'enum'}
+							{#each Object.entries(setting.values) as [option, description], i (option)}
+								{#if i > 0}<br />{/if}<strong>{option}</strong>: {description}
+							{/each}
+						{:else}
+							from {setting.min} to {setting.max}, default {setting.default}
+						{/if}
+					</p>
+				</div>
+			{/if}
+			{#if setting.type === 'number' && !numberOk(key)}
+				<div class="row right"><p class="error">{setting.label} must be a whole number from {setting.min} to {setting.max}</p></div>
+			{/if}
+		{/each}
+	</div>
 
 	<ApiService
 		name="create"

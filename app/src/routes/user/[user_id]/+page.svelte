@@ -30,24 +30,24 @@
 		<div class="row center">
 			<div class="round-icon-big" style="background-image: url('{PUBLIC_URL}/{user_entity.rk}.jpg');"></div>
 		</div>
-		<div class="row right white">
-			<div class="ladders">
-				{#each ladders as ladder (ladder.rk)}
-					<RouteLink
-						href={hrefOf(ladder.rk)}
-						title={ladder.name ?? 'no name'}
-						description={Number.isFinite(ladder.rank) ? `rank ${ladder.rank}` : 'ladder'}
-						isWhite={false}
-						image={imageOf(ladder.rk)}
-					/>
-				{:else}
-					<div class="row right">
-						<p class="truncate"><strong>No ladders</strong><br />leaderboard</p>
-						<div class="blank-icon-small"></div>
-					</div>
-				{/each}
+		
+		{#each ladders as ladder (ladder.rk)}
+			<div class="group">
+				<RouteLink
+					href={hrefOf(ladder.rk)}
+					title={ladder.name ?? 'no name'}
+					description={Number.isFinite(ladder.rank) ? `rank ${ladder.rank}` : 'ladder'}
+					isWhite={false}
+					image={imageOf(ladder.rk)}
+				/>
 			</div>
-		</div>
+		{:else}
+			<div class="row right">
+				<p class="truncate"><strong>No ladders</strong><br />leaderboard</p>
+				<div class="blank-icon-small"></div>
+			</div>
+		{/each}
+
 	{:else}
 		<div class="row right">
 			<p class="truncate"><strong>{$guids.loaded ? 'Not found' : 'Loading'}</strong><br />user</p>
@@ -58,9 +58,6 @@
 
 <style>
 	.page {
-		width: 100%;
-	}
-	.ladders {
 		width: 100%;
 	}
 </style>

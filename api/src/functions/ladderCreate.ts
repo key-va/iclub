@@ -8,11 +8,26 @@ import { doUpsertRelation } from "../services/doUpsertRelation";
 import { doGuidsToPublic } from "../services/doGuidsToPublic";
 import { doAssetToPublic } from "../services/doAssetToPublic";
 import { doSendPush } from "../services/doSendPush";
-import { ladderSettings, ladderSettingDefaults } from "../stores/strings";
 
 import { resourceName, resourceSuffix } from "../stores/resourceNames";
 
 const maxImageBytes = 1024 * 1024;
+
+// Rules for the ladder settings. Keep in step with app/src/lib/strings.ts, which holds the labels and descriptions.
+type SettingRule =
+    | { default: string; values: string[] }
+    | { default: number; min: number; max: number };
+
+const settingRules: Record<string, SettingRule> = {
+    format: { default: "singles", values: ["singles", "doubles"] },
+    match_format: { default: "super_set", values: ["super_set", "best_of_three", "fast_four"] },
+    ladder_system: {
+        default: "win_points",
+        values: ["win_points", "half_rank", "static_range_1", "static_range_3", "static_range_6"]
+    },
+    cool_period: { default: 2, min: 0, max: 9 },
+    play_period: { default: 9, min: 1, max: 28 }
+};
 
 const storageAccount = resourceName(resourceSuffix.storageAccount);
 
@@ -77,24 +92,22 @@ export async function ladderCreate(request: HttpRequest, context: InvocationCont
     }
 
     for (const key of Object.keys(rawSettings)) {
-        if (!(key in ladderSettings)) {
+        if (!(key in settingRules)) {
             return { status: 400, jsonBody: { success: false, message: `${key} is not a ladder setting` } };
         }
     }
 
-    const settings: Record<string, string | number> = { ...ladderSettingDefaults };
+    const settings: Record<string, string | number> = {};
 
-    for (const [key, setting] of Object.entries(ladderSettings)) {
-        const value = rawSettings[key];
+    for (const [key, rule] of Object.entries(settingRules)) {
+        const value = rawSettings[key] ?? rule.default;
 
-        if (value === undefined) continue;
-
-        if (setting.type === "enum") {
-            if (typeof value !== "string" || !(value in setting.values)) {
-                return { status: 400, jsonBody: { success: false, message: `${key} must be one of ${Object.keys(setting.values).join(", ")}` } };
+        if ("values" in rule) {
+            if (typeof value !== "string" || !rule.values.includes(value)) {
+                return { status: 400, jsonBody: { success: false, message: `${key} must be one of ${rule.values.join(", ")}` } };
             }
-        } else if (typeof value !== "number" || !Number.isInteger(value) || value < setting.min || value > setting.max) {
-            return { status: 400, jsonBody: { success: false, message: `${key} must be a whole number from ${setting.min} to ${setting.max}` } };
+        } else if (typeof value !== "number" || !Number.isInteger(value) || value < rule.min || value > rule.max) {
+            return { status: 400, jsonBody: { success: false, message: `${key} must be a whole number from ${rule.min} to ${rule.max}` } };
         }
 
         settings[key] = value;
@@ -142,8 +155,8 @@ export async function ladderCreate(request: HttpRequest, context: InvocationCont
     if (clubAdmins.length > 0) {
         const sent = await doSendPush({
             userIds: clubAdmins,
-            heading: "New ladder",
-            content: `${name} has been created and is pending approval`,
+            heading: name,
+            content: "Is pending approval from club admins",
             path: `ladder/${ladderId}`,
             collapseId: ladderId
         }, context);

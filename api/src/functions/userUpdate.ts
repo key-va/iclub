@@ -154,7 +154,7 @@ export async function userUpdate(request: HttpRequest, context: InvocationContex
 
     await doSendPush({
         userIds: [userId],
-        heading: "Profile update",
+        heading: "Your Profile",
         content: "Thanks for updating your profile, your new profile info will be published shortly",
         path: `user/${userId}`,
         collapseId: userId

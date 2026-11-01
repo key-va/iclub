@@ -29,19 +29,21 @@
 		<div class="round-icon-big" style="background-image: url('/favicons/icon-512.png');"></div>
 	</div>
 
-    <div class="row right white">
-		<input
-			type="text"
-			placeholder="filter"
-			autocomplete="off"
-			bind:value={filter}
-		/>
-		<button aria-label="Filter" onclick={() => clearFilter()}>
-			<svg viewBox="0 0 24 24" width="1rem" height="1rem" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" role="img">
-				<path d="M18 6 6 18M6 6l12 12" />
-			</svg>
-		</button>
-	</div>
+    <div class="group">
+        <div class="row right">
+            <input
+                type="text"
+                placeholder="filter"
+                autocomplete="off"
+                bind:value={filter}
+            />
+            <button aria-label="Filter" onclick={() => clearFilter()}>
+                <svg viewBox="0 0 24 24" width="1rem" height="1rem" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" role="img">
+                    <path d="M18 6 6 18M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+    </div>
 
 	{#each filtered as entity (entity.rk)}
 		<RouteLink

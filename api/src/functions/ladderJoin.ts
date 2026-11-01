@@ -4,6 +4,7 @@ import { TableClient, odata } from "@azure/data-tables";
 import { doSignatureVerification } from "../services/doSignatureVerification";
 import { doUpsertRelation } from "../services/doUpsertRelation";
 import { doGuidsToPublic } from "../services/doGuidsToPublic";
+import { doSendPush } from "../services/doSendPush";
 
 import { resourceName, resourceSuffix } from "../stores/resourceNames";
 
@@ -59,9 +60,9 @@ export async function ladderJoin(request: HttpRequest, context: InvocationContex
         return { status: 409, jsonBody: { success: false, message: "Only an active ladder can be joined" } };
     }
 
-    // 3. Read the ladder's relations: the caller's existing one (e.g. admin) and the lowest rank in use
+    // 3. Read the caller's existing relation to the ladder (for example admin) and the ladder admins
     let existing: Record<string, unknown> | undefined;
-    let lastRank = 0;
+    const ladderAdmins: string[] = [];
 
     for await (const relation of guidsClient.listEntities({
         queryOptions: { filter: odata`PartitionKey eq ${ladderId}` }
@@ -71,35 +72,52 @@ export async function ladderJoin(request: HttpRequest, context: InvocationContex
         if (!other.startsWith("user_")) continue;
 
         if (other === caller_id) existing = relation;
-
-        if (relation.is_participant === true && typeof relation.rank === "number" && relation.rank > lastRank) lastRank = relation.rank;
+        if (relation.is_admin === true) ladderAdmins.push(other);
     }
 
     if (existing?.is_participant === true) {
         return { status: 409, jsonBody: { success: false, message: "You are already on this ladder" } };
     }
 
-    // 4. Join at the bottom; points only apply to the win_points ladder system
-    const rank = lastRank + 1;
-    const points = ladder.ladder_system === "win_points" ? rank : 0;
+    if (existing?.state === "pending") {
+        return { status: 409, jsonBody: { success: false, message: "Your request to join is waiting for the ladder admin" } };
+    }
 
-    // Keep any attributes already on the relation (for example is_admin) as the upsert replaces the row
+    // 4. Wait for a ladder admin to accept; keep existing attributes (for example is_admin) as the upsert replaces the row
     const { partitionKey, rowKey, timestamp, etag, ...attributes } = existing ?? {};
 
-    await doUpsertRelation(ladderId, caller_id, { ...attributes, is_participant: true, rank, points, state: "active" });
+    await doUpsertRelation(ladderId, caller_id, { ...attributes, is_participant: false, state: "pending" });
 
-    // 5. Publish
+    // 5. Publish and ask the ladder admins to accept
     await doGuidsToPublic();
 
-    context.log(`User ${caller_id} joined ladder ${ladderId} at rank ${rank}`);
+    if (ladderAdmins.length > 0) {
+        let playerName = "A player";
+
+        try {
+            const user = await guidsClient.getEntity("user", caller_id);
+            if (typeof user.name === "string" && user.name) playerName = user.name;
+        } catch {
+            // fall back to the generic name
+        }
+
+        await doSendPush({
+            userIds: ladderAdmins,
+            heading: `${ladder.name}`,
+            content: `${playerName} has requested to join`,
+            path: `ladder/${ladderId}`,
+            collapseId: `${ladderId}_${caller_id}`
+        }, context);
+    }
+
+    context.log(`User ${caller_id} asked to join ladder ${ladderId}`);
 
     return {
         status: 200,
         jsonBody: {
             success: true,
-            message: `Okay, you joined ${ladder.name} at rank ${rank}`,
-            subject: ladderId,
-            data: { rank, points }
+            message: `Okay, your request to join ${ladder.name} is waiting for the ladder admin`,
+            subject: ladderId
         }
     };
 }

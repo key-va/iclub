@@ -84,6 +84,12 @@ Current endpoints in `api/src/functions/`:
   - signature-verified self-update (name/email/phone/image), republishes, sends push
 - `user/{user_id}/delete` ([userDelete.ts](./api/src/functions/userDelete.ts))
   - signature-verified self-delete flow (anonymise entity, purge auth, placeholder avatar, republish)
+- `ladder/{ladder_id}/join` ([ladderJoin.ts](./api/src/functions/ladderJoin.ts))
+  - active ladders only; the player becomes `state: "pending"` and the ladder admins are pushed
+- `ladder/{ladder_id}/away` ([ladderAway.ts](./api/src/functions/ladderAway.ts))
+  - a participant sets their own ladder `state` to `away`
+- `ladder/{ladder_id}/accept` ([ladderAccept.ts](./api/src/functions/ladderAccept.ts))
+  - ladder admin accepts a pending player (`data.user_id`), who is added at the bottom rank and notified
 
 ### Reusable services (use these first)
 

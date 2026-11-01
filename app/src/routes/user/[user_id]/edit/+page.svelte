@@ -113,51 +113,53 @@
 			></div>
 		</div>
 
-		<div class="row right">
-			<input type="text" placeholder="name" autocomplete="name" bind:value={name} />
-			<button class="blue" aria-label="image" onclick={() => fileInput?.click()}>
-				<svg viewBox="0 0 24 24" width="1rem" height="1rem" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="Camera">
-					<path d="M2.5 7h4l1.5-3h8l1.5 3h4v13h-19z" />
-					<circle cx="12" cy="13.5" r="4" />
-				</svg>
-			</button>
-			<input
-				type="file"
-				accept="image/*"
-				aria-label="profile image"
-				hidden
-				bind:this={fileInput}
-				onchange={pickImage}
-			/>
-		</div>
-		{#if imageError}
-			<div class="row right"><p class="error">{imageError}</p></div>
-		{/if}
-
-		{#if showHelp}
-			<div class="row left white help">
-				<p>Updates to your <strong>profile image</strong> may take some time to show</p>
+		<div class="group">
+			<div class="row right">
+				<input type="text" placeholder="name" autocomplete="name" bind:value={name} />
+				<button class="blue" aria-label="image" onclick={() => fileInput?.click()}>
+					<svg viewBox="0 0 24 24" width="1rem" height="1rem" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="Camera">
+						<path d="M2.5 7h4l1.5-3h8l1.5 3h4v13h-19z" />
+						<circle cx="12" cy="13.5" r="4" />
+					</svg>
+				</button>
+				<input
+					type="file"
+					accept="image/*"
+					aria-label="profile image"
+					hidden
+					bind:this={fileInput}
+					onchange={pickImage}
+				/>
 			</div>
-		{/if}
+			{#if imageError}
+				<div class="row right"><p class="error">{imageError}</p></div>
+			{/if}
 
-		<div class="row right">
-			<input type="email" inputmode="email" placeholder="new email" autocomplete="off" autocapitalize="none" bind:value={email} />
-		</div>
-		{#if emailError}
-			<div class="row right"><p class="error">enter a valid email address</p></div>
-		{/if}
+			{#if showHelp}
+				<div class="row left help">
+					<p>Updates to your <strong>profile image</strong> may take some time to show</p>
+				</div>
+			{/if}
 
-		<div class="row right">
-			<input type="tel" inputmode="numeric" pattern="[0-9]*" placeholder="new phone (61XXXXXXXXX)" autocomplete="off" bind:value={phone} />
-		</div>
-		{#if phoneError}
-			<div class="row right"><p class="error">phone must be 8 to 15 digits including country code</p></div>
-		{/if}
-		{#if showHelp}
-			<div class="row left white help">
-				<p>Your email and phone number is <strong>not</strong> shown here, but entering them will update the information on file</p>
+			<div class="row right">
+				<input type="email" inputmode="email" placeholder="new email" autocomplete="off" autocapitalize="none" bind:value={email} />
 			</div>
-		{/if}
+			{#if emailError}
+				<div class="row right"><p class="error">enter a valid email address</p></div>
+			{/if}
+
+			<div class="row right">
+				<input type="tel" inputmode="numeric" pattern="[0-9]*" placeholder="new phone (61XXXXXXXXX)" autocomplete="off" bind:value={phone} />
+			</div>
+			{#if phoneError}
+				<div class="row right"><p class="error">phone must be 8 to 15 digits including country code</p></div>
+			{/if}
+			{#if showHelp}
+				<div class="row left help">
+					<p>Your email and phone number is <strong>not</strong> shown here, but entering them will update the information on file</p>
+				</div>
+			{/if}
+		</div>
 
 		<ApiService
 			name="update"

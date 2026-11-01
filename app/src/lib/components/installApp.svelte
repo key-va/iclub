@@ -35,7 +35,9 @@
 </script>
 
 <div class="install">
-	<div class="row center white">
-		<p>Looks like you're using the app in a browser. <strong>Install</strong> the app first, then experience the full logged in experience<br/><br/>{message || 'install the app to login'}</p>
+	<div class="group">
+		<div class="row center">
+			<p>Looks like you're using the app in a browser. <strong>Install</strong> the app first, then experience the full logged in experience<br/><br/>{message || 'install the app to login'}</p>
+		</div>
 	</div>
 </div>
