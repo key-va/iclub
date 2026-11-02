@@ -3,7 +3,7 @@
 	import { PUBLIC_URL } from '#lib/config.ts';
 	import { local } from '#lib/stores/local.ts';
 	import { guids, entityOf, relatedEntities, relationsOf, hrefOf, imageOf } from '#lib/stores/guids.ts';
-	import { ladderSettings } from '#lib/strings.ts';
+	import { ladderSettings, ladderSettingDefaults } from '#lib/strings.ts';
 
 	import ApiService from '#lib/components/apiService.svelte';
 	import RouteLink from '#lib/components/routeLink.svelte';
@@ -37,11 +37,27 @@
 		relationsOf($guids.items, ladderId).some((relation) => relation.rk === caller_id && relation.is_admin === true)
 	);
 
-	let showHelp = $state(false);
+	let showRules = $state(false);
+
+	// Ranks a challenger may climb under the ladder system; win_points costs one point per rank
+	function canChallenge(target: { rk: string; rank: number; relation: Record<string, unknown> }) {
+		const me = myRelation;
+		if (!me || me.is_participant !== true || me.state !== 'active') return false;
+		if (target.rk === caller_id || !['active', 'cooling'].includes(String(target.relation.state))) return false;
+		const myRank = Number(me.rank);
+		const steps = myRank - target.rank;
+		if (!(steps > 0)) return false;
+		const system = String(ladder?.ladder_system ?? ladderSettingDefaults.ladder_system);
+		if (system === 'win_points') return Number(me.points) >= steps;
+		if (system === 'half_rank') return steps <= Math.floor(myRank / 2);
+		const range = Number(system.match(/^static_range_(\d+)$/)?.[1]);
+		return steps <= range;
+	}
 </script>
 
 <div class="page">
 	{#if ladder}
+		
 		<div class="row right">
 			<p class="truncate"><strong>{ladder.name}</strong><br />{ladder.pk}</p>
 			<div class="blank-icon-small"></div>
@@ -52,20 +68,35 @@
 		</div>
 
 		<div class="group">
-			{#each leaderboard as player (player.rk)}
-				<RouteLink
-					href={hrefOf(player.rk)}
-					title={player.name ?? 'no name'}
-					description={`rank ${player.rank}`}
-					isWhite={false}
-					image={imageOf(player.rk)}
+		{#if ladder.state === 'pending'}
+			
+			<RouteLink hasMoreOptions icon="chev" title="Pending" description="waiting admin approval">
+				<ApiService
+					inline
+					name="accept"
+					message={`accept the ladder ${ladder.name} and make it active?`}
+					endpoint={`ladder/${ladderId}/activate`}
+					disabled={!isClubAdmin}
 				/>
-			{:else}
-				<div class="row right">
-					<p class="truncate"><strong>No participants</strong><br />leaderboard</p>
-					<div class="blank-icon-small"></div>
-				</div>
-			{/each}
+			</RouteLink>
+		
+		{/if}
+
+		{#if ladder.state === 'active' && myRelation?.is_participant !== true && !isPending}
+			
+			<ApiService name="join" message={`join the ladder ${ladder.name}?`} endpoint={`ladder/${ladderId}/join`} disabled={!caller_id} />
+		
+		{:else if ladder.state === 'active' && myRelation?.is_participant === true}
+			<RouteLink hasMoreOptions icon="chev" title="Options" description={String(myRelation?.state ?? '')}>
+				<ApiService
+					inline
+					name="away"
+					message={`mark yourself as away from the ladder ${ladder.name}?`}
+					endpoint={`ladder/${ladderId}/away`}
+					disabled={!caller_id}
+				/>
+			</RouteLink>
+		{/if}
 		</div>
 
 		{#if isLadderAdmin && pending.length > 0}
@@ -90,15 +121,31 @@
 			</div>
 		{/if}
 
-		{#if ladder.state === 'pending' && isClubAdmin}
-			<ApiService
-				name="accept"
-				message={`accept the ladder ${ladder.name} and make it active?`}
-				endpoint={`ladder/${ladderId}/activate`}
-			/>
-		{:else if ladder.state === 'active' && myRelation?.is_participant !== true && !isPending}
-			<ApiService name="join" message={`join the ladder ${ladder.name}?`} endpoint={`ladder/${ladderId}/join`} disabled={!caller_id} />
-		{/if}
+		{#each leaderboard as player (player.rk)}
+				<RouteLink
+					hasMoreOptions
+					href={hrefOf(player.rk)}
+					title={player.name ?? 'no name'}
+					description={`rank ${player.rank}`}
+					isWhite={player.rk === caller_id}
+					image={imageOf(player.rk)}
+				>
+					<ApiService
+						inline
+						name="challenge"
+						message={`challenge ${player.name ?? 'this player'}?`}
+						endpoint="match/create"
+						data={{ ladder_id: ladderId, challenger_id: caller_id, defender_id: player.rk }}
+						disabled={!canChallenge(player)}
+					/>				</RouteLink>
+		{:else}
+			<div class="row right">
+				<p class="truncate"><strong>No Participants</strong><br />leaderboard</p>
+				<div class="blank-icon-small"></div>
+			</div>
+		{/each}
+
+		
 	{:else}
 		<div class="row right">
 			<p class="truncate"><strong>{$guids.loaded ? 'Not found' : 'Loading'}</strong><br />ladder</p>

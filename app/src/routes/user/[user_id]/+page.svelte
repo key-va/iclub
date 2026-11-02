@@ -5,6 +5,7 @@
 	import { guids, entityOf, relatedEntities, hrefOf, imageOf } from '#lib/stores/guids.ts';
 
 	import RouteLink from '#lib/components/routeLink.svelte';
+    import ApiService from '#lib/components/apiService.svelte';
 
 	const { caller_id, device_id } = $local;
 
@@ -18,6 +19,12 @@
 			rank: Number(ladder.relation.rank)
 		}))
 	);
+	// Matches still in play 	(pending or active) that this user is part of
+	const liveMatches = $derived(
+			relatedEntities($guids.items, user_id, 'match').filter((match) => match.state === 'pending' || match.state === 'active')
+	);
+	const matchesOf = (ladderId: string) =>
+		liveMatches.filter((match) => relatedEntities($guids.items, match.rk, 'ladder').some((ladder) => ladder.rk === ladderId));
 </script>
 
 <div class="page">
@@ -36,16 +43,27 @@
 				<RouteLink
 					href={hrefOf(ladder.rk)}
 					title={ladder.name ?? 'no name'}
-					description={Number.isFinite(ladder.rank) ? `rank ${ladder.rank}` : 'ladder'}
+					description={`${matchesOf(ladder.rk).length} active ${matchesOf(ladder.rk).length === 1 ? 'match' : 'matches'}`}
 					isWhite={false}
 					image={imageOf(ladder.rk)}
-				/>
+					>
+
+				</RouteLink>
+				{#each matchesOf(ladder.rk) as match (match.rk)}
+					<RouteLink
+						href={hrefOf(match.rk)}
+						title={match.name ?? 'no name'}
+						description={match.state === 'pending' ? 'waiting to be accepted' : 'accepted, ready to play'}
+						isWhite={false}
+					/>
+				{/each}
 			</div>
 		{:else}
-			<div class="row right">
-				<p class="truncate"><strong>No ladders</strong><br />leaderboard</p>
-				<div class="blank-icon-small"></div>
-			</div>
+			<RouteLink
+				href="/browse"
+				title="No Ladders"
+				description="browse and join a ladder"
+			/>
 		{/each}
 
 	{:else}

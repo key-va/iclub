@@ -177,7 +177,7 @@
 			</button>
 		</ApiService>
 
-		<RouteLink hasMoreOptions title="More" description="logout or delete account">
+		<RouteLink hasMoreOptions icon="chev" title="More" description="logout or delete account">
 			<button class="blue" aria-label="logout" onclick={logout}><p>logout</p></button>
 			<ApiService
 				inline
