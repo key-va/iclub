@@ -98,8 +98,9 @@ export async function ladderActivate(request: HttpRequest, context: InvocationCo
     if (ladderAdmins.length > 0) {
         await doSendPush({
             userIds: ladderAdmins,
+            exceptUserId: caller_id,
             heading: `${entity.name}`,
-            content: "Has been approved and is now active",
+            content: "Your ladder has been accepted and is now live",
             path: `ladder/${ladderId}`,
             collapseId: ladderId
         }, context);

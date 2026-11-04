@@ -155,8 +155,9 @@ export async function ladderCreate(request: HttpRequest, context: InvocationCont
     if (clubAdmins.length > 0) {
         const sent = await doSendPush({
             userIds: clubAdmins,
+            exceptUserId: caller_id,
             heading: name,
-            content: "Is pending approval from club admins",
+            content: "New ladder pending approval",
             path: `ladder/${ladderId}`,
             collapseId: ladderId
         }, context);

@@ -22,6 +22,10 @@ export interface CompleteMatchInput {
     matchId: string;
     // the player who withdrew; the opponent is the winner. Omit when the match was played out.
     forfeiterId?: string;
+    // who performed the action (not notified); omit for a batch job so both players are notified
+    actorId?: string;
+    // push text sent to the other player(s)
+    content: string;
     // games won in each set (one entry for a single-set match); may be partial or empty on a forfeit
     challengerScore?: number[];
     defenderScore?: number[];
@@ -62,7 +66,7 @@ function pointsAwarded(winner: number[], loser: number[]): number {
 // The caller is responsible for authenticating the request and validating the scores.
 export async function doCompleteMatch(input: CompleteMatchInput, context: InvocationContext): Promise<CompleteMatchResult> {
 
-    const { matchId, forfeiterId, challengerScore, defenderScore } = input;
+    const { matchId, forfeiterId, actorId, content, challengerScore, defenderScore } = input;
 
     const match = await getRow("match", matchId);
 
@@ -152,7 +156,7 @@ export async function doCompleteMatch(input: CompleteMatchInput, context: Invoca
         }
     }
 
-    // The loser cools off until the nightly job (functions/batchAm.ts) frees them; the winner is free to play
+    // The loser cools off until the hourly job (functions/batchHourly.ts) frees them; the winner is free to play
     winner.state = "active";
     loser.state = Number(ladder.cool_period ?? 0) > 0 ? "cooling" : "active";
 
@@ -177,20 +181,16 @@ export async function doCompleteMatch(input: CompleteMatchInput, context: Invoca
 
     await doGuidsToPublic();
 
-    const winnerUser = await getRow("user", winnerId);
-    const opponentId = forfeiterId ? winnerId : loserId;
-
     await doSendPush({
-        userIds: [opponentId],
+        userIds: [challengerId, defenderId],
+        exceptUserId: actorId,
         heading: `${match.name}`,
-        content: forfeiterId
-            ? "Your opponent has forfeited the match. You win"
-            : `${winnerUser?.name ?? "Your opponent"} has won the match`,
+        content,
         path: `match/${matchId}`,
         collapseId: matchId
     }, context);
 
-    context.log(`Match ${matchId} complete, winner ${winnerId}`);
+    context.log(`Match ${matchId} complete: winner ${winnerId}, ${forfeiterId ? `forfeited by ${forfeiterId}` : "scores submitted"}, by ${actorId ?? "batch"}`);
 
     return { ok: true, status: 200, message: forfeiterId ? "Okay, match forfeited" : "Okay, score submitted" };
 }

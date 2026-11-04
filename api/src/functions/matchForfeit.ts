@@ -81,7 +81,7 @@ export async function matchForfeit(request: HttpRequest, context: InvocationCont
 
     // 3. Apply the result
     const result = await doCompleteMatch(
-        { matchId, forfeiterId: caller_id, challengerScore, defenderScore },
+        { matchId, forfeiterId: caller_id, actorId: caller_id, challengerScore, defenderScore, content: "Your opponent has forfeited the match" },
         context
     );
 

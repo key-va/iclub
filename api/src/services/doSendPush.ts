@@ -6,6 +6,8 @@ const pushIcon = "https://"+process.env.RESOURCE_GROUP_PREFIX+".blob.core.window
 
 export interface PushMessage {
     userIds: string[];
+    // the user who performed the action; never notified of their own action
+    exceptUserId?: string;
     heading: string;
     content: string;
     path: string;
@@ -15,6 +17,11 @@ export interface PushMessage {
 // Sends a OneSignal push to the given users (external ids). Never throws: a failed push must not fail the caller.
 export async function doSendPush(message: PushMessage, context?: InvocationContext): Promise<boolean> {
     const apiKey = process.env.ONESIGNAL_API_KEY;
+    const userIds = message.userIds.filter((id) => id !== message.exceptUserId);
+
+    if (userIds.length === 0) return false;
+
+    context?.log(`Push to [${userIds.join(", ")}] heading "${message.heading}" content "${message.content}"`);
 
     if (!apiKey) {
         context?.warn("ONESIGNAL_API_KEY is not configured; push not sent.");
@@ -31,7 +38,7 @@ export async function doSendPush(message: PushMessage, context?: InvocationConte
             body: JSON.stringify({
                 app_id: oneSignalAppId,
                 target_channel: "push",
-                include_aliases: { external_id: message.userIds },
+                include_aliases: { external_id: userIds },
                 headings: { en: message.heading },
                 contents: { en: message.content },
                 chrome_web_badge: pushIcon,

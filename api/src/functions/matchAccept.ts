@@ -95,13 +95,11 @@ export async function matchAccept(request: HttpRequest, context: InvocationConte
 
     await doGuidsToPublic();
 
-    const ladder = await getRow("ladder", ladderId);
-    const defenderUser = await getRow("user", defenderId);
-
     await doSendPush({
         userIds: [challengerId],
+        exceptUserId: caller_id,
         heading: `${match.name}`,
-        content: `${defenderUser?.name ?? "Your opponent"} has accepted your challenge. Play within ${Number(ladder?.play_period ?? 9)} days`,
+        content: "Your challenge has been accepted",
         path: `match/${matchId}`,
         collapseId: matchId
     }, context);

@@ -157,8 +157,9 @@ export async function matchCreate(request: HttpRequest, context: InvocationConte
 
     await doSendPush({
         userIds: [defenderId],
+        exceptUserId: caller_id,
         heading: name,
-        content: `You have been challenged by ${challengerUser?.name ?? "a player"}. Accept this challenge in ${Number(ladder.cool_period ?? 2)} days or forfeit`,
+        content: `You have been challenged to a match, accept within ${Number(ladder.cool_period ?? 2)} days or forfeit your rank`,
         path: `match/${matchId}`,
         collapseId: matchId
     }, context);

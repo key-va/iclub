@@ -118,7 +118,7 @@ export async function matchComplete(request: HttpRequest, context: InvocationCon
 
     // 3. Apply the result
     const result = await doCompleteMatch(
-        { matchId, challengerScore, defenderScore },
+        { matchId, actorId: caller_id, challengerScore, defenderScore, content: "Match scores have been submitted" },
         context
     );
 

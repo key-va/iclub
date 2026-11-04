@@ -109,7 +109,8 @@ Located in `api/src/services/`:
 - [doAssetToPublic.ts](./api/src/services/doAssetToPublic.ts): publish assets/images to `public`
 - [doAssetFromPublic.ts](./api/src/services/doAssetFromPublic.ts): remove an asset/image from `public`
 - [doSendPush.ts](./api/src/services/doSendPush.ts): OneSignal push dispatch
-- [doCompleteMatch.ts](./api/src/services/doCompleteMatch.ts): finishes a match (result rows, ladder ranks/points/cooling, republish, push); shared by `match/{id}/complete` and `match/{id}/forfeit`
+- [doCompleteMatch.ts](./api/src/services/doCompleteMatch.ts): finishes a match (result rows, ladder ranks/points/cooling, republish, push to the players except the actor); shared by `match/{id}/complete`, `match/{id}/forfeit` and `batchHourly`
+- [doFindDueMatches.ts](./api/src/services/doFindDueMatches.ts): pending/active matches whose cool/play-period deadline falls in a time window; used by `batchHourly` (forfeit overdue, warn 12 hours ahead)
 
 ### Endpoint development rules
 
