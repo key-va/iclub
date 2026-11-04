@@ -7,6 +7,7 @@
 
 	import ApiService from '#lib/components/apiService.svelte';
 	import RouteLink from '#lib/components/routeLink.svelte';
+	import HiddenOptions from '#lib/components/hiddenOptions.svelte';
 
 	const { caller_id } = $local;
 
@@ -39,6 +40,15 @@
 
 	let showRules = $state(false);
 
+	// The caller's matches on this ladder that are still pending or active
+	const yourMatches = $derived(
+		relatedEntities($guids.items, ladderId, 'match').filter(
+			(match) =>
+				(match.state === 'pending' || match.state === 'active') &&
+				relatedEntities($guids.items, match.rk, 'user').some((user) => user.rk === caller_id)
+		)
+	);
+
 	// Ranks a challenger may climb under the ladder system; win_points costs one point per rank
 	function canChallenge(target: { rk: string; rank: number; relation: Record<string, unknown> }) {
 		const me = myRelation;
@@ -67,43 +77,40 @@
 			<div class="round-icon-big" style="background-image: url('{PUBLIC_URL}/{ladder.rk}.jpg');"></div>
 		</div>
 
-		<div class="group">
 		{#if ladder.state === 'pending'}
-			
-			<RouteLink hasMoreOptions icon="chev" title="Pending" description="waiting admin approval">
-				<ApiService
-					inline
-					name="accept"
-					message={`accept the ladder ${ladder.name} and make it active?`}
-					endpoint={`ladder/${ladderId}/activate`}
-					disabled={!isClubAdmin}
-				/>
-			</RouteLink>
-		
+			<div class="group">
+				<HiddenOptions inline title="Pending" description="waiting admin approval">
+					<ApiService
+						inline
+						name="accept"
+						message={`accept the ladder ${ladder.name} and make it active?`}
+						endpoint={`ladder/${ladderId}/activate`}
+						disabled={!isClubAdmin}
+					/>
+				</HiddenOptions>
+			</div>
 		{/if}
 
 		{#if ladder.state === 'active' && myRelation?.is_participant !== true && !isPending}
-			
 			<ApiService name="join" message={`join the ladder ${ladder.name}?`} endpoint={`ladder/${ladderId}/join`} disabled={!caller_id} />
-		
 		{:else if ladder.state === 'active' && myRelation?.is_participant === true}
-			<RouteLink hasMoreOptions icon="chev" title="Options" description={String(myRelation?.state ?? '')}>
-				<ApiService
-					inline
-					name="away"
-					message={`mark yourself as away from the ladder ${ladder.name}?`}
-					endpoint={`ladder/${ladderId}/away`}
-					disabled={!caller_id}
-				/>
-			</RouteLink>
+			<div class="group">
+				<HiddenOptions title="Active Matches" description="" badge={yourMatches.length} />
+				{#each yourMatches as match (match.rk)}
+					<RouteLink
+						href={hrefOf(match.rk)}
+						title={match.name ?? 'no name'}
+						description={match.state === 'pending' ? 'waiting to be accepted' : 'accepted, ready to play'}
+						isWhite={false}
+					/>
+				{/each}
+			</div>
 		{/if}
-		</div>
 
 		{#if isLadderAdmin && pending.length > 0}
 			<div class="group">
 				{#each pending as player (player.rk)}
 					<RouteLink
-						hasMoreOptions
 						href={hrefOf(player.rk)}
 						title={player.name ?? 'no name'}
 						description="waiting to join"
@@ -123,13 +130,12 @@
 
 		{#each leaderboard as player (player.rk)}
 				<RouteLink
-					hasMoreOptions
 					href={hrefOf(player.rk)}
 					title={player.name ?? 'no name'}
-					description={`rank ${player.rank}`}
+					description={`${player.relation?.state} rank ${player.rank}`}
 					isWhite={player.rk === caller_id}
-					image={imageOf(player.rk)}
-				>
+					image={imageOf(player.rk)}>
+
 					<ApiService
 						inline
 						name="challenge"
@@ -137,7 +143,8 @@
 						endpoint="match/create"
 						data={{ ladder_id: ladderId, challenger_id: caller_id, defender_id: player.rk }}
 						disabled={!canChallenge(player)}
-					/>				</RouteLink>
+					/>				
+				</RouteLink>
 		{:else}
 			<div class="row right">
 				<p class="truncate"><strong>No Participants</strong><br />leaderboard</p>

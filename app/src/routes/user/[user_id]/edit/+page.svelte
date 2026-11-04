@@ -5,7 +5,7 @@
 	import { guids, entityOf } from '#lib/stores/guids.ts';
 	import { local, clear_local_data } from '#lib/stores/local.ts';
 	import ApiService from '#lib/components/apiService.svelte';
-	import RouteLink from '#lib/components/routeLink.svelte';
+	import HiddenOptions from '#lib/components/hiddenOptions.svelte';
 
 	const userId = $derived($local.caller_id ?? '');
 	const user = $derived(entityOf($guids.items, userId));
@@ -177,7 +177,7 @@
 			</button>
 		</ApiService>
 
-		<RouteLink hasMoreOptions icon="chev" title="More" description="logout or delete account">
+		<HiddenOptions inline title="More" description="logout or delete account">
 			<button class="blue" aria-label="logout" onclick={logout}><p>logout</p></button>
 			<ApiService
 				inline
@@ -186,7 +186,7 @@
 				endpoint={`user/${userId}/delete`}
 				onsuccess={logout}
 			/>
-		</RouteLink>
+		</HiddenOptions>
 	{:else}
 		<div class="row right">
 			<p class="truncate"><strong>{$guids.loaded ? 'Not found' : 'Loading'}</strong><br />edit</p>

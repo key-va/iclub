@@ -109,6 +109,7 @@ Located in `api/src/services/`:
 - [doAssetToPublic.ts](./api/src/services/doAssetToPublic.ts): publish assets/images to `public`
 - [doAssetFromPublic.ts](./api/src/services/doAssetFromPublic.ts): remove an asset/image from `public`
 - [doSendPush.ts](./api/src/services/doSendPush.ts): OneSignal push dispatch
+- [doCompleteMatch.ts](./api/src/services/doCompleteMatch.ts): finishes a match (result rows, ladder ranks/points/cooling, republish, push); shared by `match/{id}/complete` and `match/{id}/forfeit`
 
 ### Endpoint development rules
 
@@ -156,8 +157,12 @@ Do not introduce new storage abstractions unless a real gap is proven.
   - consistent action button + confirmation/execute UX
   - API call + `guids.refresh()` + optional redirect by `subject`
 - [routeLink.svelte](./app/src/lib/components/routeLink.svelte)
-  - standard route-list row UI
-  - optional expandable "more options" mode
+  - standard route-list row UI: tap follows `href`; an optional children snippet holds options revealed by a long press (also right-click or Shift+Enter) that revert after 9 seconds
+  - shows a right arrow only when there is no image
+- [hiddenOptions.svelte](./app/src/lib/components/hiddenOptions.svelte)
+  - title/description row with no `href`; a chevron reveals hidden content (action buttons, help or process text)
+  - `inline` swaps the content in for the title and reverts after 9 seconds; otherwise it opens below the row and stays until tapped again
+  - with no children it is a plain information row (dash icon)
 - [userLogin.svelte](./app/src/lib/components/userLogin.svelte)
   - otp/create/login entry flow
 - [installApp.svelte](./app/src/lib/components/installApp.svelte)
@@ -215,7 +220,8 @@ When implementing a new feature:
 
 - Consume graph data from `guids` store helpers.
 - Use `apiService.svelte` for mutation actions where possible.
-- Use `routeLink.svelte` for list-style navigation rows.
+- Use `routeLink.svelte` for list-style navigation rows (rows with an `href`).
+- Use `hiddenOptions.svelte` for rows without an `href` that hide options, help or status text.
 - Link to entities with `hrefOf(id)` (`/<type>/<id>`) and `imageOf(id)` from the `guids` store; never link to `genc/...` from new code.
 - Keep auth/session state in `local` store only.
 - Keep API traffic through `callApi`.

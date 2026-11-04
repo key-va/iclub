@@ -43,12 +43,9 @@
 				<RouteLink
 					href={hrefOf(ladder.rk)}
 					title={ladder.name ?? 'no name'}
-					description={`${matchesOf(ladder.rk).length} active ${matchesOf(ladder.rk).length === 1 ? 'match' : 'matches'}`}
 					isWhite={false}
 					image={imageOf(ladder.rk)}
-					>
-
-				</RouteLink>
+				/>
 				{#each matchesOf(ladder.rk) as match (match.rk)}
 					<RouteLink
 						href={hrefOf(match.rk)}

@@ -102,7 +102,7 @@ export async function matchCreate(request: HttpRequest, context: InvocationConte
         return { status: 409, jsonBody: { success: false, message: "Both players must be on the ladder" } };
     }
 
-    if (challenger.state !== "active") {
+    if (!(challenger.state === "active")) {
         return { status: 409, jsonBody: { success: false, message: "The challenger is not active on the ladder" } };
     }
 
