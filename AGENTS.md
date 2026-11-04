@@ -95,7 +95,8 @@ Current endpoints in `api/src/functions/`:
   - the defender (or a ladder admin) moves a `pending` match to `active` and pushes the challenger; the acceptance deadline is not enforced yet
 - `ladder/{ladder_id}/accept` ([ladderAccept.ts](./api/src/functions/ladderAccept.ts))
   - ladder admin accepts a pending player (`data.user_id`), who is added at the bottom rank and notified
-
+  - `message/create` ([messageCreate.ts](./api/src/functions/messageCreate.ts))
+    - a player of a pending/active match posts `data.match_id` and `data.text` (text/punctuation/emoji, max 500 chars); creates a `message` entity (`name` = text) related to the sender (`role: "sender"`) and the match; notifies the other players (heading = match name, content = `<sender name>: text`)
 ### Reusable services (use these first)
 
 Located in `api/src/services/`:

@@ -16,6 +16,8 @@
 		disabled?: boolean;
 		// true renders just the button so it can sit inside a caller's own row
 		inline?: boolean;
+		// true shows just a blue arrow (no label) as the button
+		arrow?: boolean;
 		onsuccess?: (result: ApiResponse) => void | Promise<void>;
 		// extra controls rendered to the left of the button (ignored when inline)
 		children?: Snippet;
@@ -30,6 +32,7 @@
 		confirm = true,
 		disabled = false,
 		inline = false,
+		arrow = false,
 		onsuccess,
 		children
 	}: Props = $props();
@@ -136,9 +139,9 @@
 </script>
 
 {#snippet trigger()}
-	<button class={disabled ? 'grey' : 'pink'} aria-label={name} {disabled} onclick={start}>
-		<p>{name}</p>
-		{#if !inline}
+	<button class={disabled ? 'grey' : arrow ? 'blue' : 'pink'} aria-label={name} {disabled} onclick={start}>
+		{#if !arrow}<p>{name}</p>{/if}
+		{#if !inline || arrow}
 			<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
 				<path d="M5 12h14M13 5l7 7-7 7" />
 			</svg>

@@ -39,6 +39,15 @@
 			validSets(defenderSets)
 	);
 	const canAccept = $derived(match?.state === 'pending' && (caller_id === defender?.rk || isLadderAdmin));
+
+	// Message ids start with a timestamp, so sorting them gives oldest first
+	const messages = $derived(
+		relatedEntities($guids.items, matchId, 'message')
+			.sort((a, b) => a.rk.localeCompare(b.rk))
+			.map((message) => ({ ...message, sender: relatedEntities($guids.items, message.rk, 'user')[0] }))
+	);
+	let messageText = $state('');
+	const messageValid = $derived(messageText.trim() !== '' && !/[\p{C}]/u.test(messageText));
 </script>
 
 <div class="page">
@@ -93,6 +102,42 @@
 			</ApiService>
 		{/if}
 		
+		<div class="group">
+			{#if messages.length}
+				<HiddenOptions title="Messages" description="" badge={messages.length}>
+					{#each messages as message (message.rk)}
+						<div class="row {message.sender?.rk === caller_id ? 'right' : 'left'} message">
+							{#if message.sender && message.sender.rk !== caller_id}
+								<div class="round-icon-small blue" style="background-image: url('{imageOf(message.sender.rk)}');"></div>
+							{/if}
+							<p><strong>{message.sender?.name ?? 'someone'}</strong><br />{message.name}</p>
+							{#if message.sender?.rk === caller_id}
+								<div class="round-icon-small blue" style="background-image: url('{imageOf(message.sender.rk)}');"></div>
+							{/if}
+						</div>
+					{/each}
+				</HiddenOptions>
+			{:else}
+				<HiddenOptions title="Messages" description="" badge={0} />
+			{/if}
+
+			{#if match.state === 'pending' || match.state === 'active'}
+				<ApiService
+					name="send"
+					arrow
+					endpoint="message/create"
+					data={{ match_id: matchId, text: messageText.trim() }}
+					confirm={false}
+					disabled={!messageValid || !isPlayer}
+					onsuccess={() => {
+						messageText = '';
+					}}
+				>
+					<input type="text" placeholder="message" maxlength="500" autocomplete="off" aria-label="message" bind:value={messageText} />
+				</ApiService>
+			{/if}
+		</div>
+
 		<HiddenOptions inline title={String(match.state)} description="more options">
 			<ApiService
 				inline
@@ -136,6 +181,10 @@
 		flex: 1 1 0;
 		min-width: 0;
 		text-align: center;
+	}
+	.message p {
+		padding: 0.25em 0.5em;
+		overflow-wrap: anywhere;
 	}
 	.help p {
 		padding: 1em 2em;
