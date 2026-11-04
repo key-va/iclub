@@ -16,8 +16,8 @@
 	}
 
 	let {
-		title = 'Title',
-		description = 'description',
+		title,
+		description,
 		badge,
 		isWhite = false,
 		inline = false,
@@ -70,7 +70,7 @@
 				{@render glyph()}
 			</button>
 		{:else}
-			<div class="round-icon-small blue">
+			<div class="round-icon-small {badge !== undefined ? 'grey' : 'blue'}">
 				{@render glyph()}
 			</div>
 		{/if}

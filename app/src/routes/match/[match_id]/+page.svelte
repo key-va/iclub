@@ -1,11 +1,12 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { local } from '#lib/stores/local.ts';
-	import { guids, entityOf, relatedEntities, relationsOf, hrefOf, imageOf } from '#lib/stores/guids.ts';
+	import { guids, entityOf, relatedEntities, relationsOf, hrefOf, imageOf, nameOf } from '#lib/stores/guids.ts';
 
 	import ApiService from '#lib/components/apiService.svelte';
 	import VersusLink from '#lib/components/versusLink.svelte';
 	import HiddenOptions from '#lib/components/hiddenOptions.svelte';
+    import RouteLink from '#lib/components/routeLink.svelte';
 
 	const { caller_id } = $local;
 
@@ -59,9 +60,7 @@
 
 		{#if ladder}
 			<div class="row center">
-				<a href={hrefOf(ladder.rk)} aria-label={ladder.name ?? 'ladder'}>
-					<div class="round-icon-big" style="background-image: url('{imageOf(ladder.rk)}');"></div>
-				</a>
+				<div class="round-icon-big" style="background-image: url('{imageOf(ladder.rk)}');"></div>
 			</div>
 		{/if}
 
@@ -82,7 +81,21 @@
 						</div>
 					{/if}
 				{/if}
+				{#if match.state === 'pending'}
+					<div class="center">
+						<p>waiting for {defender.name} to accept</p>
+					</div>
+				{/if}
 			</div>
+		{/if}
+
+		{#if match.state === 'pending' && canAccept}
+			<ApiService
+				name="accept"
+				message={`accept the challenge from ${challenger?.name ?? 'your opponent'}?`}
+				endpoint={`match/${matchId}/accept`}
+				disabled={!canAccept}
+			/>
 		{/if}
 
 		{#if match.state === 'active'}
@@ -103,9 +116,11 @@
 		{/if}
 		
 		<div class="group">
+			<HiddenOptions title="Messages" description="" badge={messages.length} />
 			{#if messages.length}
-				<HiddenOptions title="Messages" description="" badge={messages.length}>
-					{#each messages as message (message.rk)}
+				{#each messages as message (message.rk)}
+					<RouteLink href={hrefOf(message.sender?.rk)} title={message.sender?.name ?? 'someone'} description="08:38 5/11/23" image={imageOf(message.sender?.rk)}>
+					
 						<div class="row {message.sender?.rk === caller_id ? 'right' : 'left'} message">
 							{#if message.sender && message.sender.rk !== caller_id}
 								<div class="round-icon-small blue" style="background-image: url('{imageOf(message.sender.rk)}');"></div>
@@ -115,30 +130,32 @@
 								<div class="round-icon-small blue" style="background-image: url('{imageOf(message.sender.rk)}');"></div>
 							{/if}
 						</div>
+					</RouteLink>
+					<div class="message right"><p>{message.name}</p></div>
 					{/each}
-				</HiddenOptions>
-			{:else}
-				<HiddenOptions title="Messages" description="" badge={0} />
 			{/if}
 
-			{#if match.state === 'pending' || match.state === 'active'}
-				<ApiService
-					name="send"
-					arrow
-					endpoint="message/create"
-					data={{ match_id: matchId, text: messageText.trim() }}
-					confirm={false}
-					disabled={!messageValid || !isPlayer}
-					onsuccess={() => {
-						messageText = '';
-					}}
-				>
-					<input type="text" placeholder="message" maxlength="500" autocomplete="off" aria-label="message" bind:value={messageText} />
-				</ApiService>
-			{/if}
+			
+			<ApiService
+				name="send"
+				arrow
+				endpoint="message/create"
+				data={{ match_id: matchId, text: messageText.trim() }}
+				confirm={false}
+				disabled={!messageValid || !isPlayer}
+				onsuccess={() => {
+					messageText = '';
+				}}
+			>
+				<input type="text" placeholder="message" maxlength="500" autocomplete="off" aria-label="message" bind:value={messageText} />
+			</ApiService>
+			
 		</div>
 
-		<HiddenOptions inline title={String(match.state)} description="more options">
+		<RouteLink href={hrefOf(ladder?.rk)} title={ladder?.name ?? 'someone'} description="ladder" image={imageOf(ladder?.rk)}>
+		</RouteLink>
+
+		<HiddenOptions inline title="More Options" description="match is {String(match.state)}">
 			<ApiService
 				inline
 				name="forfeit"
@@ -150,15 +167,6 @@
 				}}
 				disabled={!isPlayer || (match.state !== 'pending' && match.state !== 'active')}
 			/>
-			{#if match.state === 'pending'}
-				<ApiService
-					inline
-					name="accept"
-					message={`accept the challenge from ${challenger?.name ?? 'your opponent'}?`}
-					endpoint={`match/${matchId}/accept`}
-					disabled={!canAccept}
-				/>
-			{/if}
 		</HiddenOptions>
 	
 	{:else}
@@ -183,7 +191,7 @@
 		text-align: center;
 	}
 	.message p {
-		padding: 0.25em 0.5em;
+		padding: 0 2em 1em 2em;
 		overflow-wrap: anywhere;
 	}
 	.help p {
