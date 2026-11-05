@@ -5,6 +5,7 @@
 	import { guids, entityOf, relatedEntities, hrefOf, imageOf } from '#lib/stores/guids.ts';
 
 	import RouteLink from '#lib/components/routeLink.svelte';
+	import HiddenOptions from '#lib/components/hiddenOptions.svelte';
 	import ApiService from '#lib/components/apiService.svelte';
 	import { canChallenge as sharedCanChallenge } from '#lib/challenge.ts';
 
@@ -26,6 +27,15 @@
 	);
 	const matchesOf = (ladderId: string) =>
 		liveMatches.filter((match) => relatedEntities($guids.items, match.rk, 'ladder').some((ladder) => ladder.rk === ladderId));
+
+	const stateColours: Record<string, string> = { away: 'red', busy: 'gold', cooling: 'blue', active: 'green' };
+	const dotColour = (ladder: { relation: Record<string, unknown> }) => stateColours[String(ladder.relation?.state)] ?? 'grey';
+	function stateText(ladder: { relation: Record<string, unknown> }) {
+		const state = String(ladder.relation?.state);
+		if (state === 'active') return 'available';
+		if (state === 'busy') return 'in a match';
+		return state;
+	}
 
 	// Whether the caller may challenge the viewed user on this ladder
 	function canChallenge(ladder: { rank: number; relation: Record<string, unknown> }, ladderId: string) {
@@ -54,10 +64,14 @@
 				<RouteLink
 					href={hrefOf(ladder.rk)}
 					title={ladder.name ?? 'no name'}
-					description={matchesOf(ladder.rk).length > 0 ? `${matchesOf(ladder.rk).length} pending matches` : 'no pending matches'}
+					description={stateText(ladder)}
 					isWhite={false}
 					image={imageOf(ladder.rk)}
-				/>
+				>
+					{#snippet detail()}
+						<span class="dot" style="background: {dotColour(ladder)}; display: inline-block; width: 0.7em; height: 0.7em; margin: 0 0.25em; border: 2px solid white; border-radius: 50%;" role="img" aria-label={String(ladder.relation?.state)}></span>{ladder.rank}
+					{/snippet}
+				</RouteLink>
 				{#each matchesOf(ladder.rk) as match (match.rk)}
 					<RouteLink
 						href={hrefOf(match.rk)}
@@ -84,6 +98,8 @@
 				description="browse and join a ladder"
 			/>
 		{/each}
+		<HiddenOptions title="Match History" badge="?">
+		</HiddenOptions>
 
 	{:else}
 		<div class="row right">
