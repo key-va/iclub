@@ -142,7 +142,7 @@
 				endpoint="message/create"
 				data={{ match_id: matchId, text: messageText.trim() }}
 				confirm={false}
-				disabled={!messageValid || !isPlayer}
+				disabled={!messageValid}
 				onsuccess={() => {
 					messageText = '';
 				}}

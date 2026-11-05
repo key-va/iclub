@@ -5,7 +5,8 @@
 	import { guids, entityOf, relatedEntities, hrefOf, imageOf } from '#lib/stores/guids.ts';
 
 	import RouteLink from '#lib/components/routeLink.svelte';
-    import ApiService from '#lib/components/apiService.svelte';
+	import ApiService from '#lib/components/apiService.svelte';
+	import { canChallenge as sharedCanChallenge } from '#lib/challenge.ts';
 
 	const { caller_id, device_id } = $local;
 
@@ -25,6 +26,16 @@
 	);
 	const matchesOf = (ladderId: string) =>
 		liveMatches.filter((match) => relatedEntities($guids.items, match.rk, 'ladder').some((ladder) => ladder.rk === ladderId));
+
+	// Whether the caller may challenge the viewed user on this ladder
+	function canChallenge(ladder: { rank: number; relation: Record<string, unknown> }, ladderId: string) {
+		const me = relatedEntities($guids.items, ladderId, 'user').find((user) => user.rk === caller_id)?.relation;
+		return sharedCanChallenge(entityOf($guids.items, ladderId), me, caller_id, {
+			rk: user_id,
+			rank: ladder.rank,
+			relation: ladder.relation
+		});
+	}
 </script>
 
 <div class="page">
@@ -43,6 +54,7 @@
 				<RouteLink
 					href={hrefOf(ladder.rk)}
 					title={ladder.name ?? 'no name'}
+					description={matchesOf(ladder.rk).length > 0 ? `${matchesOf(ladder.rk).length} pending matches` : 'no pending matches'}
 					isWhite={false}
 					image={imageOf(ladder.rk)}
 				/>
@@ -50,9 +62,19 @@
 					<RouteLink
 						href={hrefOf(match.rk)}
 						title={match.name ?? 'no name'}
-						description={match.state === 'pending' ? 'waiting to be accepted' : 'accepted, ready to play'}
+						description={String(match.state)}
 						isWhite={false}
 					/>
+				{:else}
+					{#if user_id !== caller_id}
+						<ApiService
+							name="challenge"
+							message={`challenge ${user_entity.name ?? 'this player'}?`}
+							endpoint="match/create"
+							data={{ ladder_id: ladder.rk, challenger_id: caller_id, defender_id: user_id }}
+							disabled={!canChallenge(ladder, ladder.rk)}
+						/>
+					{/if}
 				{/each}
 			</div>
 		{:else}

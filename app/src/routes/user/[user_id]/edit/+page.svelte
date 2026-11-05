@@ -177,7 +177,7 @@
 			</button>
 		</ApiService>
 
-		<HiddenOptions inline title="More" description="logout or delete account">
+		<HiddenOptions inline title="More Options" description="logout or delete account">
 			<button class="blue" aria-label="logout" onclick={logout}><p>logout</p></button>
 			<ApiService
 				inline

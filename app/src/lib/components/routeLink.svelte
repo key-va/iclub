@@ -11,6 +11,8 @@
 		timeout?: number;
 		// ms the row must be held to reveal the options
 		holdTime?: number;
+		// extra content after the description on the same line (eg. a status dot and rank)
+		detail?: Snippet;
 		// options revealed by a long press (or right click, or Shift+Enter)
 		children?: Snippet;
 	}
@@ -23,6 +25,7 @@
 		isWhite = false,
 		timeout = 9000,
 		holdTime = 500,
+		detail,
 		children
 	}: Props = $props();
 
@@ -127,7 +130,7 @@
 			onpointercancel={holdCancel}
 		>
 			<div class="row right">
-				<p class="truncate"><strong>{title}</strong><br />{description}</p>
+				<p class="truncate"><strong>{title}</strong>{#if description || detail}<br />{description}{/if}{#if detail}{@render detail()}{/if}</p>
 				<div class="round-icon-small blue" style="background-image: url('{image}');">
 					{@render glyph()}
 				</div>

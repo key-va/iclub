@@ -3,7 +3,8 @@
 	import { PUBLIC_URL } from '#lib/config.ts';
 	import { local } from '#lib/stores/local.ts';
 	import { guids, entityOf, relatedEntities, relationsOf, hrefOf, imageOf } from '#lib/stores/guids.ts';
-	import { ladderSettings, ladderSettingDefaults } from '#lib/strings.ts';
+	import { ladderSettings } from '#lib/strings.ts';
+	import { canChallenge as sharedCanChallenge, type ChallengeTarget } from '#lib/challenge.ts';
 
 	import ApiService from '#lib/components/apiService.svelte';
 	import RouteLink from '#lib/components/routeLink.svelte';
@@ -49,19 +50,21 @@
 		)
 	);
 
-	// Ranks a challenger may climb under the ladder system; win_points costs one point per rank
-	function canChallenge(target: { rk: string; rank: number; relation: Record<string, unknown> }) {
-		const me = myRelation;
-		if (!me || me.is_participant !== true || me.state !== 'active') return false;
-		if (target.rk === caller_id || !['active', 'cooling'].includes(String(target.relation.state))) return false;
-		const myRank = Number(me.rank);
-		const steps = myRank - target.rank;
-		if (!(steps > 0)) return false;
-		const system = String(ladder?.ladder_system ?? ladderSettingDefaults.ladder_system);
-		if (system === 'win_points') return Number(me.points) >= steps;
-		if (system === 'half_rank') return steps <= Math.floor(myRank / 2);
-		const range = Number(system.match(/^static_range_(\d+)$/)?.[1]);
-		return steps <= range;
+	const canChallenge = (target: ChallengeTarget) => sharedCanChallenge(ladder, myRelation, caller_id, target);
+
+	function challengeText(target: { rk: string; rank: number; relation: Record<string, unknown> }) {
+		const state = String(target.relation.state);
+		if (target.rk === caller_id) return state === 'active' ? 'available' : `${state}`;
+		if (state === 'away') return 'away';
+		if (state === 'busy') return 'in a match';
+		return canChallenge(target) ? 'long tap to challenge' : 'cannot challenge';
+	}
+
+	const stateColours: Record<string, string> = { away: 'red', busy: 'gold', cooling: 'blue', active: 'green' };
+
+	// The dot always reflects the listed player's own state
+	function dotColour(target: { relation: Record<string, unknown> }) {
+		return stateColours[String(target.relation.state)] ?? 'grey';
 	}
 </script>
 
@@ -79,7 +82,7 @@
 
 		{#if ladder.state === 'pending'}
 			<div class="group">
-				<HiddenOptions inline title="Pending" description="waiting admin approval">
+				<HiddenOptions inline title="Pending" description="waiting approval">
 					<ApiService
 						inline
 						name="accept"
@@ -88,22 +91,6 @@
 						disabled={!isClubAdmin}
 					/>
 				</HiddenOptions>
-			</div>
-		{/if}
-
-		{#if ladder.state === 'active' && myRelation?.is_participant !== true && !isPending}
-			<ApiService name="join" message={`join the ladder ${ladder.name}?`} endpoint={`ladder/${ladderId}/join`} disabled={!caller_id} />
-		{:else if ladder.state === 'active' && myRelation?.is_participant === true}
-			<div class="group">
-				<HiddenOptions title="Active Matches" description="" badge={yourMatches.length} />
-				{#each yourMatches as match (match.rk)}
-					<RouteLink
-						href={hrefOf(match.rk)}
-						title={match.name ?? 'no name'}
-						description={match.state === 'pending' ? 'waiting to be accepted' : 'accepted, ready to play'}
-						isWhite={false}
-					/>
-				{/each}
 			</div>
 		{/if}
 
@@ -128,30 +115,38 @@
 			</div>
 		{/if}
 
+		<div class="group">
+
+		<HiddenOptions title="Leaderboard" badge={leaderboard.length}>
+		</HiddenOptions>
+		{#if ladder.state === 'active' && myRelation?.is_participant !== true && !isPending}
+				<ApiService name="join" message={`join the ladder ${ladder.name}?`} endpoint={`ladder/${ladderId}/join`} disabled={!caller_id} />
+		{/if}
+
 		{#each leaderboard as player (player.rk)}
-				<RouteLink
-					href={hrefOf(player.rk)}
-					title={player.name ?? 'no name'}
-					description={`${player.relation?.state} rank ${player.rank}`}
-					isWhite={player.rk === caller_id}
-					image={imageOf(player.rk)}>
+			<RouteLink
+				href={hrefOf(player.rk)}
+				title={player.name ?? 'no name'}
+				description={challengeText(player)}
+				image={imageOf(player.rk)}>
+				{#snippet detail()}
+					<span class="dot" style="background: {dotColour(player)}" role="img" aria-label={String(player.relation?.state)}></span>{player.rank}
+				{/snippet}
 
-					<ApiService
-						inline
-						name="challenge"
-						message={`challenge ${player.name ?? 'this player'}?`}
-						endpoint="match/create"
-						data={{ ladder_id: ladderId, challenger_id: caller_id, defender_id: player.rk }}
-						disabled={!canChallenge(player)}
-					/>				
-				</RouteLink>
-		{:else}
-			<div class="row right">
-				<p class="truncate"><strong>No Participants</strong><br />leaderboard</p>
-				<div class="blank-icon-small"></div>
-			</div>
+				<ApiService
+					inline
+					name="challenge"
+					message={`challenge ${player.name ?? 'this player'}?`}
+					endpoint="match/create"
+					data={{ ladder_id: ladderId, challenger_id: caller_id, defender_id: player.rk }}
+					disabled={!canChallenge(player)}
+				/>				
+			</RouteLink>
 		{/each}
+		</div>
 
+		<HiddenOptions title="Match History" badge="?">
+		</HiddenOptions>
 		
 	{:else}
 		<div class="row right">
@@ -164,5 +159,14 @@
 <style>
 	.page {
 		width: 100%;
+	}
+	.dot {
+		display: inline-block;
+		width: 0.7em;
+		height: 0.7em;
+		margin: 0 0.25em;
+		border: 2px solid white;
+		border-radius: 50%;
+		vertical-align: baseline;
 	}
 </style>
