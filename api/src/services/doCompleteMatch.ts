@@ -4,7 +4,6 @@ import { InvocationContext } from "@azure/functions";
 import { doUpsertEntity } from "./doUpsertEntity";
 import { doUpsertRelation } from "./doUpsertRelation";
 import { doGuidsToPublic } from "./doGuidsToPublic";
-import { doSendPush } from "./doSendPush";
 
 import { resourceName, resourceSuffix } from "../stores/resourceNames";
 
@@ -22,19 +21,19 @@ export interface CompleteMatchInput {
     matchId: string;
     // the player who withdrew; the opponent is the winner. Omit when the match was played out.
     forfeiterId?: string;
-    // who performed the action (not notified); omit for a batch job so both players are notified
-    actorId?: string;
-    // push text sent to the other player(s)
-    content: string;
     // games won in each set (one entry for a single-set match); may be partial or empty on a forfeit
     challengerScore?: number[];
     defenderScore?: number[];
 }
 
+// Notifying the players is left to the caller, which is given what it needs to do so
 export interface CompleteMatchResult {
     ok: boolean;
     status: number;
     message: string;
+    matchName?: string;
+    challengerId?: string;
+    defenderId?: string;
 }
 
 async function getRow(pk: string, rk: string): Promise<Row | undefined> {
@@ -66,7 +65,7 @@ function pointsAwarded(winner: number[], loser: number[]): number {
 // The caller is responsible for authenticating the request and validating the scores.
 export async function doCompleteMatch(input: CompleteMatchInput, context: InvocationContext): Promise<CompleteMatchResult> {
 
-    const { matchId, forfeiterId, actorId, content, challengerScore, defenderScore } = input;
+    const { matchId, forfeiterId, challengerScore, defenderScore } = input;
 
     const match = await getRow("match", matchId);
 
@@ -181,16 +180,14 @@ export async function doCompleteMatch(input: CompleteMatchInput, context: Invoca
 
     await doGuidsToPublic();
 
-    await doSendPush({
-        userIds: [challengerId, defenderId],
-        exceptUserId: actorId,
-        heading: `${match.name}`,
-        content,
-        path: `match/${matchId}`,
-        collapseId: matchId
-    }, context);
+    context.log(`Match ${matchId} complete: winner ${winnerId}, ${forfeiterId ? `forfeited by ${forfeiterId}` : "scores submitted"}`);
 
-    context.log(`Match ${matchId} complete: winner ${winnerId}, ${forfeiterId ? `forfeited by ${forfeiterId}` : "scores submitted"}, by ${actorId ?? "batch"}`);
-
-    return { ok: true, status: 200, message: forfeiterId ? "Okay, match forfeited" : "Okay, score submitted" };
+    return {
+        ok: true,
+        status: 200,
+        message: forfeiterId ? "Okay, match forfeited" : "Okay, score submitted",
+        matchName: `${match.name}`,
+        challengerId,
+        defenderId
+    };
 }

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { local } from '#lib/stores/local.ts';
+	import { ladderSettings } from '#lib/strings.ts';
 	import { guids, entityOf, relatedEntities, relationsOf, hrefOf, imageOf, nameOf } from '#lib/stores/guids.ts';
 
 	import ApiService from '#lib/components/apiService.svelte';
@@ -22,32 +23,66 @@
 	);
 	const isPlayer = $derived(caller_id === challenger?.rk || caller_id === defender?.rk);
 
-	let challengerScore = $state('');
-	let defenderScore = $state('');
+	// One row of inputs per set, labelled by match format
+	const setLabels: Record<string, string[]> = {
+		super_set: ['super set'],
+		best_of_three: ['set 1', 'set 2', 'tie break'],
+		fast_four: ['set 1', 'set 2', 'set 3']
+	};
+	const labels = $derived(setLabels[String(ladder?.match_format ?? 'super_set')] ?? setLabels.super_set);
+	const formatRules = $derived.by(() => {
+		const format = String(ladder?.match_format ?? ladderSettings.match_format.default);
+		const setting = ladderSettings.match_format;
+		const rules = setting.type === 'enum' ? setting.values[format] : '';
+		return rules ? `Match format: ${rules}.` : '';
+	});
+	let challengerScores = $state<string[]>(['', '', '']);
+	let defenderScores = $state<string[]>(['', '', '']);
 	let showHelp = $state(false);
 
-	// super_set is a single set; the other formats take one number per set, e.g. "6 4"
-	const singleSet = $derived((ladder?.match_format ?? 'super_set') === 'super_set');
-	const parseSets = (text: string) => text.split(/[\s,]+/).filter(Boolean).map(Number);
-	const validSets = (sets: number[]) => sets.every((games) => Number.isInteger(games) && games >= 0 && games <= 99);
-	const challengerSets = $derived(parseSets(challengerScore));
-	const defenderSets = $derived(parseSets(defenderScore));
-	const scoreValid = $derived(
-		challengerSets.length > 0 &&
-			challengerSets.length === defenderSets.length &&
-			(!singleSet || challengerSets.length === 1) &&
-			validSets(challengerSets) &&
-			validSets(defenderSets)
+	// A set counts once either side has a score; unplayed trailing sets stay empty
+	const isGames = (text: string) => /^\d{1,2}$/.test(text.trim());
+	const playedRows = $derived(
+		labels.map((_, i) => i).filter((i) => challengerScores[i].trim() !== '' || defenderScores[i].trim() !== '')
 	);
+	const challengerSets = $derived(playedRows.map((i) => Number(challengerScores[i])));
+	const defenderSets = $derived(playedRows.map((i) => Number(defenderScores[i])));
+	const scoreValid = $derived(
+		playedRows.length > 0 &&
+			playedRows.every((row, index) => row === index && isGames(challengerScores[row]) && isGames(defenderScores[row]))
+	);
+	// "<winner> wins 6-2 6-3", with each set shown from the winner's side; the winner is whoever takes more sets
+	const scoreSummary = $derived.by(() => {
+		const won = (mine: number[], theirs: number[]) => mine.filter((games, i) => games > theirs[i]).length;
+		const challengerWon = won(challengerSets, defenderSets);
+		const defenderWon = won(defenderSets, challengerSets);
+		if (challengerWon === defenderWon) return `${challenger?.name} ${challengerSets.join(' ')} - ${defenderSets.join(' ')} ${defender?.name}`;
+		const [winner, mine, theirs] =
+			challengerWon > defenderWon ? [challenger, challengerSets, defenderSets] : [defender, defenderSets, challengerSets];
+		return `${winner?.name} wins ${mine.map((games, i) => `${games}-${theirs[i]}`).join('  ')}`;
+	});
 	const canAccept = $derived(match?.state === 'pending' && (caller_id === defender?.rk || isLadderAdmin));
 
 	// Message ids start with a timestamp, so sorting them gives oldest first
 	const messages = $derived(
 		relatedEntities($guids.items, matchId, 'message')
 			.sort((a, b) => a.rk.localeCompare(b.rk))
-			.map((message) => ({ ...message, sender: relatedEntities($guids.items, message.rk, 'user')[0] }))
+			.map((message) => ({
+				...message,
+				// the sender is a user, or the bot for automated messages
+				sender: relatedEntities($guids.items, message.rk).find((related) => related.relation.role === 'sender')
+			}))
 	);
 	let messageText = $state('');
+
+	// Ids are type_YYYY-MM-DD_HH-MM-SS_hex with the time in UTC; show it in the viewer's own timezone
+	function sentAt(id: string) {
+		const parts = id.match(/_(\d{4})-(\d{2})-(\d{2})_(\d{2})-(\d{2})-(\d{2})_/);
+		if (!parts) return '';
+		const [year, month, day, hour, minute, second] = parts.slice(1).map(Number);
+		const date = new Date(Date.UTC(year, month - 1, day, hour, minute, second));
+		return date.toLocaleString(undefined, { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'numeric', year: '2-digit' });
+	}
 	const messageValid = $derived(messageText.trim() !== '' && !/[\p{C}]/u.test(messageText));
 </script>
 
@@ -71,13 +106,19 @@
 					right={{ href: hrefOf(defender.rk), title: defender.name ?? 'no name', description: 'defender', image: imageOf(defender.rk) }}
 				/>
 				{#if match.state === 'active'}
-					<div class="row scores">
-						<input type="text" inputmode="numeric" placeholder={singleSet ? 'score' : 'sets e.g. 6 4'} aria-label="{challenger.name} score" bind:value={challengerScore} />
-						<input type="text" inputmode="numeric" placeholder={singleSet ? 'score' : 'sets e.g. 6 4'} aria-label="{defender.name} score" bind:value={defenderScore} />
-					</div>
+					{#each labels as label, i (label)}
+						<div class="row scores">
+							<input type="text" inputmode="numeric" maxlength="2" placeholder="0" aria-label="{challenger.name} {label}" bind:value={challengerScores[i]} />
+							<span class="set-label">{label}</span>
+							<input type="text" inputmode="numeric" maxlength="2" placeholder="0" aria-label="{defender.name} {label}" bind:value={defenderScores[i]} />
+						</div>
+					{/each}
 					{#if showHelp}
 						<div class="row left help">
-							<p>{singleSet ? 'Enter the final games won by each player' : 'Enter the games won in each set, separated by spaces (e.g. 6 4), for each player'}. The result is confirmed once submitted</p>
+							<p>Match score: enter the games won by each player in each set played, with a tiebreak counting as a single game. Leave unplayed sets empty.</p>
+						</div>
+						<div class="row left help">
+							<p>{formatRules}</p>
 						</div>
 					{/if}
 				{/if}
@@ -101,7 +142,7 @@
 		{#if match.state === 'active'}
 			<ApiService
 				name="submit"
-				message={`submit the score ${challengerScore} - ${defenderScore}?`}
+				message={`${scoreSummary}?`}
 				endpoint={`match/${matchId}/complete`}
 				data={{ challenger_score: challengerSets, defender_score: defenderSets }}
 				disabled={!scoreValid || !(isPlayer || isLadderAdmin)}
@@ -119,20 +160,10 @@
 			<HiddenOptions title="Messages" description="" badge={messages.length} />
 			{#if messages.length}
 				{#each messages as message (message.rk)}
-					<RouteLink href={hrefOf(message.sender?.rk)} title={message.sender?.name ?? 'someone'} description="08:38 5/11/23" image={imageOf(message.sender?.rk)}>
-					
-						<div class="row {message.sender?.rk === caller_id ? 'right' : 'left'} message">
-							{#if message.sender && message.sender.rk !== caller_id}
-								<div class="round-icon-small blue" style="background-image: url('{imageOf(message.sender.rk)}');"></div>
-							{/if}
-							<p><strong>{message.sender?.name ?? 'someone'}</strong><br />{message.name}</p>
-							{#if message.sender?.rk === caller_id}
-								<div class="round-icon-small blue" style="background-image: url('{imageOf(message.sender.rk)}');"></div>
-							{/if}
-						</div>
+					<RouteLink href={hrefOf(message.sender?.rk ?? '')} title={message.sender?.name ?? 'someone'} description={sentAt(message.rk)} image={imageOf(message.sender?.rk ?? '')}>
 					</RouteLink>
 					<div class="message right"><p>{message.name}</p></div>
-					{/each}
+				{/each}
 			{/if}
 
 			
@@ -162,8 +193,7 @@
 				message="forfeit this match? your opponent will be awarded the win"
 				endpoint={`match/${matchId}/forfeit`}
 				data={{
-					...(challengerSets.length && validSets(challengerSets) ? { challenger_score: challengerSets } : {}),
-					...(defenderSets.length && validSets(defenderSets) ? { defender_score: defenderSets } : {})
+					...(scoreValid ? { challenger_score: challengerSets, defender_score: defenderSets } : {})
 				}}
 				disabled={!isPlayer || (match.state !== 'pending' && match.state !== 'active')}
 			/>
@@ -184,9 +214,17 @@
 	.scores {
 		gap: 0.5rem;
 		padding: 0 0.5rem 0.5rem;
+		align-items: center;
+		justify-content: space-between;
+	}
+	.set-label {
+		flex: 1 1 auto;
+		text-align: center;
+		font-size: 0.85em;
 	}
 	.scores input {
-		flex: 1 1 0;
+		flex: 0 0 6em;
+		width: 6em;
 		min-width: 0;
 		text-align: center;
 	}

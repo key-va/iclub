@@ -6,6 +6,7 @@ import { doGuidsToPublic } from "../services/doGuidsToPublic";
 import { doCompleteMatch } from "../services/doCompleteMatch";
 import { doFindDueMatches, MatchDeadlineState } from "../services/doFindDueMatches";
 import { doSendPush } from "../services/doSendPush";
+import { doPostMessage, botId } from "../services/doPostMessage";
 
 import { resourceName, resourceSuffix } from "../stores/resourceNames";
 
@@ -21,6 +22,33 @@ const HOUR_MS = 3600000;
 const DAY_MS = 24 * HOUR_MS;
 const WARNING_HOURS = 12;
 
+// Records the action as a bot message in the match history and notifies both players with it
+async function postBotMessage(context: InvocationContext, matchId: string, name: string, text: string): Promise<void> {
+
+    await doPostMessage({ matchId, text, senderId: botId });
+
+    await doSendPush({
+        userIds: await playersOf(matchId),
+        heading: name,
+        content: text,
+        path: `match/${matchId}`,
+        collapseId: `${matchId}_bot`
+    }, context);
+}
+
+async function playersOf(matchId: string): Promise<string[]> {
+
+    const players: string[] = [];
+
+    for await (const relation of guidsClient.listEntities({
+        queryOptions: { filter: odata`PartitionKey eq ${matchId}` }
+    })) {
+        if (relation.role === "challenger" || relation.role === "defender") players.push(relation.rowKey as string);
+    }
+
+    return players;
+}
+
 // Forfeits, on behalf of the defender, matches that missed their deadline: pending matches never accepted
 // within cool_period, active matches never played within play_period. Both players are notified.
 // Returns true when the public graph changed.
@@ -31,13 +59,14 @@ async function forfeitOverdueMatches(context: InvocationContext, state: MatchDea
     for (const { matchId, name, defenderId } of await doFindDueMatches(state)) {
         context.log(`Batch: forfeiting overdue ${state} match ${matchId} (${name}) on behalf of defender ${defenderId}`);
 
-        const result = await doCompleteMatch(
-            { matchId, forfeiterId: defenderId, content: `Time violation, ${state} match forfeited` },
-            context
-        );
+        const result = await doCompleteMatch({ matchId, forfeiterId: defenderId }, context);
 
-        if (result.ok) forfeited++;
-        else context.warn(`Could not forfeit ${matchId}: ${result.message}`);
+        if (result.ok) {
+            await postBotMessage(context, matchId, name, `Time violation, ${state} match forfeited`);
+            forfeited++;
+        } else {
+            context.warn(`Could not forfeit ${matchId}: ${result.message}`);
+        }
     }
 
     context.log(`Batch: overdue ${state} matches forfeited: ${forfeited}`);
@@ -45,27 +74,24 @@ async function forfeitOverdueMatches(context: InvocationContext, state: MatchDea
     return forfeited > 0;
 }
 
-// Warns both players once, in the hourly run that falls 12 hours before their match will be forfeited
-async function warnDueMatches(context: InvocationContext, state: MatchDeadlineState): Promise<void> {
+// Warns both players once, in the hourly run that falls 12 hours before their match will be forfeited.
+// Returns true when the public graph changed.
+async function warnDueMatches(context: InvocationContext, state: MatchDeadlineState): Promise<boolean> {
 
     const due = await doFindDueMatches(state, {
         afterMs: (WARNING_HOURS - 1) * HOUR_MS,
         withinMs: WARNING_HOURS * HOUR_MS
     });
 
-    for (const { matchId, name, challengerId, defenderId } of due) {
+    for (const { matchId, name } of due) {
         context.log(`Batch: warning about ${state} match ${matchId} (${name}) due within ${WARNING_HOURS} hours`);
 
-        await doSendPush({
-            userIds: [challengerId, defenderId],
-            heading: name,
-            content: `Time violation warning, ${state} match will be forfeited`,
-            path: `match/${matchId}`,
-            collapseId: `${matchId}_warning`
-        }, context);
+        await postBotMessage(context, matchId, name, `Time violation warning, ${state} match will be forfeited`);
     }
 
     context.log(`Batch: ${state} match warnings: ${due.length}`);
+
+    return due.length > 0;
 }
 
 // Returns cooling players to active once the ladder's cool_period (days) has passed since they began cooling.
@@ -110,11 +136,10 @@ export async function batchHourly(_timer: Timer, context: InvocationContext): Pr
     const changed = [
         await forfeitOverdueMatches(context, "pending"),
         await forfeitOverdueMatches(context, "active"),
-        await releaseCoolingPlayers(context)
+        await releaseCoolingPlayers(context),
+        await warnDueMatches(context, "pending"),
+        await warnDueMatches(context, "active")
     ];
-
-    await warnDueMatches(context, "pending");
-    await warnDueMatches(context, "active");
 
     if (changed.some(Boolean)) await doGuidsToPublic();
 }

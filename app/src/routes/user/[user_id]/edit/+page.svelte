@@ -136,8 +136,11 @@
 			{/if}
 
 			{#if showHelp}
-				<div class="row left help">
-					<p>Updates to your <strong>profile image</strong> may take some time to show</p>
+				<div class="row left">
+					<p class="info">Enter your first and last name, eg John Doe</p>
+				</div>
+				<div class="row left">
+					<p class="info">Updates to your profile image may take some time to show</p>
 				</div>
 			{/if}
 
@@ -155,8 +158,8 @@
 				<div class="row right"><p class="error">phone must be 8 to 15 digits including country code</p></div>
 			{/if}
 			{#if showHelp}
-				<div class="row left help">
-					<p>Your email and phone number is <strong>not</strong> shown here, but entering them will update the information on file</p>
+				<div class="row left">
+					<p class="info">Your email and phone number is not shown here, but entering them will update the information on file</p>
 				</div>
 			{/if}
 		</div>
@@ -202,8 +205,5 @@
 <style>
 	.page {
 		width: 100%;
-	}
-	.help p {
-		padding: 1em 2em;
 	}
 </style>

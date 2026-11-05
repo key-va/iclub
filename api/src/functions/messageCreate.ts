@@ -2,9 +2,7 @@ import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/fu
 import { DefaultAzureCredential } from "@azure/identity";
 import { TableClient, odata } from "@azure/data-tables";
 import { doSignatureVerification } from "../services/doSignatureVerification";
-import { doNewGuid } from "../services/doNewGuid";
-import { doUpsertEntity } from "../services/doUpsertEntity";
-import { doUpsertRelation } from "../services/doUpsertRelation";
+import { doPostMessage } from "../services/doPostMessage";
 import { doGuidsToPublic } from "../services/doGuidsToPublic";
 import { doSendPush } from "../services/doSendPush";
 
@@ -101,11 +99,7 @@ export async function messageCreate(request: HttpRequest, context: InvocationCon
 
     // 3. Store the message: the text is the entity name, related to its sender and to the match
     const sender = await getRow("user", caller_id);
-    const messageId = doNewGuid("message");
-
-    await doUpsertEntity("message", messageId, { name: text });
-    await doUpsertRelation(messageId, caller_id, { role: "sender" });
-    await doUpsertRelation(messageId, matchId);
+    const messageId = await doPostMessage({ matchId, text, senderId: caller_id });
 
     await doGuidsToPublic();
 

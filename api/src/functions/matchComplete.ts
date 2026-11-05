@@ -3,6 +3,7 @@ import { DefaultAzureCredential } from "@azure/identity";
 import { TableClient, odata } from "@azure/data-tables";
 import { doSignatureVerification } from "../services/doSignatureVerification";
 import { doCompleteMatch } from "../services/doCompleteMatch";
+import { doSendPush } from "../services/doSendPush";
 
 import { resourceName, resourceSuffix } from "../stores/resourceNames";
 
@@ -118,13 +119,23 @@ export async function matchComplete(request: HttpRequest, context: InvocationCon
 
     // 3. Apply the result
     const result = await doCompleteMatch(
-        { matchId, actorId: caller_id, challengerScore, defenderScore, content: "Match scores have been submitted" },
+        { matchId, challengerScore, defenderScore },
         context
     );
 
     if (!result.ok) {
         return { status: result.status, jsonBody: { success: false, message: result.message } };
     }
+
+    // 4. Tell the other player
+    await doSendPush({
+        userIds: [result.challengerId!, result.defenderId!],
+        exceptUserId: caller_id,
+        heading: result.matchName!,
+        content: "Match scores have been submitted",
+        path: `match/${matchId}`,
+        collapseId: matchId
+    }, context);
 
     return {
         status: 200,

@@ -110,7 +110,8 @@ Located in `api/src/services/`:
 - [doAssetToPublic.ts](./api/src/services/doAssetToPublic.ts): publish assets/images to `public`
 - [doAssetFromPublic.ts](./api/src/services/doAssetFromPublic.ts): remove an asset/image from `public`
 - [doSendPush.ts](./api/src/services/doSendPush.ts): OneSignal push dispatch
-- [doCompleteMatch.ts](./api/src/services/doCompleteMatch.ts): finishes a match (result rows, ladder ranks/points/cooling, republish, push to the players except the actor); shared by `match/{id}/complete`, `match/{id}/forfeit` and `batchHourly`
+- [doCompleteMatch.ts](./api/src/services/doCompleteMatch.ts): finishes a match (result rows, ladder ranks/points/cooling, republish); does not notify, callers send their own push using the returned match name and player ids; shared by `match/{id}/complete`, `match/{id}/forfeit` and `batchHourly`
+- [doPostMessage.ts](./api/src/services/doPostMessage.ts): records a `message` entity on a match, related to its sender (a user, or the bootstrap bot `botId` for automated messages); does not publish or notify; used by `message/create` and `batchHourly`
 - [doFindDueMatches.ts](./api/src/services/doFindDueMatches.ts): pending/active matches whose cool/play-period deadline falls in a time window; used by `batchHourly` (forfeit overdue, warn 12 hours ahead)
 
 ### Endpoint development rules
@@ -179,6 +180,7 @@ Do not introduce new storage abstractions unless a real gap is proven.
 - generic entity view: [app/src/routes/genc/[entity_id]/+page.svelte](./app/src/routes/genc/[entity_id]/+page.svelte)
 - user view/edit: [app/src/routes/user/[user_id]/+page.svelte](./app/src/routes/user/[user_id]/+page.svelte), [app/src/routes/user/[user_id]/edit/+page.svelte](./app/src/routes/user/[user_id]/edit/+page.svelte)
 - menu/about: [app/src/routes/menu/+page.svelte](./app/src/routes/menu/+page.svelte), [app/src/routes/about/+page.svelte](./app/src/routes/about/+page.svelte)
+- bot view: [app/src/routes/bot/[bot_id]/+page.svelte](./app/src/routes/bot/[bot_id]/+page.svelte) (avatar and a note that it is an automation account)
 
 ### Push-related static files
 
@@ -216,7 +218,7 @@ When implementing a new feature:
 - Use `doUpsertEntity`/`doUpsertRelation`/`doUpsertAuth` for persistence.
 - Call `doGuidsToPublic` after any public graph mutation.
 - Reuse `doAssetToPublic` for image/blob publishing.
-- Reuse `doSendPush` for notification fan-out when needed.
+- Reuse `doSendPush` for notification fan-out when needed; only endpoints and the batch job call it (services never notify).
 
 ### Frontend
 

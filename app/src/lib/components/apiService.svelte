@@ -41,6 +41,8 @@
 	let isBusy = $state(false);
 	let isError = $state(false);
 	let shown = $state('');
+	// a no-confirmation action in flight: shown as a timer icon in the button
+	const quiet = $derived(!confirm && isBusy && !isExpanded);
 
 	let originX = $state(0);
 	let originY = $state(0);
@@ -50,9 +52,10 @@
 		originY = event.clientY;
 		shown = message;
 		isError = false;
-		isExpanded = true;
 
-		if (!confirm) execute();
+		// without confirmation the button itself shows progress; the overlay only appears for an error
+		if (confirm) isExpanded = true;
+		else execute();
 	}
 
 	function close() {
@@ -117,6 +120,7 @@
 			shown = e instanceof Error ? e.message : 'action failed';
 			isError = true;
 			isBusy = false;
+			isExpanded = true;
 			return;
 		}
 
@@ -131,6 +135,7 @@
 			shown = `${result.message} (could not refresh: ${e instanceof Error ? e.message : 'unknown error'})`;
 			isError = true;
 			isBusy = false;
+			isExpanded = true;
 			return;
 		}
 
@@ -139,9 +144,13 @@
 </script>
 
 {#snippet trigger()}
-	<button class={disabled ? 'grey' : arrow ? 'blue' : 'pink'} aria-label={name} {disabled} onclick={start}>
+	<button class={disabled ? 'grey' : arrow ? 'blue' : 'pink'} aria-label={name} aria-busy={quiet} disabled={disabled || quiet} onclick={start}>
 		{#if !arrow}<p>{name}</p>{/if}
-		{#if !inline || arrow}
+		{#if quiet}
+			<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="working">
+				<path d="M6 3h12M6 21h12M7 3c0 5 5 6 5 9s-5 4-5 9M17 3c0 5-5 6-5 9s5 4 5 9" />
+			</svg>
+		{:else if !inline || arrow}
 			<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
 				<path d="M5 12h14M13 5l7 7-7 7" />
 			</svg>

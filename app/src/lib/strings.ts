@@ -32,19 +32,19 @@ export const ladderSettings: Record<string, LadderSetting> = {
 		default: 'win_points',
 		description: 'how results move players up and down the ladder',
 		values: {
-			'win_points': 'players earn points with match wins and trade points to challenge others',
-			'half_rank': 'players can challenge up to half their own rank above them',
-			'static_range_1': 'players may challenge up to 1 rank above them',
-			'static_range_3': 'players may challenge up to 3 ranks above them',
-			'static_range_6': 'players may challenge up to 6 ranks above them'
+			'win_points': 'players earn points with match wins and trade points to challenge up the ladder.',
+			'half_rank': 'players can challenge up to half their own rank up the ladder',
+			'static_range_1': 'players may challenge up to 1 rank above them.',
+			'static_range_6': 'players may challenge up to 6 ranks above them.',
+			'open': 'players may challenge any rank up the ladder.'
 		}
 	},
 	'cool_period': {
 		type: 'number',
 		label: 'cool period',
 		default: 2,
-		description: 'days a losing player must wait before issuing another challenge',
-		min: 0,
+		description: 'days a player has to accept a challenge and must wait after a loss before issuing another challenge.',
+		min: 1,
 		max: 9
 	},
 	'play_period': {

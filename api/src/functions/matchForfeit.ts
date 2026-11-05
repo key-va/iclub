@@ -3,6 +3,7 @@ import { DefaultAzureCredential } from "@azure/identity";
 import { TableClient, odata } from "@azure/data-tables";
 import { doSignatureVerification } from "../services/doSignatureVerification";
 import { doCompleteMatch } from "../services/doCompleteMatch";
+import { doSendPush } from "../services/doSendPush";
 
 import { resourceName, resourceSuffix } from "../stores/resourceNames";
 
@@ -81,13 +82,23 @@ export async function matchForfeit(request: HttpRequest, context: InvocationCont
 
     // 3. Apply the result
     const result = await doCompleteMatch(
-        { matchId, forfeiterId: caller_id, actorId: caller_id, challengerScore, defenderScore, content: "Your opponent has forfeited the match" },
+        { matchId, forfeiterId: caller_id, challengerScore, defenderScore },
         context
     );
 
     if (!result.ok) {
         return { status: result.status, jsonBody: { success: false, message: result.message } };
     }
+
+    // 4. Tell the opponent
+    await doSendPush({
+        userIds: [result.challengerId!, result.defenderId!],
+        exceptUserId: caller_id,
+        heading: result.matchName!,
+        content: "Your opponent has forfeited the match",
+        path: `match/${matchId}`,
+        collapseId: matchId
+    }, context);
 
     return {
         status: 200,
