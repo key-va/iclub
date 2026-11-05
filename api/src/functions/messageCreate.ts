@@ -84,15 +84,11 @@ export async function messageCreate(request: HttpRequest, context: InvocationCon
         return { status: 401, jsonBody: { success: false, message: err instanceof Error ? err.message : "Unauthorised" } };
     }
 
-    // 2. Only the players of a match still to be played can message each other
+    // 2. Any signed-in user can post on any existing match, whatever its state
     const match = await getRow("match", matchId);
 
     if (!match) {
         return { status: 404, jsonBody: { success: false, message: "Match not found" } };
-    }
-
-    if (match.state !== "pending" && match.state !== "active") {
-        return { status: 409, jsonBody: { success: false, message: "This match is finished" } };
     }
 
     const players: string[] = [];
@@ -101,10 +97,6 @@ export async function messageCreate(request: HttpRequest, context: InvocationCon
         queryOptions: { filter: odata`PartitionKey eq ${matchId}` }
     })) {
         if (relation.role === "challenger" || relation.role === "defender") players.push(relation.rowKey as string);
-    }
-
-    if (!players.includes(caller_id)) {
-        return { status: 403, jsonBody: { success: false, message: "Only a player in this match can send a message" } };
     }
 
     // 3. Store the message: the text is the entity name, related to its sender and to the match
