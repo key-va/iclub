@@ -115,7 +115,7 @@ export async function ladderAccept(request: HttpRequest, context: InvocationCont
         heading: `${ladder.name}`,
         content: "You have been accepted, go forth and play tennis",
         path: `ladder/${ladderId}`,
-        collapseId: `${ladderId}_${userId}`
+        collapseId: `${ladderId}`
     }, context);
 
     context.log(`Accepted ${userId} onto ladder ${ladderId} at rank ${rank}`);

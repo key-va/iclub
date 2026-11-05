@@ -109,7 +109,7 @@ export async function messageCreate(request: HttpRequest, context: InvocationCon
         heading: `${match.name}`,
         content: `${sender?.name ?? "A player"}: ${text}`,
         path: `match/${matchId}`,
-        collapseId: `${matchId}_message`
+        collapseId: matchId
     }, context);
 
     context.log(`Message ${messageId} sent on match ${matchId} by ${caller_id}`);

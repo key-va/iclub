@@ -106,7 +106,7 @@ export async function ladderJoin(request: HttpRequest, context: InvocationContex
             heading: `${ladder.name}`,
             content: `${playerName} has requested to join`,
             path: `ladder/${ladderId}`,
-            collapseId: `${ladderId}_${caller_id}`
+            collapseId: ladderId
         }, context);
     }
 
