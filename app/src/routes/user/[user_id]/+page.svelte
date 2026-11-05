@@ -8,6 +8,7 @@
 	import HiddenOptions from '#lib/components/hiddenOptions.svelte';
 	import ApiService from '#lib/components/apiService.svelte';
 	import { canChallenge as sharedCanChallenge } from '#lib/challenge.ts';
+	import { matchSummary, pastMatches } from '#lib/matchSummary.ts';
 
 	const { caller_id, device_id } = $local;
 
@@ -27,6 +28,11 @@
 	);
 	const matchesOf = (ladderId: string) =>
 		liveMatches.filter((match) => relatedEntities($guids.items, match.rk, 'ladder').some((ladder) => ladder.rk === ladderId));
+
+	// Finished matches this user played, newest first (IDs embed their creation time)
+	const history = $derived(
+		pastMatches(relatedEntities($guids.items, user_id, 'match')).sort((a, b) => b.rk.localeCompare(a.rk))
+	);
 
 	const stateColours: Record<string, string> = { away: 'red', busy: 'gold', cooling: 'blue', active: 'green' };
 	const dotColour = (ladder: { relation: Record<string, unknown> }) => stateColours[String(ladder.relation?.state)] ?? 'grey';
@@ -69,7 +75,7 @@
 					image={imageOf(ladder.rk)}
 				>
 					{#snippet detail()}
-						<span class="dot" style="background: {dotColour(ladder)}; display: inline-block; width: 0.7em; height: 0.7em; margin: 0 0.25em; border: 2px solid white; border-radius: 50%;" role="img" aria-label={String(ladder.relation?.state)}></span>{ladder.rank}
+						<span class="dot" style="background: {dotColour(ladder)}; display: inline-block; width: 0.7em; height: 0.7em; margin: 0 0.25em; border: 2px solid white; border-radius: 50%;" role="img" aria-label={String(ladder.relation?.state)}></span>{Number.isFinite(ladder.rank) ? ladder.rank : 0}
 					{/snippet}
 				</RouteLink>
 				{#each matchesOf(ladder.rk) as match (match.rk)}
@@ -92,14 +98,27 @@
 				{/each}
 			</div>
 		{:else}
-			<RouteLink
-				href="/browse"
-				title="No Ladders"
-				description="browse and join a ladder"
-			/>
+		{#if user_id === caller_id}
+			<div class="group">
+				<RouteLink
+					href="/browse"
+					title="No Ladders"
+					description="browse and join a ladder"
+				/>
+			</div>
+		{:else}
+			<div class="group">
+				<HiddenOptions title="No Ladders" badge="0">
+				</HiddenOptions>
+			</div>
+		{/if}
 		{/each}
-		<HiddenOptions title="Match History" badge="?">
-		</HiddenOptions>
+		<div class="group">
+			<HiddenOptions title="Match History" badge={history.length}></HiddenOptions>
+			{#each history as match (match.rk)}
+				<RouteLink href={hrefOf(match.rk)} title={match.name ?? 'no name'} description={matchSummary($guids.items, match.rk)} />
+			{/each}
+		</div>
 
 	{:else}
 		<div class="row right">

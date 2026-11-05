@@ -36,6 +36,25 @@
 		const rules = setting.type === 'enum' ? setting.values[format] : '';
 		return rules ? `Match format: ${rules}.` : '';
 	});
+	const isComplete = $derived(match?.state === 'complete');
+	// Recorded scores are a single number or comma-separated games per set, eg "6,4"
+	const recordedGames = (player?: { relation: Record<string, unknown> }) =>
+		player?.relation.score === undefined || player.relation.score === '' ? [] : String(player.relation.score).split(',');
+	const recordedChallenger = $derived(recordedGames(challenger));
+	const recordedDefender = $derived(recordedGames(defender));
+	const roleText = (player: { relation: Record<string, unknown> }, fallback: string) =>
+		isComplete ? String(player.relation.result ?? fallback) : fallback;
+	const completeSummary = $derived.by(() => {
+		const winner = [challenger, defender].find((player) => player?.relation.result === 'winner');
+		const loser = winner === challenger ? defender : challenger;
+		if (!winner) return '';
+		const mine = winner === challenger ? recordedChallenger : recordedDefender;
+		const theirs = winner === challenger ? recordedDefender : recordedChallenger;
+		const sets = mine.map((games, i) => `${games}-${theirs[i] ?? 0}`).join(' ');
+		return loser?.relation.result === 'forfeiter'
+			? `${winner.name} wins by forfeit${sets ? ` ${sets}` : ''}`
+			: `${winner.name} wins${sets ? ` ${sets}` : ''}`;
+	});
 	let challengerScores = $state<string[]>(['', '', '']);
 	let defenderScores = $state<string[]>(['', '', '']);
 	let showHelp = $state(false);
@@ -102,9 +121,14 @@
 		{#if challenger && defender}
 			<div class="group">
 				<VersusLink
-					left={{ href: hrefOf(challenger.rk), title: challenger.name ?? 'no name', description: 'challenger', image: imageOf(challenger.rk) }}
-					right={{ href: hrefOf(defender.rk), title: defender.name ?? 'no name', description: 'defender', image: imageOf(defender.rk) }}
+					left={{ href: hrefOf(challenger.rk), title: challenger.name ?? 'no name', description: roleText(challenger, 'challenger'), image: imageOf(challenger.rk) }}
+					right={{ href: hrefOf(defender.rk), title: defender.name ?? 'no name', description: roleText(defender, 'defender'), image: imageOf(defender.rk) }}
 				/>
+				{#if isComplete && completeSummary}
+					<div class="row center">
+						<p class="info">{completeSummary}</p>
+					</div>
+				{/if}
 				{#if match.state === 'active'}
 					{#each labels as label, i (label)}
 						<div class="row scores">

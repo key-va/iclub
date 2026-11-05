@@ -5,6 +5,7 @@
 	import { guids, entityOf, relatedEntities, relationsOf, hrefOf, imageOf } from '#lib/stores/guids.ts';
 	import { ladderSettings } from '#lib/strings.ts';
 	import { canChallenge as sharedCanChallenge, type ChallengeTarget } from '#lib/challenge.ts';
+	import { matchSummary, pastMatches } from '#lib/matchSummary.ts';
 
 	import ApiService from '#lib/components/apiService.svelte';
 	import RouteLink from '#lib/components/routeLink.svelte';
@@ -51,6 +52,11 @@
 	);
 
 	const canChallenge = (target: ChallengeTarget) => sharedCanChallenge(ladder, myRelation, caller_id, target);
+
+	// Finished matches on this ladder, newest first (IDs embed their creation time)
+	const history = $derived(
+		pastMatches(relatedEntities($guids.items, ladderId, 'match')).sort((a, b) => b.rk.localeCompare(a.rk))
+	);
 
 	function challengeText(target: { rk: string; rank: number; relation: Record<string, unknown> }) {
 		const state = String(target.relation.state);
@@ -145,8 +151,12 @@
 		{/each}
 		</div>
 
-		<HiddenOptions title="Match History" badge="?">
-		</HiddenOptions>
+		<div class="group">
+			<HiddenOptions title="Match History" badge={history.length}></HiddenOptions>
+			{#each history as match (match.rk)}
+				<RouteLink href={hrefOf(match.rk)} title={match.name ?? 'no name'} description={matchSummary($guids.items, match.rk)} />
+			{/each}
+		</div>
 		
 	{:else}
 		<div class="row right">
