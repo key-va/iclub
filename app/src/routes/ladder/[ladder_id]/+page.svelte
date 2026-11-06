@@ -154,7 +154,7 @@
 					message={`challenge ${player.name ?? 'this player'}?`}
 					endpoint="match/create"
 					data={{ ladder_id: ladderId, challenger_id: ladder?.format === 'doubles' ? myPair?.rk : caller_id, defender_id: player.rk }}
-					disabled={!canChallenge(player)}
+					disabled={ladder?.format === 'doubles' || !canChallenge(player)}
 				/>				
 			</RouteLink>
 		{/each}
