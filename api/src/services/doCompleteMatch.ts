@@ -1,3 +1,4 @@
+import { doCompetitorUsers } from "./doCompetitorUsers";
 import { DefaultAzureCredential } from "@azure/identity";
 import { TableClient, odata } from "@azure/data-tables";
 import { InvocationContext } from "@azure/functions";
@@ -34,6 +35,7 @@ export interface CompleteMatchResult {
     matchName?: string;
     challengerId?: string;
     defenderId?: string;
+    userIds?: string[];
 }
 
 async function getRow(pk: string, rk: string): Promise<Row | undefined> {
@@ -96,6 +98,9 @@ export async function doCompleteMatch(input: CompleteMatchInput, context: Invoca
 
     if (!ladder) return { ok: false, status: 404, message: "Ladder not found" };
 
+    if (forfeiterId && forfeiterId !== challengerId && forfeiterId !== defenderId) {
+        return { ok: false, status: 400, message: "Forfeiter must be a match competitor" };
+    }
     const challengerGames = challengerScore ?? [];
     const defenderGames = defenderScore ?? [];
 
@@ -176,6 +181,19 @@ export async function doCompleteMatch(input: CompleteMatchInput, context: Invoca
         });
     }
 
+    // Mirror each pair's outcome onto its user links for personal match history.
+    if (challengerId.startsWith("pair_")) {
+        for (const id of [challengerId, defenderId]) {
+            const games = scoresOf(id);
+            for (const userId of await doCompetitorUsers(guidsClient, id)) {
+                await doUpsertRelation(matchId, userId, {
+                    role: "participant", competitor_id: id,
+                    result: id === winnerId ? "winner" : forfeiterId ? "forfeiter" : "loser",
+                    ...(games.length ? { score: games.length === 1 ? games[0] : games.join(",") } : {})
+                });
+            }
+        }
+    }
     await doUpsertEntity("match", matchId, { ...attributesOf(match), state: "complete" });
 
     await doGuidsToPublic();
@@ -188,6 +206,7 @@ export async function doCompleteMatch(input: CompleteMatchInput, context: Invoca
         message: forfeiterId ? "Okay, match forfeited" : "Okay, score submitted",
         matchName: `${match.name}`,
         challengerId,
-        defenderId
+        defenderId,
+        userIds: [...await doCompetitorUsers(guidsClient, challengerId), ...await doCompetitorUsers(guidsClient, defenderId)]
     };
 }

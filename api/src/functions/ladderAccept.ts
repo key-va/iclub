@@ -88,6 +88,9 @@ export async function ladderAccept(request: HttpRequest, context: InvocationCont
         return { status: 403, jsonBody: { success: false, message: "Only a ladder admin can accept a player" } };
     }
 
+    if (ladder.format === "doubles" && ladder.state !== "active") {
+        return { status: 409, jsonBody: { success: false, message: "The ladder is not active" } };
+    }
     if (ladder.format === "doubles") {
         const ids = data?.user_ids;
         if (!Array.isArray(ids) || ids.length !== 2 || ids[0] === ids[1] ||
@@ -131,7 +134,7 @@ export async function ladderAccept(request: HttpRequest, context: InvocationCont
         const rank = lastRank + 1;
         const points = ladder.ladder_system === "win_points" ? rank : 0;
 
-        await doUpsertEntity("pair", pairId, { name });
+        await doUpsertEntity("pair", pairId, { name, ladder_id: ladderId });
         for (const id of ids) await doUpsertRelation(pairId, id, { role: "member" });
         await doUpsertRelation(ladderId, pairId, { is_participant: true, rank, points, state: "active" });
         for (let i = 0; i < ids.length; i++) {

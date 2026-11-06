@@ -1,3 +1,4 @@
+import { doCompetitorUsers } from "../services/doCompetitorUsers";
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
 import { DefaultAzureCredential } from "@azure/identity";
 import { TableClient } from "@azure/data-tables";
@@ -57,8 +58,8 @@ export async function matchCreate(request: HttpRequest, context: InvocationConte
         return { status: 400, jsonBody: { success: false, message: "ladder_id is required" } };
     }
 
-    if (typeof challengerId !== "string" || !challengerId.startsWith("user_") ||
-        typeof defenderId !== "string" || !defenderId.startsWith("user_")) {
+    if (typeof challengerId !== "string" || !/^(user|pair)_/.test(challengerId) ||
+        typeof defenderId !== "string" || !/^(user|pair)_/.test(defenderId)) {
         return { status: 400, jsonBody: { success: false, message: "challenger_id and defender_id are required" } };
     }
 
@@ -83,10 +84,21 @@ export async function matchCreate(request: HttpRequest, context: InvocationConte
         return { status: 404, jsonBody: { success: false, message: "Ladder not found" } };
     }
 
+    const competitorType = ladder.format === "doubles" ? "pair" : "user";
+    if (!challengerId.startsWith(`${competitorType}_`) || !defenderId.startsWith(`${competitorType}_`)) {
+        return { status: 400, jsonBody: { success: false, message: "Competitors must match the ladder format" } };
+    }
+    const challengerUsers = await doCompetitorUsers(guidsClient, challengerId);
+    const defenderUsers = await doCompetitorUsers(guidsClient, defenderId);
+    if (challengerUsers.length !== (competitorType === "pair" ? 2 : 1) ||
+        defenderUsers.length !== (competitorType === "pair" ? 2 : 1) ||
+        challengerUsers.some(id => defenderUsers.includes(id))) {
+        return { status: 409, jsonBody: { success: false, message: "Invalid or overlapping competitors" } };
+    }
     const callerRelation = await getRow(ladderId, caller_id);
     const isLadderAdmin = callerRelation?.is_admin === true;
 
-    if (caller_id !== challengerId && !isLadderAdmin) {
+    if (!challengerUsers.includes(caller_id) && !isLadderAdmin) {
         return { status: 403, jsonBody: { success: false, message: "Only the challenger or a ladder admin can create this match" } };
     }
 
@@ -136,9 +148,10 @@ export async function matchCreate(request: HttpRequest, context: InvocationConte
     }
 
     // 5. Create the match and mark both players busy
-    const challengerUser = await getRow("user", challengerId);
-    const defenderUser = await getRow("user", defenderId);
-    const name = `${firstName(challengerUser?.name)} vs ${firstName(defenderUser?.name)}`;
+    const challengerUser = await getRow(competitorType, challengerId);
+    const defenderUser = await getRow(competitorType, defenderId);
+    const label = (row: Record<string, unknown> | undefined) => competitorType === "pair" ? String(row?.name ?? "Pair") : firstName(row?.name);
+    const name = `${label(challengerUser)} vs ${label(defenderUser)}`;
 
     const matchId = doNewGuid("match");
 
@@ -146,6 +159,12 @@ export async function matchCreate(request: HttpRequest, context: InvocationConte
     await doUpsertRelation(matchId, ladderId);
     await doUpsertRelation(matchId, challengerId, { role: "challenger" });
     await doUpsertRelation(matchId, defenderId, { role: "defender" });
+
+    if (competitorType === "pair") {
+        for (const [id, users] of [[challengerId, challengerUsers], [defenderId, defenderUsers]] as const) {
+            for (const userId of users) await doUpsertRelation(matchId, userId, { role: "participant", competitor_id: id });
+        }
+    }
 
     // Keep existing attributes as the upsert replaces the row
     for (const [userId, relation] of [[challengerId, challenger], [defenderId, defender]] as const) {
@@ -156,7 +175,7 @@ export async function matchCreate(request: HttpRequest, context: InvocationConte
     await doGuidsToPublic();
 
     await doSendPush({
-        userIds: [defenderId],
+        userIds: defenderUsers,
         exceptUserId: caller_id,
         heading: name,
         content: `You have been challenged to a match, accept within ${Number(ladder.cool_period ?? 2)} days or forfeit your rank`,

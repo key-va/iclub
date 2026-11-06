@@ -1,3 +1,4 @@
+import { doCompetitorUsers } from "../services/doCompetitorUsers";
 import { app, InvocationContext, Timer } from "@azure/functions";
 import { DefaultAzureCredential } from "@azure/identity";
 import { TableClient, odata } from "@azure/data-tables";
@@ -43,7 +44,7 @@ async function playersOf(matchId: string): Promise<string[]> {
     for await (const relation of guidsClient.listEntities({
         queryOptions: { filter: odata`PartitionKey eq ${matchId}` }
     })) {
-        if (relation.role === "challenger" || relation.role === "defender") players.push(relation.rowKey as string);
+        if (relation.role === "challenger" || relation.role === "defender") players.push(...await doCompetitorUsers(guidsClient, relation.rowKey as string));
     }
 
     return players;

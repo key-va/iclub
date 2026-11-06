@@ -248,3 +248,17 @@ If added, document it in this file under the relevant section.
 - No specialized analytics/reporting model beyond base telemetry
 
 This is deliberate: the scaffold is meant to stay generic and composable for future app builds.
+
+## Doubles ladders
+
+- Users request membership individually. A ladder admin passes two pending `user_ids` to `ladder/{id}/accept`.
+- Each acceptance creates a new ladder-specific `pair` entity (`ladder_id`) with permanent, equal `role: "member"` user relations. Existing pairs created before `ladder_id` was added resolve their ladder through the mirrored ladder relation.
+- Pair/ladder relations carry competitive rank, points and state. User/ladder relations preserve admin flags and record pending/paired membership, not competitive state.
+- `match/create` accepts pair IDs for doubles and user IDs for singles. Match/competitor relations carry challenger/defender roles and results. Doubles matches also link all four users with `role: "participant"` and `competitor_id` for personal history and score permissions.
+- `doCompetitorUsers.ts` resolves a competitor to real users for authentication and notification fan-out. Used across match endpoints, completion, retirement, messaging and scheduled processing. It never sends push itself.
+- Either partner can challenge, accept for the defending pair, or forfeit for their pair. All four users and ladder admins can submit scores. Unrelated authenticated users may message, but only match participants receive message notifications.
+- `pair/{pair_id}/retire` allows a pair member or ladder admin to forfeit unresolved matches, retire the ladder relation, close ranking gaps and return both users to pending. Pair membership and historical matches remain intact; re-pairing creates a new entity.
+- Global away status is excluded. The existing singles ladder-away endpoint rejects doubles requests.
+- UI: ladder pairing/standings/challenges, pair detail/retirement at `/pair/{id}`, pair match scores and member history.
+- Offline verification: `cd api && npm ci && npm test`; `cd app && npm ci && npm run check && npm test && npm run build`. API tests use in-memory TableClient and mocked signatures/export/push; no Azure storage, secrets or OneSignal configuration is needed.
+- Azure Table graph updates retain the existing sequential multi-row persistence model; there is no cross-partition transaction. Live concurrency and failure recovery need validation with configured Azure services.

@@ -43,7 +43,7 @@
 	let showRules = $state(false);
 	let selectedPairUsers = $state<string[]>([]);
 	const pairReady = $derived(selectedPairUsers.length === 2);
-	const myPair = $derived(relatedEntities($guids.items, ladderId, 'pair').find((pair) =>
+	const myPair = $derived(relatedEntities($guids.items, ladderId, 'pair').filter((pair) => pair.relation.is_participant === true).find((pair) =>
 		relatedEntities($guids.items, pair.rk, 'user').some((member) => member.rk === caller_id)
 	));
 	const myCompetitiveRelation = $derived(ladder?.format === 'doubles' ? myPair?.relation : myRelation);
@@ -109,7 +109,7 @@
 		{#if isLadderAdmin && pending.length > 0}
 			<div class="group">
 				{#each pending as player (player.rk)}
-					<RouteLink href={hrefOf(player.rk)} title={player.name ?? 'no name'} description="waiting to join" image={imageOf(player.rk)}>
+					<RouteLink href={hrefOf(player.rk)} title={player.name ?? 'no name'} description="waiting to join" image={imageOf(ladder.format === 'doubles' ? ladderId : player.rk)}>
 						{#if ladder.format === 'doubles'}
 							<button
 								class={selectedPairUsers.includes(player.rk) ? 'blue' : 'pink'}
@@ -142,8 +142,8 @@
 			<RouteLink
 				href={hrefOf(player.rk)}
 				title={player.name ?? 'no name'}
-				description={challengeText(player)}
-				image={imageOf(player.rk)}>
+				description={`${challengeText(player)}${ladder.ladder_system === 'win_points' ? ` · ${player.relation.points ?? 0} points` : ''}`}
+				image={imageOf(ladder.format === 'doubles' ? ladderId : player.rk)}>
 				{#snippet detail()}
 					<span class="dot" style="background: {dotColour(player)}" role="img" aria-label={String(player.relation?.state)}></span>{player.rank}
 				{/snippet}
@@ -154,14 +154,25 @@
 					message={`challenge ${player.name ?? 'this player'}?`}
 					endpoint="match/create"
 					data={{ ladder_id: ladderId, challenger_id: ladder?.format === 'doubles' ? myPair?.rk : caller_id, defender_id: player.rk }}
-					disabled={ladder?.format === 'doubles' || !canChallenge(player)}
+					disabled={!canChallenge(player)}
 				/>				
 			</RouteLink>
 		{/each}
 		</div>
 
-		<div class="group">
-			<HiddenOptions title="Match History" badge={history.length}></HiddenOptions>
+        {#if yourMatches.length > 0}
+            <div class="group">
+                <HiddenOptions title="Your matches" badge={yourMatches.length} />
+                {#each yourMatches as match (match.rk)}
+                    <RouteLink href={hrefOf(match.rk)} title={match.name ?? 'Match'} description={String(match.state)} />
+                {/each}
+            </div>
+        {/if}
+        {#if isPending}
+            <HiddenOptions title="Waiting to join" description={ladder.format === 'doubles' ? 'An admin will pair you with another pending player' : 'Waiting for admin approval'} />
+        {/if}
+        <div class="group">
+            <HiddenOptions title="Match History" badge={history.length}></HiddenOptions>
 			{#each history as match (match.rk)}
 				<RouteLink href={hrefOf(match.rk)} title={match.name ?? 'no name'} description={matchSummary($guids.items, match.rk)} />
 			{/each}

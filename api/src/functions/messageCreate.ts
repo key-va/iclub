@@ -1,3 +1,4 @@
+import { doCompetitorUsers } from "../services/doCompetitorUsers";
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
 import { DefaultAzureCredential } from "@azure/identity";
 import { TableClient, odata } from "@azure/data-tables";
@@ -94,7 +95,7 @@ export async function messageCreate(request: HttpRequest, context: InvocationCon
     for await (const relation of guidsClient.listEntities({
         queryOptions: { filter: odata`PartitionKey eq ${matchId}` }
     })) {
-        if (relation.role === "challenger" || relation.role === "defender") players.push(relation.rowKey as string);
+        if (relation.role === "challenger" || relation.role === "defender") players.push(...await doCompetitorUsers(guidsClient, relation.rowKey as string));
     }
 
     // 3. Store the message: the text is the entity name, related to its sender and to the match

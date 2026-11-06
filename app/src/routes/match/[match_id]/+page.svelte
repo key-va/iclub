@@ -14,14 +14,16 @@
 	const matchId = $derived(page.params.match_id ?? '');
 	const match = $derived(entityOf($guids.items, matchId));
 	const ladder = $derived(relatedEntities($guids.items, matchId, 'ladder')[0]);
-	const players = $derived(relatedEntities($guids.items, matchId, 'user'));
+	const players = $derived(relatedEntities($guids.items, matchId, ladder?.format === 'doubles' ? 'pair' : 'user'));
+	const matchUsers = $derived(relatedEntities($guids.items, matchId, 'user'));
 	const challenger = $derived(players.find((player) => player.relation.role === 'challenger'));
 	const defender = $derived(players.find((player) => player.relation.role === 'defender'));
 
 	const isLadderAdmin = $derived(
 		!!ladder && relationsOf($guids.items, ladder.rk).some((relation) => relation.rk === caller_id && relation.is_admin === true)
 	);
-	const isPlayer = $derived(caller_id === challenger?.rk || caller_id === defender?.rk);
+	const isPlayer = $derived(matchUsers.some(user => user.rk === caller_id && ['challenger', 'defender', 'participant'].includes(String(user.relation.role))));
+	const isDefender = $derived(caller_id === defender?.rk || !!defender && relatedEntities($guids.items, defender.rk, 'user').some(user => user.rk === caller_id));
 
 	// One row of inputs per set, labelled by match format
 	const setLabels: Record<string, string[]> = {
@@ -80,7 +82,7 @@
 			challengerWon > defenderWon ? [challenger, challengerSets, defenderSets] : [defender, defenderSets, challengerSets];
 		return `${winner?.name} wins ${mine.map((games, i) => `${games}-${theirs[i]}`).join('  ')}`;
 	});
-	const canAccept = $derived(match?.state === 'pending' && (caller_id === defender?.rk || isLadderAdmin));
+	const canAccept = $derived(match?.state === 'pending' && (isDefender || isLadderAdmin));
 
 	// Message ids start with a timestamp, so sorting them gives oldest first
 	const messages = $derived(
@@ -121,8 +123,8 @@
 		{#if challenger && defender}
 			<div class="group">
 				<VersusLink
-					left={{ href: hrefOf(challenger.rk), title: challenger.name ?? 'no name', description: roleText(challenger, 'challenger'), image: imageOf(challenger.rk) }}
-					right={{ href: hrefOf(defender.rk), title: defender.name ?? 'no name', description: roleText(defender, 'defender'), image: imageOf(defender.rk) }}
+					left={{ href: hrefOf(challenger.rk), title: challenger.name ?? 'no name', description: roleText(challenger, 'challenger'), image: imageOf(ladder?.format === 'doubles' ? ladder.rk : challenger.rk) }}
+					right={{ href: hrefOf(defender.rk), title: defender.name ?? 'no name', description: roleText(defender, 'defender'), image: imageOf(ladder?.format === 'doubles' ? ladder.rk : defender.rk) }}
 				/>
 				{#if isComplete && completeSummary}
 					<div class="row center">

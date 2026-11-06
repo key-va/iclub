@@ -6,7 +6,7 @@ export const gamesOf = (relation?: Record<string, unknown>): string[] =>
 
 // "<winner> wins 6-2 7-5" for a completed match, with each set shown from the winner's side
 export function matchSummary(items: GuidRow[], matchId: string): string {
-	const players = relatedEntities(items, matchId, 'user');
+	const players = relatedEntities(items, matchId).filter(player => ['challenger', 'defender'].includes(String(player.relation.role)));
 	const winner = players.find((player) => player.relation.result === 'winner');
 	if (!winner) return '';
 	const loser = players.find((player) => player !== winner);

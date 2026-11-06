@@ -1,3 +1,4 @@
+import { doCompetitorUsers } from "../services/doCompetitorUsers";
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
 import { DefaultAzureCredential } from "@azure/identity";
 import { TableClient, odata } from "@azure/data-tables";
@@ -84,7 +85,7 @@ export async function matchAccept(request: HttpRequest, context: InvocationConte
     // 3. Only the defender or a ladder admin may accept
     const callerRelation = await getRow(ladderId, caller_id);
 
-    if (caller_id !== defenderId && callerRelation?.is_admin !== true) {
+    if (!(await doCompetitorUsers(guidsClient, defenderId)).includes(caller_id) && callerRelation?.is_admin !== true) {
         return { status: 403, jsonBody: { success: false, message: "Only the defender or a ladder admin can accept this match" } };
     }
 
@@ -96,7 +97,7 @@ export async function matchAccept(request: HttpRequest, context: InvocationConte
     await doGuidsToPublic();
 
     await doSendPush({
-        userIds: [challengerId],
+        userIds: await doCompetitorUsers(guidsClient, challengerId),
         exceptUserId: caller_id,
         heading: `${match.name}`,
         content: "Your challenge has been accepted",

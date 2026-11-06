@@ -17,10 +17,14 @@
 
 	// Ladders this user is associated with, carrying their rank (if any) from the relation
 	const ladders = $derived(
-		relatedEntities($guids.items, user_id, 'ladder').map((ladder) => ({
-			...ladder,
-			rank: Number(ladder.relation.rank)
-		}))
+		relatedEntities($guids.items, user_id, 'ladder').map((ladder) => {
+			const pair = ladder.format === 'doubles'
+				? relatedEntities($guids.items, ladder.rk, 'pair').find(pair =>
+					pair.relation.is_participant === true && relatedEntities($guids.items, pair.rk, 'user').some(member => member.rk === user_id))
+				: undefined;
+			const relation = pair?.relation ?? ladder.relation;
+			return { ...ladder, format: ladder.format, relation, rank: Number(relation.rank) };
+		})
 	);
 	// Matches still in play 	(pending or active) that this user is part of
 	const liveMatches = $derived(
@@ -86,7 +90,7 @@
 						isWhite={false}
 					/>
 				{:else}
-					{#if user_id !== caller_id}
+					{#if user_id !== caller_id && ladder.format !== 'doubles'}
 						<ApiService
 							name="challenge"
 							message={`challenge ${user_entity.name ?? 'this player'}?`}

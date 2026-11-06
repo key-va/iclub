@@ -1,3 +1,4 @@
+import { doCompetitorUsers } from "../services/doCompetitorUsers";
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
 import { DefaultAzureCredential } from "@azure/identity";
 import { TableClient, odata } from "@azure/data-tables";
@@ -66,23 +67,24 @@ export async function matchForfeit(request: HttpRequest, context: InvocationCont
     }
 
     // 2. Only a player in the match can forfeit it
-    let isPlayer = false;
+    let forfeiterId = "";
 
     for await (const relation of guidsClient.listEntities({
         queryOptions: { filter: odata`PartitionKey eq ${matchId}` }
     })) {
-        if (relation.rowKey === caller_id && (relation.role === "challenger" || relation.role === "defender")) {
-            isPlayer = true;
+        if ((relation.role === "challenger" || relation.role === "defender") &&
+            (await doCompetitorUsers(guidsClient, relation.rowKey as string)).includes(caller_id)) {
+            forfeiterId = relation.rowKey as string;
         }
     }
 
-    if (!isPlayer) {
+    if (!forfeiterId) {
         return { status: 403, jsonBody: { success: false, message: "Only a player in this match can forfeit it" } };
     }
 
     // 3. Apply the result
     const result = await doCompleteMatch(
-        { matchId, forfeiterId: caller_id, challengerScore, defenderScore },
+        { matchId, forfeiterId, challengerScore, defenderScore },
         context
     );
 
@@ -92,7 +94,7 @@ export async function matchForfeit(request: HttpRequest, context: InvocationCont
 
     // 4. Tell the opponent
     await doSendPush({
-        userIds: [result.challengerId!, result.defenderId!],
+        userIds: result.userIds!,
         exceptUserId: caller_id,
         heading: result.matchName!,
         content: "Your opponent has forfeited the match",

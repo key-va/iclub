@@ -1,3 +1,4 @@
+import { doCompetitorUsers } from "../services/doCompetitorUsers";
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
 import { DefaultAzureCredential } from "@azure/identity";
 import { TableClient, odata } from "@azure/data-tables";
@@ -93,7 +94,7 @@ export async function matchComplete(request: HttpRequest, context: InvocationCon
     })) {
         const rk = relation.rowKey as string;
         if (rk.startsWith("ladder_")) ladderId = rk;
-        else if (rk === caller_id) isPlayer = true;
+        else if (rk === caller_id && ["challenger", "defender", "participant"].includes(String(relation.role))) isPlayer = true;
     }
 
     let isLadderAdmin = false;
@@ -129,7 +130,7 @@ export async function matchComplete(request: HttpRequest, context: InvocationCon
 
     // 4. Tell the other player
     await doSendPush({
-        userIds: [result.challengerId!, result.defenderId!],
+        userIds: result.userIds!,
         exceptUserId: caller_id,
         heading: result.matchName!,
         content: "Match scores have been submitted",
