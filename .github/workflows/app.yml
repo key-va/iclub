@@ -30,6 +30,12 @@ jobs:
         working-directory: app
         run: npm ci
 
+      - name: Check and test app
+        working-directory: app
+        run: |
+          npm run check
+          npm test
+
       - name: Build app
         working-directory: app
         env:

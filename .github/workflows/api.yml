@@ -35,9 +35,9 @@ jobs:
         working-directory: api
         run: npm ci
 
-      - name: Build API
+      - name: Build and test API
         working-directory: api
-        run: npm run build
+        run: npm test
 
       - name: Login to Azure
         uses: azure/login@v2
