@@ -125,7 +125,7 @@ export async function ladderAccept(request: HttpRequest, context: InvocationCont
 
         const ordered = ids.map((id, i) => ({ id, user: users[i]! }))
             .sort((a, b) => a.id.localeCompare(b.id));
-        const firstName = (name: unknown) => String(name || "Player").trim().split(/\\s+/)[0];
+        const firstName = (name: unknown) => String(name || "Player").trim().split(/\s+/)[0];
         const name = ordered.map(p => firstName(p.user.name)).join(" and ");
         const pairId = doNewGuid("pair");
         const rank = lastRank + 1;
