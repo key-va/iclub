@@ -2,6 +2,8 @@ import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/fu
 import { DefaultAzureCredential } from "@azure/identity";
 import { TableClient, odata } from "@azure/data-tables";
 import { doSignatureVerification } from "../services/doSignatureVerification";
+import { doNewGuid } from "../services/doNewGuid";
+import { doUpsertEntity } from "../services/doUpsertEntity";
 import { doUpsertRelation } from "../services/doUpsertRelation";
 import { doGuidsToPublic } from "../services/doGuidsToPublic";
 import { doSendPush } from "../services/doSendPush";
@@ -33,7 +35,7 @@ export async function ladderAccept(request: HttpRequest, context: InvocationCont
         caller_id?: string;
         device_id?: string;
         signature?: string;
-        data?: { user_id?: string };
+        data?: { user_id?: string; user_ids?: string[] };
     };
 
     try {
@@ -49,7 +51,11 @@ export async function ladderAccept(request: HttpRequest, context: InvocationCont
         return { status: 400, jsonBody: { success: false, message: "caller_id, device_id and signature are required" } };
     }
 
-    if (typeof userId !== "string" || !userId.startsWith("user_")) {
+    if (typeof userId !== "string" && !Array.isArray(data?.user_ids)) {
+        return { status: 400, jsonBody: { success: false, message: "user_id or user_ids is required" } };
+    }
+
+    if (userId !== undefined && (typeof userId !== "string" || !userId.startsWith("user_"))) {
         return { status: 400, jsonBody: { success: false, message: "user_id is required" } };
     }
 
@@ -80,6 +86,71 @@ export async function ladderAccept(request: HttpRequest, context: InvocationCont
 
     if (callerRelation?.is_admin !== true) {
         return { status: 403, jsonBody: { success: false, message: "Only a ladder admin can accept a player" } };
+    }
+
+    if (ladder.format === "doubles") {
+        const ids = data?.user_ids;
+        if (!Array.isArray(ids) || ids.length !== 2 || ids[0] === ids[1] ||
+            ids.some(id => typeof id !== "string" || !id.startsWith("user_"))) {
+            return { status: 400, jsonBody: { success: false, message: "Doubles requires two distinct user_ids" } };
+        }
+
+        const users = await Promise.all(ids.map(async id => {
+            try { return await guidsClient.getEntity("user", id); }
+            catch (err: any) { if (err?.statusCode === 404) return undefined; throw err; }
+        }));
+        if (users.some(user => !user)) {
+            return { status: 404, jsonBody: { success: false, message: "User not found" } };
+        }
+        const memberships = await Promise.all(ids.map(id => getRelation(ladderId, id)));
+        if (memberships.some(r => r?.state !== "pending" || r?.is_participant === true)) {
+            return { status: 409, jsonBody: { success: false, message: "Both users must be pending" } };
+        }
+
+        // Do not pair a user who is already in another active pair on this ladder.
+        let lastRank = 0;
+        for await (const relation of guidsClient.listEntities({
+            queryOptions: { filter: odata`PartitionKey eq ${ladderId}` }
+        })) {
+            if (relation.rowKey?.startsWith("pair_") && relation.is_participant === true) {
+                if (typeof relation.rank === "number") lastRank = Math.max(lastRank, relation.rank);
+                const pairId = relation.rowKey;
+                for (const id of ids) {
+                    if (await getRelation(pairId, id)) {
+                        return { status: 409, jsonBody: { success: false, message: "A user is already paired on this ladder" } };
+                    }
+                }
+            }
+        }
+
+        const ordered = ids.map((id, i) => ({ id, user: users[i]! }))
+            .sort((a, b) => a.id.localeCompare(b.id));
+        const firstName = (name: unknown) => String(name || "Player").trim().split(/\\s+/)[0];
+        const name = ordered.map(p => firstName(p.user.name)).join(" and ");
+        const pairId = doNewGuid("pair");
+        const rank = lastRank + 1;
+        const points = ladder.ladder_system === "win_points" ? rank : 0;
+
+        await doUpsertEntity("pair", pairId, { name });
+        for (const id of ids) await doUpsertRelation(pairId, id, { role: "member" });
+        await doUpsertRelation(ladderId, pairId, { is_participant: true, rank, points, state: "active" });
+        for (let i = 0; i < ids.length; i++) {
+            const { partitionKey, rowKey, timestamp, etag, ...attributes } = memberships[i]!;
+            await doUpsertRelation(ladderId, ids[i], { ...attributes, is_participant: true, state: "active" });
+        }
+        await doGuidsToPublic();
+        await doSendPush({
+            userIds: ids, heading: String(ladder.name), content: "Your doubles pair has been accepted",
+            path: `ladder/${ladderId}`, collapseId: ladderId
+        }, context);
+        return { status: 200, jsonBody: {
+            success: true, message: `Okay, ${name} accepted at rank ${rank}`,
+            subject: ladderId, data: { pair_id: pairId, rank }
+        } };
+    }
+
+    if (typeof userId !== "string") {
+        return { status: 400, jsonBody: { success: false, message: "user_id is required for singles" } };
     }
 
     // 4. The player must be waiting to join
