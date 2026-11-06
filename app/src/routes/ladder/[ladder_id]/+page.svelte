@@ -151,12 +151,12 @@
 		{/each}
 		</div>
 
-		<div class="group">
-			<HiddenOptions title="Match History" badge={history.length}></HiddenOptions>
+		
+			<HiddenOptions title="Match History">
 			{#each history as match (match.rk)}
 				<RouteLink href={hrefOf(match.rk)} title={match.name ?? 'no name'} description={matchSummary($guids.items, match.rk)} />
 			{/each}
-		</div>
+			</HiddenOptions>
 		
 	{:else}
 		<div class="row right">

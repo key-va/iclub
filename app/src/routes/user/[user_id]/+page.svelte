@@ -113,12 +113,13 @@
 			</div>
 		{/if}
 		{/each}
-		<div class="group">
-			<HiddenOptions title="Match History" badge={history.length}></HiddenOptions>
-			{#each history as match (match.rk)}
-				<RouteLink href={hrefOf(match.rk)} title={match.name ?? 'no name'} description={matchSummary($guids.items, match.rk)} />
-			{/each}
-		</div>
+		
+		<HiddenOptions title="Match History">
+		{#each history as match (match.rk)}
+			<RouteLink href={hrefOf(match.rk)} title={match.name ?? 'no name'} description={matchSummary($guids.items, match.rk)} />
+		{/each}
+		</HiddenOptions>
+	
 
 	{:else}
 		<div class="row right">
