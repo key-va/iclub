@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - next
     paths:
       - 'api/**'
       - '.github/workflows/api.yml'
@@ -48,5 +49,5 @@ jobs:
       - name: Deploy API
         uses: Azure/functions-action@v1
         with:
-          app-name: ${{ vars.AZURE_RESOURCE_GROUP }}xfa
+          app-name: ${{ github.ref_name == 'next' && 'next' || vars.AZURE_RESOURCE_GROUP }}xfa
           package: api
