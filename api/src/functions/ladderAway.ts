@@ -55,6 +55,10 @@ export async function ladderAway(request: HttpRequest, context: InvocationContex
         throw err;
     }
 
+    if (ladder.format === "doubles") {
+        return { status: 409, jsonBody: { success: false, message: "Doubles pairs use retirement rather than away status" } };
+    }
+
     // 3. Only a participant can go away
     let relation: Record<string, unknown>;
 

@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - next
     paths:
       - 'infra/**'
       - '.github/workflows/infra.yml'
@@ -33,12 +34,12 @@ jobs:
       - name: Validate Bicep
         run: |
           az deployment group validate \
-            --resource-group ${{ vars.AZURE_RESOURCE_GROUP }} \
+            --resource-group ${{ github.ref_name == 'next' && 'next' || vars.AZURE_RESOURCE_GROUP }} \
             --template-file infra/main.bicep
 
       - name: Deploy Bicep
         run: |
           az deployment group create \
-            --resource-group ${{ vars.AZURE_RESOURCE_GROUP }} \
+            --resource-group ${{ github.ref_name == 'next' && 'next' || vars.AZURE_RESOURCE_GROUP }} \
             --name infra \
             --template-file infra/main.bicep

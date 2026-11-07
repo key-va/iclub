@@ -17,7 +17,7 @@
 	const ladder = $derived(entityOf($guids.items, ladderId));
 	// Participants are the users flagged is_participant on their ladder relation, best (lowest) rank first
 	const leaderboard = $derived(
-		relatedEntities($guids.items, ladderId, 'user')
+		relatedEntities($guids.items, ladderId, ladder?.format === 'doubles' ? 'pair' : 'user')
 			.filter((user) => user.relation.is_participant === true)
 			.map((user) => ({ ...user, rank: Number(user.relation.rank) }))
 			.sort((a, b) => a.rank - b.rank)
@@ -41,6 +41,15 @@
 	);
 
 	let showRules = $state(false);
+	let selectedPairUserId = $state<string | null>(null);
+	const selectedPairUser = $derived(pending.find(player => player.rk === selectedPairUserId));
+	$effect(() => {
+		if (!selectedPairUser) selectedPairUserId = null;
+	});
+	const myPair = $derived(relatedEntities($guids.items, ladderId, 'pair').filter((pair) => pair.relation.is_participant === true).find((pair) =>
+		relatedEntities($guids.items, pair.rk, 'user').some((member) => member.rk === caller_id)
+	));
+	const myCompetitiveRelation = $derived(ladder?.format === 'doubles' ? myPair?.relation : myRelation);
 
 	// The caller's matches on this ladder that are still pending or active
 	const yourMatches = $derived(
@@ -51,7 +60,7 @@
 		)
 	);
 
-	const canChallenge = (target: ChallengeTarget) => sharedCanChallenge(ladder, myRelation, caller_id, target);
+	const canChallenge = (target: ChallengeTarget) => sharedCanChallenge(ladder, myCompetitiveRelation, ladder?.format === 'doubles' ? myPair?.rk ?? null : caller_id, target);
 
 	// Finished matches on this ladder, newest first (IDs embed their creation time)
 	const history = $derived(
@@ -60,7 +69,7 @@
 
 	function challengeText(target: { rk: string; rank: number; relation: Record<string, unknown> }) {
 		const state = String(target.relation.state);
-		if (target.rk === caller_id) return state === 'active' ? 'available' : `${state}`;
+		if (target.rk === (ladder?.format === 'doubles' ? myPair?.rk : caller_id)) return state === 'active' ? 'available' : `${state}`;
 		if (state === 'away') return 'away';
 		if (state === 'busy') return 'in a match';
 		return canChallenge(target) ? 'long tap to challenge' : 'cannot challenge';
@@ -103,19 +112,16 @@
 		{#if isLadderAdmin && pending.length > 0}
 			<div class="group">
 				{#each pending as player (player.rk)}
-					<RouteLink
-						href={hrefOf(player.rk)}
-						title={player.name ?? 'no name'}
-						description="waiting to join"
-						image={imageOf(player.rk)}
-					>
-						<ApiService
-							inline
-							name="accept"
-							message={`accept ${player.name ?? 'this player'} onto the ladder?`}
-							endpoint={`ladder/${ladderId}/accept`}
-							data={{ user_id: player.rk }}
-						/>
+					<RouteLink href={hrefOf(player.rk)} title={player.name ?? 'no name'} description="waiting to join" image={imageOf(player.rk)}>
+						{#if ladder.format === 'doubles'}
+							{#if selectedPairUser && selectedPairUser.rk !== player.rk}
+								<ApiService inline name={`pair with ${selectedPairUser.name ?? 'this player'}`} message={`pair ${player.name ?? 'this player'} with ${selectedPairUser.name ?? 'this player'}?`} endpoint={`ladder/${ladderId}/accept`} data={{ user_ids: [selectedPairUser.rk, player.rk] }} onsuccess={() => { selectedPairUserId = null; }} />
+							{:else}
+								<button class="blue" aria-label={selectedPairUserId === player.rk ? 'deselect player' : 'select player'} onclick={() => selectedPairUserId = selectedPairUserId === player.rk ? null : player.rk}><p>{selectedPairUserId === player.rk ? 'selected' : 'select'}</p></button>
+							{/if}
+						{:else}
+							<ApiService inline name="accept" message={`accept ${player.name ?? 'this player'} onto the ladder?`} endpoint={`ladder/${ladderId}/accept`} data={{ user_id: player.rk }} />
+						{/if}
 					</RouteLink>
 				{/each}
 			</div>
@@ -133,8 +139,8 @@
 			<RouteLink
 				href={hrefOf(player.rk)}
 				title={player.name ?? 'no name'}
-				description={challengeText(player)}
-				image={imageOf(player.rk)}>
+				description={`${challengeText(player)}${ladder.format !== 'doubles' && ladder.ladder_system === 'win_points' ? ` · ${player.relation.points ?? 0} points` : ''}`}
+				image={imageOf(ladder.format === 'doubles' ? ladderId : player.rk)}>
 				{#snippet detail()}
 					<span class="dot" style="background: {dotColour(player)}" role="img" aria-label={String(player.relation?.state)}></span>{player.rank}
 				{/snippet}
@@ -144,15 +150,25 @@
 					name="challenge"
 					message={`challenge ${player.name ?? 'this player'}?`}
 					endpoint="match/create"
-					data={{ ladder_id: ladderId, challenger_id: caller_id, defender_id: player.rk }}
+					data={{ ladder_id: ladderId, challenger_id: ladder?.format === 'doubles' ? myPair?.rk : caller_id, defender_id: player.rk }}
 					disabled={!canChallenge(player)}
 				/>				
 			</RouteLink>
 		{/each}
 		</div>
 
-		
-			<HiddenOptions title="Match History">
+        {#if yourMatches.length > 0}
+            <div class="group">
+                <HiddenOptions title="Your matches" badge={yourMatches.length} />
+                {#each yourMatches as match (match.rk)}
+                    <RouteLink href={hrefOf(match.rk)} title={match.name ?? 'Match'} description={String(match.state)} />
+                {/each}
+            </div>
+        {/if}
+        {#if isPending}
+            <HiddenOptions title="Waiting to join" description={ladder.format === 'doubles' ? 'An admin will pair you with another pending player' : 'Waiting for admin approval'} />
+        {/if}
+        <HiddenOptions title="Match History" badge={history.length}>
 			{#each history as match (match.rk)}
 				<RouteLink href={hrefOf(match.rk)} title={match.name ?? 'no name'} description={matchSummary($guids.items, match.rk)} />
 			{/each}

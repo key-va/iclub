@@ -2,7 +2,7 @@ name: app
 
 on:
   push:
-    branches: [main]
+    branches: [main, next]
     paths:
       - 'app/**'
       - '.github/workflows/app.yml'
@@ -30,10 +30,16 @@ jobs:
         working-directory: app
         run: npm ci
 
+      - name: Check and test app
+        working-directory: app
+        run: |
+          npm run check
+          npm test
+
       - name: Build app
         working-directory: app
         env:
-          VITE_PREFIX: ${{ vars.AZURE_RESOURCE_GROUP }}
+          VITE_PREFIX: ${{ github.ref_name == 'next' && 'next' || vars.AZURE_RESOURCE_GROUP }}
         run: npm run build
 
       - name: Login to Azure
@@ -47,8 +53,8 @@ jobs:
         id: swa-token
         run: |
           TOKEN=$(az staticwebapp secrets list \
-            --name "${{ vars.AZURE_RESOURCE_GROUP }}xswa" \
-            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+            --name "${{ github.ref_name == 'next' && 'next' || vars.AZURE_RESOURCE_GROUP }}xswa" \
+            --resource-group "${{ github.ref_name == 'next' && 'next' || vars.AZURE_RESOURCE_GROUP }}" \
             --query "properties.apiKey" \
             --output tsv)
 

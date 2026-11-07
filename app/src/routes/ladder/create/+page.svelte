@@ -85,7 +85,7 @@
 	<div class="row center">
 		<div
 			class="round-icon-big"
-			style="background-image: url('{image || '/favicons/icon-512.png'}');"
+			style="background-image: url('{image || '/favicons/icon-00.png'}');"
 		></div>
 	</div>
 
