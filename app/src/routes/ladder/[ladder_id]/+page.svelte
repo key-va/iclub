@@ -139,7 +139,7 @@
 			<RouteLink
 				href={hrefOf(player.rk)}
 				title={player.name ?? 'no name'}
-				description={`${challengeText(player)}${ladder.ladder_system === 'win_points' ? ` · ${player.relation.points ?? 0} points` : ''}`}
+				description={`${challengeText(player)}${ladder.format !== 'doubles' && ladder.ladder_system === 'win_points' ? ` · ${player.relation.points ?? 0} points` : ''}`}
 				image={imageOf(ladder.format === 'doubles' ? ladderId : player.rk)}>
 				{#snippet detail()}
 					<span class="dot" style="background: {dotColour(player)}" role="img" aria-label={String(player.relation?.state)}></span>{player.rank}
