@@ -50,16 +50,14 @@
                 {/each}
             </div>
         {/if}
-        <HiddenOptions title="Members" badge={members.length} />
         {#each members as member (member.rk)}
             <RouteLink href={hrefOf(member.rk)} title={member.name ?? 'Player'} description="member" image={imageOf(member.rk)} isWhite={false} />
         {/each}
-        <div class="group">
-            <HiddenOptions title="Match History" badge={history.length} />
+        <HiddenOptions title="Match History" badge={history.length}>
             {#each history as match (match.rk)}
                 <RouteLink href={hrefOf(match.rk)} title={match.name ?? 'Match'} description={matchSummary($guids.items, match.rk)} />
             {/each}
-        </div>
+        </HiddenOptions>
         {#if !retired && canRetire}
             <HiddenOptions title="More Options" description="state">
                 <ApiService name="retire pair" message="retire this pair? unresolved matches will be forfeited and both members will return to pending" endpoint={`pair/${pairId}/retire`} />
