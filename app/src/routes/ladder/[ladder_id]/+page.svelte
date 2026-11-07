@@ -139,7 +139,7 @@
 			<RouteLink
 				href={hrefOf(player.rk)}
 				title={player.name ?? 'no name'}
-				description={`${challengeText(player)}${ladder.format !== 'doubles' && ladder.ladder_system === 'win_points' ? ` · ${player.relation.points ?? 0} points` : ''}`}
+				description={`${challengeText(player)}`}
 				image={imageOf(ladder.format === 'doubles' ? ladderId : player.rk)}>
 				{#snippet detail()}
 					<span class="dot" style="background: {dotColour(player)}" role="img" aria-label={String(player.relation?.state)}></span>{player.rank}
@@ -168,7 +168,7 @@
         {#if isPending}
             <HiddenOptions title="Waiting to join" description={ladder.format === 'doubles' ? 'An admin will pair you with another pending player' : 'Waiting for admin approval'} />
         {/if}
-        <HiddenOptions title="Match History" badge={history.length}>
+        <HiddenOptions title="Match History">
 			{#each history as match (match.rk)}
 				<RouteLink href={hrefOf(match.rk)} title={match.name ?? 'no name'} description={matchSummary($guids.items, match.rk)} />
 			{/each}

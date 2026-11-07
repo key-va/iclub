@@ -36,6 +36,9 @@
                 <div class="round-icon-big" style:background-image={`url('${imageOf(ladder.rk)}')`}></div>
             </div>
             <div class="group">
+                {#each members as member (member.rk)}
+                    <RouteLink href={hrefOf(member.rk)} title={member.name ?? 'Player'} description="member" image={imageOf(member.rk)} isWhite={false} />
+                {/each}
                 <RouteLink href={hrefOf(ladder.rk)} title={ladder.name ?? 'Ladder'} description={stateText} image={imageOf(ladder.rk)} isWhite={false}>
                     {#snippet detail()}
                         <span class="dot" style:background={stateColours[String(ladder.relation.state)] ?? 'grey'} role="img" aria-label={stateText}></span>{Number(ladder.relation.rank) || 0}
@@ -50,17 +53,19 @@
                 {/each}
             </div>
         {/if}
-        {#each members as member (member.rk)}
-            <RouteLink href={hrefOf(member.rk)} title={member.name ?? 'Player'} description="member" image={imageOf(member.rk)} isWhite={false} />
-        {/each}
-        <HiddenOptions title="Match History" badge={history.length}>
+        
+        <HiddenOptions title="Match History">
             {#each history as match (match.rk)}
                 <RouteLink href={hrefOf(match.rk)} title={match.name ?? 'Match'} description={matchSummary($guids.items, match.rk)} />
             {/each}
         </HiddenOptions>
         {#if !retired && canRetire}
-            <HiddenOptions title="More Options" description="state">
-                <ApiService name="retire pair" message="retire this pair? unresolved matches will be forfeited and both members will return to pending" endpoint={`pair/${pairId}/retire`} />
+            <HiddenOptions inline title="More Options" description="retire partnership">
+                <ApiService 
+                    inline 
+                    name="retire" 
+                    message="Forfeit all ongoing matches and retire this pair?" 
+                    endpoint={`pair/${pairId}/retire`} />
             </HiddenOptions>
         {/if}
     {:else}
