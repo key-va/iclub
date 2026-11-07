@@ -137,7 +137,7 @@
 
 			{#if showHelp}
 				<div class="row left">
-					<p class="info">Enter your first and last name, eg John Doe</p>
+					<p class="info">Enter your name in the format First Last. eg: John Doe</p>
 				</div>
 				<div class="row left">
 					<p class="info">Updates to your profile image may take some time to show</p>

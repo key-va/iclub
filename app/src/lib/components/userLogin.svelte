@@ -78,12 +78,17 @@
 	{/if}
 
 	{#if step === 'create'}
+	<div class="group">
 		<div class="row right">
 			<input type="text" placeholder="First Last" autocomplete="name" bind:value={name} />
+		</div>
+		<div class="row left">
+			<p class="info">Enter your name in the format First Last. eg: John Doe</p>
 		</div>
 		<div class="row right">
 			<input type="text" inputmode="numeric" pattern="[0-9]*" placeholder="61XXXXXXXXX" autocomplete="tel" bind:value={phone} />
 		</div>
+	</div>
 
 		<ApiService
 			name="create account"
