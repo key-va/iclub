@@ -41,8 +41,11 @@
 	);
 
 	let showRules = $state(false);
-	let selectedPairUsers = $state<string[]>([]);
-	const pairReady = $derived(selectedPairUsers.length === 2);
+	let selectedPairUserId = $state<string | null>(null);
+	const selectedPairUser = $derived(pending.find(player => player.rk === selectedPairUserId));
+	$effect(() => {
+		if (!selectedPairUser) selectedPairUserId = null;
+	});
 	const myPair = $derived(relatedEntities($guids.items, ladderId, 'pair').filter((pair) => pair.relation.is_participant === true).find((pair) =>
 		relatedEntities($guids.items, pair.rk, 'user').some((member) => member.rk === caller_id)
 	));
@@ -109,24 +112,18 @@
 		{#if isLadderAdmin && pending.length > 0}
 			<div class="group">
 				{#each pending as player (player.rk)}
-					<RouteLink href={hrefOf(player.rk)} title={player.name ?? 'no name'} description="waiting to join" image={imageOf(ladder.format === 'doubles' ? ladderId : player.rk)}>
+					<RouteLink href={hrefOf(player.rk)} title={player.name ?? 'no name'} description="waiting to join" image={imageOf(player.rk)}>
 						{#if ladder.format === 'doubles'}
-							<button
-								class={selectedPairUsers.includes(player.rk) ? 'blue' : 'pink'}
-								aria-label={selectedPairUsers.includes(player.rk) ? 'deselect player' : 'select player'}
-								disabled={!selectedPairUsers.includes(player.rk) && pairReady}
-								onclick={() => selectedPairUsers = selectedPairUsers.includes(player.rk)
-									? selectedPairUsers.filter((id) => id !== player.rk)
-									: [...selectedPairUsers, player.rk]}
-							><p>{selectedPairUsers.includes(player.rk) ? 'selected' : 'select'}</p></button>
+							{#if selectedPairUser && selectedPairUser.rk !== player.rk}
+								<ApiService inline name={`pair with ${selectedPairUser.name ?? 'this player'}`} message={`pair ${player.name ?? 'this player'} with ${selectedPairUser.name ?? 'this player'}?`} endpoint={`ladder/${ladderId}/accept`} data={{ user_ids: [selectedPairUser.rk, player.rk] }} onsuccess={() => { selectedPairUserId = null; }} />
+							{:else}
+								<button class="blue" aria-label={selectedPairUserId === player.rk ? 'deselect player' : 'select player'} onclick={() => selectedPairUserId = selectedPairUserId === player.rk ? null : player.rk}><p>{selectedPairUserId === player.rk ? 'selected' : 'select'}</p></button>
+							{/if}
 						{:else}
 							<ApiService inline name="accept" message={`accept ${player.name ?? 'this player'} onto the ladder?`} endpoint={`ladder/${ladderId}/accept`} data={{ user_id: player.rk }} />
 						{/if}
 					</RouteLink>
 				{/each}
-				{#if ladder.format === 'doubles'}
-					<ApiService name="create pair" disabled={!pairReady} message="accept these two users as a doubles pair?" endpoint={`ladder/${ladderId}/accept`} data={{ user_ids: selectedPairUsers }} onsuccess={() => { selectedPairUsers = []; }} />
-				{/if}
 			</div>
 		{/if}
 
