@@ -1,4 +1,5 @@
 import { get } from 'svelte/store';
+import { installed } from '#lib/stores/installed.ts';
 import { local } from '#lib/stores/local.ts';
 import { callApi } from '#lib/stores/remote.ts';
 
@@ -19,12 +20,35 @@ async function fetchAppId(): Promise<string | null> {
 // Loads and initialises OneSignal, then links the subscription to the signed in user
 // (and unlinks on logout). Returns a function that stops it.
 export function startPush(): () => void {
+	let stop: (() => void) | undefined;
+	const unsubscribe = installed.subscribe((isInstalled) => {
+		if (isInstalled && !stop) stop = startInstalledPush();
+		else if (!isInstalled && stop) {
+			stop();
+			stop = undefined;
+		}
+	});
+	return () => { unsubscribe(); stop?.(); };
+}
+
+function startInstalledPush(): () => void {
 	let disposed = false;
 	let ready = false;
 	// iOS only allows the permission prompt from a user gesture, so it is requested on the next tap.
 	let askPending = false;
+	const ask = () => {
+		askPending = false;
+		const { caller_id, device_id } = get(local);
+		if (!disposed && get(installed) && caller_id && device_id) {
+			w().OneSignal.registerForPushNotifications();
+		}
+	};
 
 	function sync() {
+		if (askPending) {
+			document.removeEventListener('pointerup', ask);
+			askPending = false;
+		}
 		if (!ready || disposed) return;
 
 		const { caller_id, device_id } = get(local);
@@ -40,10 +64,6 @@ export function startPush(): () => void {
 
 					if (perm === 'default' && !askPending) {
 						askPending = true;
-						const ask = () => {
-							askPending = false;
-							w().OneSignal.registerForPushNotifications();
-						};
 						document.addEventListener('pointerup', ask, { once: true });
 					}
 				} catch (err) {
@@ -99,6 +119,7 @@ export function startPush(): () => void {
 
 	return () => {
 		disposed = true;
+		document.removeEventListener('pointerup', ask);
 		unsubscribe();
 	};
 }

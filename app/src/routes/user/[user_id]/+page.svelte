@@ -1,4 +1,5 @@
 <script lang="ts">
+	import InstallApp from '#lib/components/installApp.svelte';
 	import { page } from '$app/state';
 	import { PUBLIC_URL } from '#lib/config.ts';
 	import { local } from '#lib/stores/local.ts';
@@ -68,6 +69,7 @@
 		<div class="row center">
 			<div class="round-icon-big" style="background-image: url('{PUBLIC_URL}/{user_entity.rk}.jpg');"></div>
 		</div>
+		<InstallApp />
 		
 		{#each ladders as ladder (ladder.rk)}
 			<div class="group">

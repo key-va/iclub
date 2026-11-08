@@ -1,4 +1,5 @@
 <script lang="ts">
+	import InstallApp from '#lib/components/installApp.svelte';
 	import { page } from '$app/state';
 	import { PUBLIC_URL } from '#lib/config.ts';
 	import { guids, entityOf, hrefOf } from '#lib/stores/guids.ts';
@@ -18,6 +19,7 @@
 	<div class="row center">
 		<div class="round-icon-big" style="background-image: url('/favicons/icon-00.png');"></div>
 	</div>
+	<InstallApp />
 
 	{#if caller_id && device_id}
 

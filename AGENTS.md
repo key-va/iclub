@@ -152,7 +152,9 @@ Do not introduce new storage abstractions unless a real gap is proven.
 - [push.ts](./app/src/lib/stores/push.ts)
   - loads OneSignal SDK
   - reads app ID from `system/about`
-  - links external user ID and requests permission on next gesture
+  - starts only in installed app mode, links external user ID and requests permission on next gesture
+- [installed.ts](./app/src/lib/stores/installed.ts)
+  - shared reactive installed-window detection for push and install guidance
 
 ### Reusable components (`app/src/lib/components/`)
 
@@ -169,13 +171,13 @@ Do not introduce new storage abstractions unless a real gap is proven.
 - [userLogin.svelte](./app/src/lib/components/userLogin.svelte)
   - otp/create/login entry flow
 - [installApp.svelte](./app/src/lib/components/installApp.svelte)
-  - browser/platform-specific install guidance text
+  - browser/platform-specific install guidance below each page icon; hidden in installed app mode
 
 ### Current page scaffold
 
 - root redirect: [app/src/routes/+page.svelte](./app/src/routes/+page.svelte)
 - shared layout/init: [app/src/routes/+layout.svelte](./app/src/routes/+layout.svelte)
-- login gate: [app/src/routes/login/+page.svelte](./app/src/routes/login/+page.svelte)
+- browser and installed-app login: [app/src/routes/login/+page.svelte](./app/src/routes/login/+page.svelte)
 - browse/filter list: [app/src/routes/browse/+page.svelte](./app/src/routes/browse/+page.svelte)
 - generic entity view: [app/src/routes/genc/[entity_id]/+page.svelte](./app/src/routes/genc/[entity_id]/+page.svelte)
 - user view/edit: [app/src/routes/user/[user_id]/+page.svelte](./app/src/routes/user/[user_id]/+page.svelte), [app/src/routes/user/[user_id]/edit/+page.svelte](./app/src/routes/user/[user_id]/edit/+page.svelte)

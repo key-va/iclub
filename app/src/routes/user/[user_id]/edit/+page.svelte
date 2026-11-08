@@ -1,4 +1,5 @@
 <script lang="ts">
+	import InstallApp from '#lib/components/installApp.svelte';
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import { PUBLIC_URL } from '#lib/config.ts';
@@ -112,6 +113,7 @@
 				style="background-image: url('{image || `${PUBLIC_URL}/${user.rk}.jpg`}');"
 			></div>
 		</div>
+		<InstallApp />
 
 		<div class="group">
 			<div class="row right">

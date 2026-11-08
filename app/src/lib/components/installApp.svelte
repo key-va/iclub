@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { installed } from '#lib/stores/installed.ts';
 	let message = $state('');
 
 	function getInstructions(): string {
@@ -34,10 +35,13 @@
 	});
 </script>
 
+{#if !$installed}
 <div class="install">
 	<div class="group">
 		<div class="row center">
-			<p>Looks like you're using the app in a browser. <strong>Install</strong> the app first, then experience the full logged in experience<br/><br/>{message || 'install the app to login'}</p>
+			<p><strong>Install the app</strong> to receive notifications. You can log in and use the app in your browser.<br/><br/>{message || 'Use your browser menu to install the app'}</p>
 		</div>
 	</div>
 </div>
+
+{/if}

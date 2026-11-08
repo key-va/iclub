@@ -1,4 +1,5 @@
 <script lang="ts">
+	import InstallApp from '#lib/components/installApp.svelte';
 	import { page } from '$app/state';
 	import { PUBLIC_URL } from '#lib/config.ts';
 	import { local } from '#lib/stores/local.ts';
@@ -23,6 +24,7 @@
 		<div class="row center">
 			<div class="round-icon-big" style="background-image: url('{PUBLIC_URL}/{entity.rk}.jpg');"></div>
 		</div>
+		<InstallApp />
 	{:else}
 		<div class="row right">
 			<p class="truncate"><strong>{$guids.loaded ? 'Not found' : 'Loading'}</strong><br />entity</p>

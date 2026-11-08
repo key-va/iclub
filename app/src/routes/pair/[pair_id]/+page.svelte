@@ -1,4 +1,5 @@
 <script lang="ts">
+	import InstallApp from '#lib/components/installApp.svelte';
     import { page } from '$app/state';
     import { canChallenge as sharedCanChallenge } from '#lib/challenge.ts';
     import { local } from '#lib/stores/local.ts';
@@ -35,6 +36,7 @@
             <div class="row center">
                 <div class="round-icon-big" style:background-image={`url('${imageOf(ladder.rk)}')`}></div>
             </div>
+            <InstallApp />
             <div class="group">
                 {#each members as member (member.rk)}
                     <RouteLink href={hrefOf(member.rk)} title={member.name ?? 'Player'} description="member" image={imageOf(member.rk)} isWhite={false} />

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import InstallApp from '#lib/components/installApp.svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { onMount } from 'svelte';
@@ -88,6 +89,7 @@
 			style="background-image: url('{image || '/favicons/icon-00.png'}');"
 		></div>
 	</div>
+	<InstallApp />
 
 	<div class="group">
 		<div class="row right">

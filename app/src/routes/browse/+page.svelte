@@ -1,4 +1,5 @@
 <script lang="ts">
+	import InstallApp from '#lib/components/installApp.svelte';
 	import { local } from '#lib/stores/local.ts';
 	import { entities, hrefOf, imageOf } from '#lib/stores/guids.ts';
 
@@ -28,6 +29,7 @@
 	<div class="row center">
 		<div class="round-icon-big" style="background-image: url('/favicons/icon-00.png');"></div>
 	</div>
+	<InstallApp />
 
     <div class="group">
         <div class="row right">

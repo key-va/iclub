@@ -1,4 +1,5 @@
 <script lang="ts">
+	import InstallApp from '#lib/components/installApp.svelte';
 	import { page } from '$app/state';
 	import { guids, entityOf, imageOf } from '#lib/stores/guids.ts';
 
@@ -15,6 +16,7 @@
 		<div class="row center">
 			<div class="round-icon-big" style="background-image: url('{imageOf(bot.rk)}');"></div>
 		</div>
+		<InstallApp />
 
 		<div class="group">
 			<div class="row center">
