@@ -15,7 +15,7 @@ function az(args) {
 // ARM GET returns metadata, not the stored secret value. Existing keys stay untouched.
 const existing = az(['resource', 'show', ...resource, '--query', 'name', '-o', 'tsv']);
 if (existing.status !== 0) {
-    if (!/\b(ResourceNotFound|SecretNotFound|NotFound)\b/.test(existing.stderr)) throw Error(`Cannot inspect Web Push secret metadata: ${existing.stderr}`);
+    if (!/\b(ResourceNotFound|SecretNotFound|NotFound|Not Found)\b/.test(existing.stderr)) throw Error(`Cannot inspect Web Push secret metadata: ${existing.stderr}`);
     const directory = mkdtempSync(join(tmpdir(), 'web-push-'));
     try {
         const path = join(directory, 'properties.json');
