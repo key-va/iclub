@@ -1,4 +1,4 @@
-// Run after Azure login. Reuses the existing vault secret; never rotate on deploy.
+// Run after Azure login. Provision through ARM; never read secret values on deploy.
 const { spawnSync } = require('node:child_process');
 const { mkdtempSync, writeFileSync, rmSync } = require('node:fs');
 const { join } = require('node:path');
@@ -8,25 +8,23 @@ const prefix = process.env.RESOURCE_GROUP_PREFIX;
 if (!prefix) throw Error('RESOURCE_GROUP_PREFIX is required');
 const vault = `${prefix}xkv`;
 const name = 'web-push-vapid-keys';
+const resource = ['--resource-group', prefix, '--resource-type', 'Microsoft.KeyVault/vaults/secrets', '--name', `${vault}/${name}`, '--api-version', '2024-11-01'];
 function az(args) {
     return spawnSync('az', args, { encoding: 'utf8', maxBuffer: 1024 * 1024 });
 }
-const existing = az(['keyvault', 'secret', 'show', '--vault-name', vault, '--name', name, '--query', 'value', '-o', 'tsv']);
+// ARM GET returns metadata, not the stored secret value. Existing keys stay untouched.
+const existing = az(['resource', 'show', ...resource, '--query', 'name', '-o', 'tsv']);
 if (existing.status !== 0) {
-    if (!existing.stderr.includes('SecretNotFound')) throw Error(`Cannot access Web Push Key Vault secret: ${existing.stderr}`);
+    if (!/\b(ResourceNotFound|SecretNotFound|NotFound)\b/.test(existing.stderr)) throw Error(`Cannot inspect Web Push secret metadata: ${existing.stderr}`);
     const directory = mkdtempSync(join(tmpdir(), 'web-push-'));
     try {
-        const path = join(directory, 'keys.json');
-        writeFileSync(path, JSON.stringify(webpush.generateVAPIDKeys()), { mode: 0o600 });
-        const saved = az(['keyvault', 'secret', 'set', '--vault-name', vault, '--name', name, '--file', path, '--output', 'none']);
-        if (saved.status !== 0) throw Error(`Cannot save Web Push Key Vault secret: ${saved.stderr}`);
+        const path = join(directory, 'properties.json');
+        writeFileSync(path, JSON.stringify({ value: JSON.stringify(webpush.generateVAPIDKeys()) }), { mode: 0o600 });
+        const saved = az(['resource', 'create', ...resource, '--properties', `@${path}`, '--output', 'none']);
+        if (saved.status !== 0) throw Error(`Cannot provision Web Push Key Vault secret: ${saved.stderr}`);
         console.log('Created Web Push key pair in Key Vault.');
     } finally { rmSync(directory, { recursive: true, force: true }); }
-} else {
-    const keys = JSON.parse(existing.stdout);
-    if (!keys.publicKey || !keys.privateKey) throw Error('Existing Web Push secret is invalid; refusing to replace it.');
-    console.log('Reusing Web Push key pair in Key Vault.');
-}
+} else console.log('Reusing existing Web Push secret (value not read).');
 const configured = az(['functionapp', 'config', 'appsettings', 'set', '--resource-group', prefix, '--name', `${prefix}xfa`, '--settings',
     `WEB_PUSH_VAPID_KEYS=@Microsoft.KeyVault(VaultName=${vault};SecretName=${name})`, '--output', 'none']);
 if (configured.status !== 0) throw Error(`Cannot configure Web Push setting: ${configured.stderr}`);
