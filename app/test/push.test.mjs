@@ -4,12 +4,13 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 
 function worker(clients = []) {
-    const handlers = {}, shown = [], opened = [], messages = [];
+    const handlers = {}, shown = [], opened = [], messages = [], lifecycle = [];
     const self = {
         location: { origin: 'https://app.example' },
+        skipWaiting: async () => lifecycle.push('install'),
         addEventListener: (type, handler) => handlers[type] = handler,
         registration: { showNotification: async (...args) => shown.push(args) },
-        clients: { matchAll: async () => clients, openWindow: async url => opened.push(url) }
+        clients: { claim: async () => lifecycle.push('activate'), matchAll: async () => clients, openWindow: async url => opened.push(url) }
     };
     vm.runInNewContext(readFileSync(new URL('../static/service.js', import.meta.url), 'utf8'), { self, URL });
     const dispatch = async (type, event) => {
@@ -17,7 +18,7 @@ function worker(clients = []) {
         handlers[type]({ ...event, waitUntil: promise => done = promise });
         await done;
     };
-    return { dispatch, shown, opened, messages };
+    return { dispatch, shown, opened, messages, lifecycle };
 }
 
 test('worker displays push and tells open app windows to refresh', async () => {
@@ -48,4 +49,12 @@ test('notification click opens a new window and rejects off-origin navigation', 
     const w = worker();
     await w.dispatch('notificationclick', { notification: { data: { url: 'https://other.example/' }, close() {} } });
     assert.equal(w.opened[0], 'https://app.example/');
+});
+
+
+test('worker activates immediately and takes control of open app windows', async () => {
+    const w = worker();
+    await w.dispatch('install', {});
+    await w.dispatch('activate', {});
+    assert.deepEqual(w.lifecycle, ['install', 'activate']);
 });

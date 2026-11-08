@@ -52,6 +52,15 @@ function startInstalledPush(): () => void {
 		if (!current(version)) return;
 		const padded = publicKey.replace(/-/g, '+').replace(/_/g, '/');
 		const applicationServerKey = Uint8Array.from(atob(padded + '='.repeat((4 - padded.length % 4) % 4)), c => c.charCodeAt(0));
+		if (subscription) {
+			const previous = subscription.options.applicationServerKey;
+			const bytes = previous ? new Uint8Array(previous) : new Uint8Array();
+			if (bytes.length !== applicationServerKey.length || bytes.some((value, index) => value !== applicationServerKey[index])) {
+				await subscription.unsubscribe();
+				subscription = null;
+			}
+		}
+		if (!current(version)) return;
 		if (!subscription) subscription = await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey });
 		if (!current(version)) return;
 		await callApi('user/push', { subscription: subscription.toJSON() });
