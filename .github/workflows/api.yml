@@ -46,6 +46,11 @@ jobs:
           tenant-id: ${{ vars.AZURE_TENANT_ID }}
           subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
 
+      - name: Configure Web Push
+        env:
+          RESOURCE_GROUP_PREFIX: ${{ github.ref_name == 'next' && 'next' || vars.AZURE_RESOURCE_GROUP }}
+        run: node api/scripts/configure-web-push.cjs
+
       - name: Deploy API
         uses: Azure/functions-action@v1
         with:

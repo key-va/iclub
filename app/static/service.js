@@ -1,36 +1,32 @@
-// Import OneSignal SDK
-importScripts('https://cdn.onesignal.com/sdks/OneSignalSDKWorker.js');
-
-// Helper function to broadcast messages to all clients
-async function broadcastMessage(message) {
-  const allClients = await self.clients.matchAll({ includeUncontrolled: true });
-  allClients.forEach(client => client.postMessage(message));
-}
-
-// let notification trigger data ingestation
 self.addEventListener('push', (event) => {
   event.waitUntil((async () => {
-    let payload = null;
-
-    try {
-      payload = event.data ? await event.data.json() : null;
-    } catch {
-      try {
-        payload = event.data ? { raw: await event.data.text() } : null;
-      } catch {}
-    }
-
-    await broadcastMessage({
-      type: 'ONESIGNAL_PUSH_RECEIVED',
-      payload
+    let payload = {};
+    try { payload = event.data?.json() || {}; } catch {}
+    await self.registration.showNotification(payload.title || 'Intra Club', {
+      body: payload.body || 'You have a new update',
+      icon: payload.icon || '/favicons/favicon-192.png',
+      badge: payload.badge,
+      tag: payload.tag,
+      data: { url: payload.url || '/' }
     });
+    const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    clients.forEach(client => client.postMessage({ type: 'PUSH_RECEIVED' }));
   })());
 });
 
-// let notifications open a link if payload includes data.url
 self.addEventListener('notificationclick', (event) => {
-  const url = event?.notification?.data?.url;
-  if (!url) return;
   event.notification.close();
-  event.waitUntil(self.clients.openWindow(url));
+  event.waitUntil((async () => {
+    let url = new URL(event.notification.data?.url || '/', self.location.origin);
+    if (url.origin !== self.location.origin) url = new URL('/', self.location.origin);
+    const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const client of clients) {
+      if (new URL(client.url).origin === url.origin) {
+        await client.navigate(url.href);
+        await client.focus();
+        return;
+      }
+    }
+    await self.clients.openWindow(url.href);
+  })());
 });

@@ -8,16 +8,18 @@
     "clean": "rimraf dist",
     "prestart": "npm run clean && npm run build",
     "start": "func start",
-    "test": "npm run build && node test/ladder.test.cjs"
+    "test": "npm run build && node --test test/*.test.cjs"
   },
   "dependencies": {
     "@azure/data-tables": "^13.3.2",
     "@azure/functions": "^4.0.0",
     "@azure/identity": "^4.13.3",
-    "@azure/storage-blob": "^12.34.0"
+    "@azure/storage-blob": "^12.34.0",
+    "web-push": "^4.0.0"
   },
   "devDependencies": {
     "@types/node": "^20.x",
+    "@types/web-push": "^3.6.4",
     "rimraf": "^5.0.0",
     "typescript": "^5.0.0"
   },

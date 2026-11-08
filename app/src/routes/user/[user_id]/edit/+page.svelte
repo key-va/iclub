@@ -1,5 +1,6 @@
 <script lang="ts">
 	import InstallApp from '#lib/components/installApp.svelte';
+	import { disconnectPush } from '#lib/stores/push.ts';
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import { PUBLIC_URL } from '#lib/config.ts';
@@ -90,7 +91,9 @@
 		if (fileInput) fileInput.value = '';
 	}
 
-	function logout() {
+	async function logout() {
+		try { await disconnectPush(); }
+		catch (error) { console.error('[Web Push] logout cleanup failed', error); }
 		clear_local_data();
 		goto('/');
 	}

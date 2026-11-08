@@ -7,7 +7,7 @@ Today it intentionally contains **no domain-specific product logic** beyond basi
 - a generic graph-style data model in Azure Table Storage
 - a SvelteKit frontend that reads from a published `guids.json`
 - an Azure Functions API that performs signed mutations
-- optional OneSignal web push wiring
+- direct standards-based Web Push
 
 Use this guide to keep future AI-driven feature development consistent with the existing architecture.
 
@@ -23,7 +23,7 @@ Primary resources and roles:
   - `guids` table (public app graph data source)
   - `auths` table (private auth/device data)
   - `public` blob container (`guids.json`, profile images, public assets)
-- **Key Vault**: stores OneSignal and other secrets
+- **Key Vault**: stores the shared Web Push VAPID key pair and other secrets
 - **App Insights + User Assigned Managed Identity**: telemetry and auth for Azure SDK access
 
 Frontend data flow:
@@ -71,7 +71,7 @@ Current endpoints in `api/src/functions/`:
 
 - `system/about` ([systemAbout.ts](./api/src/functions/systemAbout.ts))
   - returns entity counts from `guids`
-  - returns `ONESIGNAL_APP_ID` when configured
+  - returns `WEB_PUSH_PUBLIC_KEY` when configured (never the private key)
 - `system/restore` ([systemRestore.ts](./api/src/functions/systemRestore.ts))
   - replaces `guids` table from posted array, then republishes `guids.json`
 - `user/otp` ([userOtp.ts](./api/src/functions/userOtp.ts))
@@ -109,7 +109,7 @@ Located in `api/src/services/`:
 - [doGuidsToPublic.ts](./api/src/services/doGuidsToPublic.ts): full table export to `public/guids.json`
 - [doAssetToPublic.ts](./api/src/services/doAssetToPublic.ts): publish assets/images to `public`
 - [doAssetFromPublic.ts](./api/src/services/doAssetFromPublic.ts): remove an asset/image from `public`
-- [doSendPush.ts](./api/src/services/doSendPush.ts): OneSignal push dispatch
+- [doSendPush.ts](./api/src/services/doSendPush.ts): direct Web Push dispatch from private device subscriptions
 - [doCompleteMatch.ts](./api/src/services/doCompleteMatch.ts): finishes a match (result rows, ladder ranks/points/cooling, republish); does not notify, callers send their own push using the returned match name and player ids; shared by `match/{id}/complete`, `match/{id}/forfeit` and `batchHourly`
 - [doPostMessage.ts](./api/src/services/doPostMessage.ts): records a `message` entity on a match, related to its sender (a user, or the bootstrap bot `botId` for automated messages); does not publish or notify; used by `message/create` and `batchHourly`
 - [doFindDueMatches.ts](./api/src/services/doFindDueMatches.ts): pending/active matches whose cool/play-period deadline falls in a time window; used by `batchHourly` (forfeit overdue, warn 12 hours ahead)
@@ -150,9 +150,8 @@ Do not introduce new storage abstractions unless a real gap is proven.
   - API caller (`callApi`) with signed/unsigned modes
   - keypair generation for login/create flow
 - [push.ts](./app/src/lib/stores/push.ts)
-  - loads OneSignal SDK
-  - reads app ID from `system/about`
-  - starts only in installed app mode, links external user ID and requests permission on next gesture
+  - starts only in installed app mode; registers `/service.js` and reads the public VAPID key from `system/about`
+  - requests permission on the next gesture, saves browser subscriptions via signed `user/push`, and refreshes data on received push
 - [installed.ts](./app/src/lib/stores/installed.ts)
   - shared reactive installed-window detection for push and install guidance
 
@@ -187,7 +186,6 @@ Do not introduce new storage abstractions unless a real gap is proven.
 ### Push-related static files
 
 - [manifest.webmanifest](./app/static/manifest.webmanifest)
-- [OneSignalSDKWorker.js](./app/static/OneSignalSDKWorker.js)
 - [service.js](./app/static/service.js)
 
 ---
@@ -262,5 +260,14 @@ This is deliberate: the scaffold is meant to stay generic and composable for fut
 - `pair/{pair_id}/retire` allows a pair member or ladder admin to forfeit unresolved matches, retire the ladder relation, close ranking gaps and return both users to pending. Pair membership and historical matches remain intact; re-pairing creates a new entity.
 - Global away status is excluded. The existing singles ladder-away endpoint rejects doubles requests.
 - UI: ladder pairing/standings/challenges, pair detail/retirement at `/pair/{id}`, pair match scores and member history.
-- Offline verification: `cd api && npm ci && npm test`; `cd app && npm ci && npm run check && npm test && npm run build`. API tests use in-memory TableClient and mocked signatures/export/push; no Azure storage, secrets or OneSignal configuration is needed.
+- Offline verification: `cd api && npm ci && npm test`; `cd app && npm ci && npm run check && npm test && npm run build`. API tests use in-memory TableClient and mocked signatures/export/push; no Azure storage, secrets or Web Push configuration is needed.
 - Azure Table graph updates retain the existing sequential multi-row persistence model; there is no cross-partition transaction. Live concurrency and failure recovery need validation with configured Azure services.
+
+## Direct Web Push
+
+- `user/push` verifies the existing caller/device signature, then merges `origin`, `push_endpoint`, `push_p256dh`, and `push_auth` into the existing `auths` row (`pk=user_id`, `rk=device_id`). It never replaces `key` or creates public graph entities/relations. `subscription: null` clears the push binding.
+- Registration removes previous bindings of the same endpoint, including across accounts. Logout unsubscribes and removes the binding before clearing local identity.
+- `doSendPush` retains its user-ID interface and actor exclusion; it deduplicates endpoints, uses each device origin for links, and clears expired (404/410) subscriptions without deleting authentication keys. Sending remains best effort with no durable retry queue.
+- `WEB_PUSH_VAPID_KEYS` is a JSON Key Vault secret containing `publicKey` and `privateKey`; `WEB_PUSH_SUBJECT` optionally overrides the default contact URL. Deployment runs `api/scripts/configure-web-push.cjs` to create the secret once and configure its environment-variable reference. Do not regenerate keys on ordinary deployments.
+- `service.js` displays visible notifications and handles same-origin click navigation. No OneSignal SDK or provider credentials are used.
+- See [docs/web-push.md](./docs/web-push.md) for configuration and device checks.

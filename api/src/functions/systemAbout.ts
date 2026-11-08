@@ -2,6 +2,7 @@ import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/fu
 import { DefaultAzureCredential } from "@azure/identity";
 import { TableClient } from "@azure/data-tables";
 
+import { doWebPushConfig } from "../services/doWebPushConfig";
 import { resourceName, resourceSuffix } from "../stores/resourceNames";
 
 const storageAccount = resourceName(resourceSuffix.storageAccount);
@@ -12,7 +13,6 @@ const tableClient = new TableClient(
     new DefaultAzureCredential()
 );
 
-const oneSignalAppId = process.env.ONESIGNAL_APP_ID;
 
 export async function systemAbout(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
 
@@ -33,7 +33,7 @@ export async function systemAbout(request: HttpRequest, context: InvocationConte
             success: true,
             message: `Okay, Intra Club is up and running with ${total} total entities`,
             data: {
-                ONESIGNAL_APP_ID: oneSignalAppId && !oneSignalAppId.startsWith('@Microsoft.KeyVault(') ? oneSignalAppId : null,
+                WEB_PUSH_PUBLIC_KEY: doWebPushConfig()?.publicKey ?? null,
                 counts
             }
         }

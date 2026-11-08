@@ -2,124 +2,101 @@ import { get } from 'svelte/store';
 import { installed } from '#lib/stores/installed.ts';
 import { local } from '#lib/stores/local.ts';
 import { callApi } from '#lib/stores/remote.ts';
+import { guids } from '#lib/stores/guids.ts';
 
-// Legacy OneSignal web SDK (OneSignalSDK.js), loaded by startPush.
-/* eslint-disable @typescript-eslint/no-explicit-any */
-const w = () => window as any;
-const OneSignal = () => (w().OneSignal = w().OneSignal || []);
+let pendingSave: Promise<unknown> = Promise.resolve();
+let loggingOut = false;
 
-const SDK_URL = 'https://cdn.onesignal.com/sdks/OneSignalSDK.js';
-
-// The OneSignal app ID lives in the API's configuration (Key Vault), so it can be set after
-// the app is deployed. Null means it is not configured yet.
-async function fetchAppId(): Promise<string | null> {
-	const result = await callApi<{ ONESIGNAL_APP_ID: string | null }>('system/about', {}, false);
-	return result.data?.ONESIGNAL_APP_ID ?? null;
+// Called while the current identity is still available for the signed removal.
+export async function disconnectPush(): Promise<void> {
+	loggingOut = true;
+	await pendingSave.catch(() => {});
+	if (!('serviceWorker' in navigator)) return;
+	const registration = await navigator.serviceWorker.getRegistration('/');
+	const subscription = await registration?.pushManager?.getSubscription();
+	if (subscription) {
+		// Even if the API is unreachable, unsubscribe prevents delivery to the old account.
+		await subscription.unsubscribe();
+		await callApi('user/push', { subscription: null });
+	}
 }
 
-// Loads and initialises OneSignal, then links the subscription to the signed in user
-// (and unlinks on logout). Returns a function that stops it.
 export function startPush(): () => void {
 	let stop: (() => void) | undefined;
-	const unsubscribe = installed.subscribe((isInstalled) => {
-		if (isInstalled && !stop) stop = startInstalledPush();
-		else if (!isInstalled && stop) {
-			stop();
-			stop = undefined;
-		}
+	const unsubscribe = installed.subscribe((value) => {
+		if (value && !stop) stop = startInstalledPush();
+		else if (!value && stop) { stop(); stop = undefined; }
 	});
 	return () => { unsubscribe(); stop?.(); };
 }
 
 function startInstalledPush(): () => void {
+	if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) return () => {};
 	let disposed = false;
-	let ready = false;
-	// iOS only allows the permission prompt from a user gesture, so it is requested on the next tap.
-	let askPending = false;
-	const ask = () => {
-		askPending = false;
-		const { caller_id, device_id } = get(local);
-		if (!disposed && get(installed) && caller_id && device_id) {
-			w().OneSignal.registerForPushNotifications();
-		}
-	};
+	let revision = 0;
+	let publicKey: string;
+	let registration: ServiceWorkerRegistration;
+	const report = (error: unknown) => console.error('[Web Push]', error);
+	const current = (version: number) => !disposed && !loggingOut && version === revision && get(installed);
+
+	function subscribe(version: number): Promise<unknown> {
+		pendingSave = pendingSave.catch(() => {}).then(() => subscribeNow(version));
+		return pendingSave;
+	}
+
+	async function subscribeNow(version: number) {
+		if (!current(version) || Notification.permission !== 'granted') return;
+		const identity = get(local);
+		if (!identity.caller_id || !identity.device_id) return;
+		let subscription = await registration.pushManager.getSubscription();
+		if (!current(version)) return;
+		const padded = publicKey.replace(/-/g, '+').replace(/_/g, '/');
+		const applicationServerKey = Uint8Array.from(atob(padded + '='.repeat((4 - padded.length % 4) % 4)), c => c.charCodeAt(0));
+		if (!subscription) subscription = await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey });
+		if (!current(version)) return;
+		await callApi('user/push', { subscription: subscription.toJSON() });
+	}
+
+	function ask() {
+		document.removeEventListener('pointerup', ask);
+		const version = revision;
+		if (!current(version) || !get(local).caller_id) return;
+		// Request directly in the gesture handler, before any await (required on iOS).
+		Notification.requestPermission().then(() => subscribe(version)).catch(report);
+	}
 
 	function sync() {
-		if (askPending) {
-			document.removeEventListener('pointerup', ask);
-			askPending = false;
-		}
-		if (!ready || disposed) return;
-
+		revision++;
+		document.removeEventListener('pointerup', ask);
+		if (disposed || loggingOut || !registration || !publicKey) return;
 		const { caller_id, device_id } = get(local);
-
-		if (caller_id && device_id) {
-			OneSignal().push(async () => {
-				try {
-					await w().OneSignal.setExternalUserId(caller_id);
-					console.log('[OneSignal] external ID set', caller_id);
-
-					const perm =
-						(await w().OneSignal.getNotificationPermission?.()) || w().Notification.permission;
-
-					if (perm === 'default' && !askPending) {
-						askPending = true;
-						document.addEventListener('pointerup', ask, { once: true });
-					}
-				} catch (err) {
-					console.error('[OneSignal] error setting user or requesting permission', err);
-				}
-			});
-		} else if (!caller_id) {
-			OneSignal().push(() => w().OneSignal.removeExternalUserId());
-			console.log('[OneSignal] external ID cleared');
-		}
+		if (!caller_id || !device_id) return;
+		if (Notification.permission === 'default') document.addEventListener('pointerup', ask, { once: true });
+		else if (Notification.permission === 'granted') subscribe(revision).catch(report);
 	}
 
-	function init(appId: string) {
-		if (!document.querySelector(`script[src="${SDK_URL}"]`)) {
-			const script = document.createElement('script');
-			script.src = SDK_URL;
-			script.async = true;
-			document.head.appendChild(script);
-		}
-
-		OneSignal().push(() => {
-			if (disposed) return;
-
-			// Only sync once the SDK reports it has initialised (the public event is "initialize").
-			w().OneSignal.on('initialize', () => {
-				if (disposed) return;
-				ready = true;
-				console.log('[OneSignal] ready');
-				sync();
-			});
-
-			w().OneSignal.init({
-				appId,
-				serviceWorkerPath: '/OneSignalSDKWorker.js',
-				serviceWorkerParam: { scope: '/' },
-				allowLocalhostAsSecureOrigin: true
-			});
-		});
-	}
-
-	fetchAppId()
-		.then((appId) => {
-			if (disposed) return;
-			if (!appId) {
-				console.error('[OneSignal] app ID is not configured on the API; push notifications are unavailable.');
-				return;
-			}
-			init(appId);
-		})
-		.catch((err) => console.error('[OneSignal] could not fetch app ID from the API', err));
-
-	const unsubscribe = local.subscribe(sync);
+	const unsubscribe = local.subscribe(() => { loggingOut = false; sync(); });
+	window.addEventListener('focus', sync);
+	const received = (event: MessageEvent) => {
+		if (event.data?.type === 'PUSH_RECEIVED') guids.refresh().catch(report);
+	};
+	navigator.serviceWorker.addEventListener('message', received);
+	(async () => {
+		const result = await callApi<{ WEB_PUSH_PUBLIC_KEY: string | null }>('system/about', {}, false);
+		if (disposed) return;
+		if (!result.data?.WEB_PUSH_PUBLIC_KEY) throw new Error('Web Push is not configured on the API');
+		publicKey = result.data.WEB_PUSH_PUBLIC_KEY;
+		await navigator.serviceWorker.register('/service.js', { scope: '/' });
+		registration = await navigator.serviceWorker.ready;
+		sync();
+	})().catch(report);
 
 	return () => {
 		disposed = true;
-		document.removeEventListener('pointerup', ask);
+		revision++;
 		unsubscribe();
+		document.removeEventListener('pointerup', ask);
+		window.removeEventListener('focus', sync);
+		navigator.serviceWorker.removeEventListener('message', received);
 	};
 }

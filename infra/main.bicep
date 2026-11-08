@@ -232,16 +232,8 @@
            value: prefix
          }
          {
-           name: 'ONESIGNAL_APP_ID'
-           value: '@Microsoft.KeyVault(VaultName=${keyVault.name};SecretName=onesignal-app-id)'
-         }
-         {
-           name: 'ONESIGNAL_API_KEY'
-           value: '@Microsoft.KeyVault(VaultName=${keyVault.name};SecretName=onesignal-api-key)'
-         }
-         {
-           name: 'ONESIGNAL_APP_URL'
-           value: '@Microsoft.KeyVault(VaultName=${keyVault.name};SecretName=onesignal-app-url)'
+           name: 'WEB_PUSH_VAPID_KEYS'
+           value: '@Microsoft.KeyVault(VaultName=${keyVault.name};SecretName=web-push-vapid-keys)'
          }
          {
            name: 'AZURE_CLIENT_ID'
