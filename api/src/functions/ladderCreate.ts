@@ -7,6 +7,7 @@ import { doUpsertEntity } from "../services/doUpsertEntity";
 import { doUpsertRelation } from "../services/doUpsertRelation";
 import { doGuidsToPublic } from "../services/doGuidsToPublic";
 import { doAssetToPublic } from "../services/doAssetToPublic";
+import { doClubForOrigin } from "../services/doClubForOrigin";
 import { doSendPush } from "../services/doSendPush";
 
 import { resourceName, resourceSuffix } from "../stores/resourceNames";
@@ -131,10 +132,22 @@ export async function ladderCreate(request: HttpRequest, context: InvocationCont
 
     const ladderId = doNewGuid("ladder");
 
+    let ladderImage: string | Buffer | { publicName: string } = image ?? "icon-00.jpg";
+    if (!image) {
+        const brand = await doClubForOrigin(request.headers.get("origin") ?? "");
+        if (brand) ladderImage = { publicName: `${brand.clubId}.jpg` };
+    }
+    try { await doAssetToPublic(ladderImage, `${ladderId}.jpg`); }
+    catch (error: any) {
+        if (typeof ladderImage === "object" && !Buffer.isBuffer(ladderImage) && error?.statusCode === 404) {
+            context.warn("Origin club icon is missing; using the default ladder icon.");
+            await doAssetToPublic("icon-00.jpg", `${ladderId}.jpg`);
+        } else throw error;
+    }
+
     await doUpsertEntity("ladder", ladderId, { name, ...settings, state: "pending" });
     await doUpsertRelation(ladderId, clubId);
     await doUpsertRelation(ladderId, caller_id, { is_admin: true });
-    await doAssetToPublic(image ?? "icon-00.jpg", `${ladderId}.jpg`);
 
     // 4. Publish
     await doGuidsToPublic();

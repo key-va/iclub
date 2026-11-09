@@ -289,3 +289,9 @@ This is deliberate: the scaffold is meant to stay generic and composable for fut
 - Icons are uploaded before graph publication. Pre-publication failures attempt cleanup of only newly generated resources. An export failure returns 503 with `created: true` and the club ID so callers do not blindly recreate it.
 - Existing clubs created through restore/manual uploads need equivalent PNG variants; this endpoint creates new clubs and does not migrate existing records/assets. DNS, domain binding and CORS remain manual.
 - Request example and operational details: [docs/club-create.md](./docs/club-create.md).
+
+## Default ladder image
+
+- `ladder/create` uses a supplied `data.image` first. Otherwise it resolves the frontend `Origin` header through `doClubForOrigin` and copies that club's existing public `<club_id>.jpg` to the new `<ladder_id>.jpg`.
+- `doAssetToPublic` accepts `{ publicName }` to copy an existing blob in the same public container, in addition to local asset names and uploaded buffers. No arbitrary remote URLs are fetched.
+- Missing/unknown origins and missing club icon blobs retain the default local `icon-00.jpg` fallback. The submitted `data.club_id` relation is unchanged by image branding.

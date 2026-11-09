@@ -24,13 +24,16 @@ const contentTypes: Record<string, string> = {
 };
 
 // Writes to the public blob container as <publicName>, replacing any existing blob.
-// `source` is either the name of a file in src/assets or the file content itself (e.g. a user upload).
-export async function doAssetToPublic(source: string | Buffer, publicName: string): Promise<void> {
+// `source` is a local asset name, uploaded bytes, or an existing public blob to copy.
+export async function doAssetToPublic(source: string | Buffer | { publicName: string }, publicName: string): Promise<void> {
 
     // Keep asset lookups inside the assets folder
     const data = typeof source === "string"
         ? await readFile(join(assetsDir, basename(source)))
-        : source;
+        : Buffer.isBuffer(source)
+            ? source
+            : await blobServiceClient.getContainerClient("public")
+                .getBlockBlobClient(basename(source.publicName)).downloadToBuffer();
 
     await blobServiceClient
         .getContainerClient("public")

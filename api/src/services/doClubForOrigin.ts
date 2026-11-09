@@ -14,6 +14,7 @@ export async function doClubForOrigin(origin: string) {
         if (row.url !== url.hostname) continue;
         const colour = (value: unknown, fallback: string) => typeof value === "string" && /^#[\da-f]{6}$/i.test(value) ? value : fallback;
         return {
+            clubId: row.rowKey,
             name: String(row.name || "Intra Club"),
             foreground: colour(row.foreground, "#FF1493"),
             background: colour(row.background, "#00BFFF"),
