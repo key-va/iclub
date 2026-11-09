@@ -99,7 +99,8 @@ test('manifest selects the club for the visiting origin and keeps navigation on 
  assert.equal(result.status,200);assert.equal(result.headers['Content-Type'],'application/manifest+json');
  assert.equal(result.jsonBody.name,'Next Club');assert.equal(result.jsonBody.theme_color,'#B67233');assert.equal(result.jsonBody.background_color,'#B67233');
  assert.equal(result.jsonBody.start_url,'https://next.intra.club/');assert.equal(result.jsonBody.scope,'https://next.intra.club/');
- assert.equal(result.jsonBody.icons[0].src,'https://testxsa.blob.core.windows.net/public/club_next.jpg');
+ assert.equal(result.jsonBody.icons[0].src,'https://testxsa.blob.core.windows.net/public/club_next_192.png');
+ assert.equal(result.jsonBody.icons[0].sizes,'192x192');assert.equal(result.jsonBody.icons[1].sizes,'512x512');assert.equal(result.jsonBody.icons[1].src,'https://testxsa.blob.core.windows.net/public/club_next_512.png');
  for(const origin of ['https://unknown.example','https://next.intra.club/path','http://next.intra.club','not-a-url'])
   assert.equal((await systemManifest({query:new URLSearchParams({origin})})).status,404);
 });

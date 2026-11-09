@@ -14,7 +14,10 @@ export async function systemManifest(request: HttpRequest): Promise<HttpResponse
             id: `${origin}/`, name: club.name, short_name: club.name,
             start_url: `${origin}/`, scope: `${origin}/`, display: "standalone",
             theme_color: club.background, background_color: club.background,
-            icons: [{ src: club.icon, sizes: "any", type: "image/jpeg", purpose: "any" }]
+            icons: [
+                { src: club.icon192, sizes: "192x192", type: "image/png", purpose: "any" },
+                { src: club.icon512, sizes: "512x512", type: "image/png", purpose: "any" }
+            ]
         }
     };
 }

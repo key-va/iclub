@@ -279,3 +279,13 @@ This is deliberate: the scaffold is meant to stay generic and composable for fut
 - `system/manifest?origin=<frontend origin>` returns a registered club's PWA manifest, name, colours and icon, with start URL/scope on that frontend origin. Unknown or malformed origins return 404.
 - `doClubForOrigin` is shared by the manifest endpoint and push sender. Push branding uses each subscription's stored origin, never ladder context or membership. Missing branding falls back to the current static notification icon.
 - Bootstrap source is `shared/sample-data.json`, with both directions of club-admin relations. Editing it does not restore or delete live storage data.
+
+## Club provisioning
+
+- `POST club/create` is intentionally unsigned and anonymous, per the owner's provisioning workflow. There is no Svelte creation form. Body is `{ data: { name, url, foreground, background, admin_user_id, image, ...attributes } }`. Do not add caller/device/signature requirements.
+- `image` is raw Base64 or a JPEG data URL, exactly 512x512 and at most 2 MB. Sharp validates and resizes actual image data, including EXIF orientation.
+- A new club GUID is generated. Club attributes are saved on its entity, and the existing admin user gets mirrored `{ is_admin: true }` relations. Input image/admin fields are not club attributes.
+- Public assets: original `<club_id>.jpg`, plus `<club_id>_180.png`, `<club_id>_192.png`, `<club_id>_512.png`. The manifest uses explicit 192/512 PNG entries; the Apple touch icon uses the 180 PNG.
+- Icons are uploaded before graph publication. Pre-publication failures attempt cleanup of only newly generated resources. An export failure returns 503 with `created: true` and the club ID so callers do not blindly recreate it.
+- Existing clubs created through restore/manual uploads need equivalent PNG variants; this endpoint creates new clubs and does not migrate existing records/assets. DNS, domain binding and CORS remain manual.
+- Request example and operational details: [docs/club-create.md](./docs/club-create.md).

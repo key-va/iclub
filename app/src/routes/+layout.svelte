@@ -80,7 +80,7 @@
 	<title>{$branding.name}</title>
 	<link rel="manifest" href={manifestUrl} />
 	<meta name="theme-color" content={$branding.background} />
-	<link rel="apple-touch-icon" href={$branding.clubId ? $branding.icon : '/favicons/favicon-180.png'} />
+	<link rel="apple-touch-icon" href={$branding.appleIcon} />
 	<link rel="icon" type={$branding.clubId ? 'image/jpeg' : 'image/png'} href={$branding.clubId ? $branding.icon : '/favicons/favicon-32.png'} />
 </svelte:head>
 

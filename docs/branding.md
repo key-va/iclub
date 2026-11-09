@@ -4,7 +4,7 @@ The app matches `window.location.hostname` against a club entity's `url`. Store 
 
 `background` controls the page surface, formerly blue controls and browser/install theme colour. `foreground` controls the action accent, formerly pink controls and confirmations. Both accept six-digit hex values. Intra Club uses background `#00BFFF` and foreground `#FF1493`; Next Club uses background `#B67233` and foreground `#00BFFF`.
 
-The selected club name and public `<club_id>.jpg` asset are used for generic app headings/icons, browser favicon, Apple touch icon and the install manifest. Member avatars and ladder images stay attached to their own entities. Use square JPEG club icons, ideally at least 512 by 512 pixels, for installation on mobile devices.
+The selected club name and public `<club_id>.jpg` asset are used for generic app headings/icons and the browser favicon. Apple touch icons use `<club_id>_180.png`; the manifest uses `<club_id>_192.png` and `<club_id>_512.png` with explicit sizes. Member avatars and ladder images stay attached to their own entities. The unsigned `club/create` endpoint requires a 512x512 JPEG and generates 180, 192 and 512 PNG variants. Existing manually uploaded clubs need those equivalent variant files.
 
 The manifest is served by `GET /api/system/manifest?origin=https%3A%2F%2Fnext.intra.club`. Its start URL, scope and stable app ID use that frontend origin. Only origins matching configured club hostnames receive a manifest. Existing installed app names/icons may require reinstalling or an OS/browser update cycle to refresh.
 

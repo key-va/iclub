@@ -17,7 +17,10 @@ export async function doClubForOrigin(origin: string) {
             name: String(row.name || "Intra Club"),
             foreground: colour(row.foreground, "#FF1493"),
             background: colour(row.background, "#00BFFF"),
-            icon: `https://${storage}.blob.core.windows.net/public/${row.rowKey}.jpg`
+            icon: `https://${storage}.blob.core.windows.net/public/${row.rowKey}.jpg`,
+            icon180: `https://${storage}.blob.core.windows.net/public/${row.rowKey}_180.png`,
+            icon192: `https://${storage}.blob.core.windows.net/public/${row.rowKey}_192.png`,
+            icon512: `https://${storage}.blob.core.windows.net/public/${row.rowKey}_512.png`
         };
     }
     return null;
