@@ -79,7 +79,7 @@
 <svelte:head>
 	<title>{$branding.name}</title>
 	<link rel="manifest" href={manifestUrl} />
-	<meta name="theme-color" content={$branding.foreground} />
+	<meta name="theme-color" content={$branding.background} />
 	<link rel="apple-touch-icon" href={$branding.clubId ? $branding.icon : '/favicons/favicon-180.png'} />
 	<link rel="icon" type={$branding.clubId ? 'image/jpeg' : 'image/png'} href={$branding.clubId ? $branding.icon : '/favicons/favicon-32.png'} />
 </svelte:head>
@@ -144,7 +144,7 @@
 		width: 100%;
 		min-height: 5rem;
 		display: flex;
-		background: var(--brand-foreground, #00BFFF);
+		background: var(--brand-background, #00BFFF);
 		color: #e6e6e6;
 	}
 

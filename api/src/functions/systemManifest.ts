@@ -13,7 +13,7 @@ export async function systemManifest(request: HttpRequest): Promise<HttpResponse
         jsonBody: {
             id: `${origin}/`, name: club.name, short_name: club.name,
             start_url: `${origin}/`, scope: `${origin}/`, display: "standalone",
-            theme_color: club.foreground, background_color: club.foreground,
+            theme_color: club.background, background_color: club.background,
             icons: [{ src: club.icon, sizes: "any", type: "image/jpeg", purpose: "any" }]
         }
     };

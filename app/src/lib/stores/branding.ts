@@ -9,8 +9,8 @@ export function brandingForHost(items: GuidRow[], hostname: string) {
 	return {
 		clubId: club?.rk ?? null,
 		name: club?.name || 'Intra Club',
-		foreground: colour(club?.foreground, '#00BFFF'),
-		background: colour(club?.background, '#E75480'),
+		foreground: colour(club?.foreground, '#FF1493'),
+		background: colour(club?.background, '#00BFFF'),
 		icon: club ? `${PUBLIC_URL}/${club.rk}.jpg` : '/favicons/icon-00.png'
 	};
 }

@@ -94,10 +94,10 @@ test('expired endpoints are cleared while auth survives; transient failures reta
 
 
 test('manifest selects the club for the visiting origin and keeps navigation on that origin',async()=>{
- seed('club','club_next',{name:'Next Club',url:'next.intra.club',foreground:'#E75480',background:'#B67233'});
+ seed('club','club_next',{name:'Next Club',url:'next.intra.club',foreground:'#00BFFF',background:'#B67233'});
  const result=await systemManifest({query:new URLSearchParams({origin:'https://next.intra.club'})});
  assert.equal(result.status,200);assert.equal(result.headers['Content-Type'],'application/manifest+json');
- assert.equal(result.jsonBody.name,'Next Club');assert.equal(result.jsonBody.theme_color,'#E75480');
+ assert.equal(result.jsonBody.name,'Next Club');assert.equal(result.jsonBody.theme_color,'#B67233');assert.equal(result.jsonBody.background_color,'#B67233');
  assert.equal(result.jsonBody.start_url,'https://next.intra.club/');assert.equal(result.jsonBody.scope,'https://next.intra.club/');
  assert.equal(result.jsonBody.icons[0].src,'https://testxsa.blob.core.windows.net/public/club_next.jpg');
  for(const origin of ['https://unknown.example','https://next.intra.club/path','http://next.intra.club','not-a-url'])
@@ -105,8 +105,8 @@ test('manifest selects the club for the visiting origin and keeps navigation on 
 });
 test('push uses each subscription origin brand without requiring user-club relations',async()=>{
  await userPush(request(),context);
- seed('club','club_a',{name:'Club A',url:'app.example',foreground:'#00BFFF',background:'#E75480'});
- seed('club','club_b',{name:'Club B',url:'other.example',foreground:'#E75480',background:'#B67233'});
+ seed('club','club_a',{name:'Club A',url:'app.example',foreground:'#FF1493',background:'#00BFFF'});
+ seed('club','club_b',{name:'Club B',url:'other.example',foreground:'#00BFFF',background:'#B67233'});
  seed('user_a','device_other',{origin:'https://other.example',push_endpoint:endpoint+'other',push_p256dh:subscription.keys.p256dh,push_auth:subscription.keys.auth});
  assert.equal(await doSendPush({userIds:['user_a'],heading:'Match update',content:'Updated',path:'match/match_1'},context),true);
  assert.deepEqual(sent.map(s=>s.payload.icon),['https://testxsa.blob.core.windows.net/public/club_a.jpg','https://testxsa.blob.core.windows.net/public/club_b.jpg']);

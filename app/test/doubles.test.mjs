@@ -47,11 +47,11 @@ test('challenge controls work for pair and user competitors across rank, reach a
 
 
 test('hostname selects branding without user/club relations, with safe fallback colours',()=>{
- const rows=[{pk:'club',rk:'club_c',name:'Intra Club',url:'app.intra.club',foreground:'#00BFFF',background:'#E75480'},
-  {pk:'club',rk:'club_n',name:'Next Club',url:'next.intra.club',foreground:'#E75480',background:'#B67233'}];
+ const rows=[{pk:'club',rk:'club_c',name:'Intra Club',url:'app.intra.club',foreground:'#FF1493',background:'#00BFFF'},
+  {pk:'club',rk:'club_n',name:'Next Club',url:'next.intra.club',foreground:'#00BFFF',background:'#B67233'}];
  const next=branding.brandingForHost(rows,'next.intra.club');
- assert.equal(next.name,'Next Club');assert.equal(next.foreground,'#E75480');assert.equal(next.background,'#B67233');assert.match(next.icon,/club_n\.jpg$/);
+ assert.equal(next.name,'Next Club');assert.equal(next.foreground,'#00BFFF');assert.equal(next.background,'#B67233');assert.match(next.icon,/club_n\.jpg$/);
  assert.equal(branding.brandingForHost(rows,'APP.INTRA.CLUB').name,'Intra Club');
  assert.equal(branding.brandingForHost(rows,'localhost').clubId,null);
- rows[1].foreground='url(https://bad.example)';assert.equal(branding.brandingForHost(rows,'next.intra.club').foreground,'#00BFFF');
+ rows[1].foreground='url(https://bad.example)';assert.equal(branding.brandingForHost(rows,'next.intra.club').foreground,'#FF1493');
 });

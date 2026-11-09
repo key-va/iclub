@@ -2,7 +2,7 @@
 
 The app matches `window.location.hostname` against a club entity's `url`. Store a bare, lowercase hostname, such as `next.intra.club`, without a scheme, port or path.
 
-`foreground` replaces the existing blue colour (page surface, blue controls and theme colour). `background` replaces the existing pink accent (pink controls and confirmations). Both accept six-digit hex values. These attribute names follow the supplied data; `background` does not replace the main blue page surface.
+`background` controls the page surface, formerly blue controls and browser/install theme colour. `foreground` controls the action accent, formerly pink controls and confirmations. Both accept six-digit hex values. Intra Club uses background `#00BFFF` and foreground `#FF1493`; Next Club uses background `#B67233` and foreground `#00BFFF`.
 
 The selected club name and public `<club_id>.jpg` asset are used for generic app headings/icons, browser favicon, Apple touch icon and the install manifest. Member avatars and ladder images stay attached to their own entities. Use square JPEG club icons, ideally at least 512 by 512 pixels, for installation on mobile devices.
 
