@@ -90,8 +90,7 @@
        corsRules: [
          {
            allowedOrigins: [
-             'https://app.intra.club'
-             'https://next.intra.club'
+             'https://*.intra.club'
              'http://localhost:5173'
            ]
            allowedMethods: [
@@ -205,8 +204,7 @@
 
        cors: {
          allowedOrigins: [
-           'https://app.intra.club'
-           'https://next.intra.club'
+           'https://*.intra.club'
            'https://${staticWebApp.properties.defaultHostname}'
            'http://localhost:5173'
          ]

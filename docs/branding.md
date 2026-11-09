@@ -12,4 +12,4 @@ Push continues to select all registered devices for recipient users. Each notifi
 
 `shared/sample-data.json` contains the supplied two-club bootstrap and mirrored admin relations. It is source data only: neither deployment nor these code changes call `system/restore`. Load those club records through the existing data workflow to activate branding. Icons must already be present in the deployment's public blob container.
 
-Hosting still requires DNS, a SWA custom-domain binding with HTTPS, and API/blob CORS for the frontend origin. Infrastructure now includes `next.intra.club` in its CORS origins. No DNS records or domain bindings are modified by this change.
+Hosting still requires DNS, a SWA custom-domain binding with HTTPS, and API/blob CORS for the frontend origin. Infrastructure allows `https://*.intra.club` in both API and blob CORS, so new HTTPS subdomains do not need individual CORS entries. Localhost remains allowed; the API also allows its default SWA hostname. The wildcard does not include the apex `https://intra.club` or unrelated custom domains. No DNS records or domain bindings are modified by this change.
