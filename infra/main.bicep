@@ -232,6 +232,10 @@
            value: prefix
          }
          {
+           name: 'INTRA_CLUB_BOT_KEY'
+           value: '@Microsoft.KeyVault(VaultName=${keyVault.name};SecretName=intra-club-bot-key)'
+         }
+         {
            name: 'WEB_PUSH_VAPID_KEYS'
            value: '@Microsoft.KeyVault(VaultName=${keyVault.name};SecretName=web-push-vapid-keys)'
          }

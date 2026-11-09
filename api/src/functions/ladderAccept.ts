@@ -47,8 +47,8 @@ export async function ladderAccept(request: HttpRequest, context: InvocationCont
     const { caller_id, device_id, signature, data } = body ?? {};
     const userId = data?.user_id;
 
-    if (!caller_id || !device_id || !signature) {
-        return { status: 400, jsonBody: { success: false, message: "caller_id, device_id and signature are required" } };
+    if (typeof caller_id !== "string" || !caller_id || (!device_id && !caller_id.startsWith("bot_")) || !signature) {
+        return { status: 400, jsonBody: { success: false, message: "caller_id and signature are required; user callers also require device_id" } };
     }
 
     if (typeof userId !== "string" && !Array.isArray(data?.user_ids)) {

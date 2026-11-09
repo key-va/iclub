@@ -45,8 +45,8 @@ export async function matchComplete(request: HttpRequest, context: InvocationCon
 
     const { caller_id, device_id, signature, data } = body ?? {};
 
-    if (!caller_id || !device_id || !signature) {
-        return { status: 400, jsonBody: { success: false, message: "caller_id, device_id and signature are required" } };
+    if (typeof caller_id !== "string" || !caller_id || (!device_id && !caller_id.startsWith("bot_")) || !signature) {
+        return { status: 400, jsonBody: { success: false, message: "caller_id and signature are required; user callers also require device_id" } };
     }
 
     const challengerScore = toSets(data?.challenger_score);

@@ -26,8 +26,8 @@ export async function pairRetire(request: HttpRequest, context: InvocationContex
     try { body = await request.json() as typeof body; }
     catch { return { status: 400, jsonBody: { success: false, message: "Invalid JSON payload" } }; }
     const { caller_id, device_id, signature } = body ?? {};
-    if (!caller_id || !device_id || !signature || !pairId?.startsWith("pair_")) {
-        return { status: 400, jsonBody: { success: false, message: "pair_id, caller_id, device_id and signature are required" } };
+    if (typeof caller_id !== "string" || !caller_id || (!device_id && !caller_id.startsWith("bot_")) || !signature || !pairId?.startsWith("pair_")) {
+        return { status: 400, jsonBody: { success: false, message: "pair_id, caller_id and signature are required; user callers also require device_id" } };
     }
     try {
         await doSignatureVerification({ callerId: caller_id, deviceId: device_id, url: request.url, signature }, context);

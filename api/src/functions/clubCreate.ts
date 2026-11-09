@@ -2,6 +2,7 @@ import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/fu
 import { DefaultAzureCredential } from "@azure/identity";
 import { TableClient, odata } from "@azure/data-tables";
 import sharp from "sharp";
+import { doBotVerification } from "../services/doSignatureVerification";
 import { doNewGuid } from "../services/doNewGuid";
 import { doUpsertEntity } from "../services/doUpsertEntity";
 import { doUpsertRelation } from "../services/doUpsertRelation";
@@ -14,11 +15,13 @@ const client = new TableClient(`https://${resourceName(resourceSuffix.storageAcc
 const maxImageBytes = 2 * 1024 * 1024;
 const invalid = (message: string): HttpResponseInit => ({ status: 400, jsonBody: { success: false, message } });
 
-// Intentionally unsigned: clubs are provisioned by request, without a Svelte form.
+// Bot-key authenticated provisioning; no device/ECDSA signature or Svelte form.
 export async function clubCreate(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
-    let body: { data?: Record<string, unknown> };
+    let body: { caller_id?: string; signature?: string; data?: Record<string, unknown> };
     try { body = await request.json() as typeof body; }
     catch { return invalid("Invalid JSON payload"); }
+    try { doBotVerification({ callerId: body?.caller_id, signature: body?.signature }); }
+    catch (error) { return { status: 401, jsonBody: { success: false, message: error instanceof Error ? error.message : "Unauthorised" } }; }
     if (!body?.data || typeof body.data !== "object" || Array.isArray(body.data)) return invalid("data is required");
     const { admin_user_id, image, ...attributes } = body.data;
     const { name, url, foreground, background } = attributes;
@@ -30,7 +33,7 @@ export async function clubCreate(request: HttpRequest, context: InvocationContex
     }
     if (![foreground, background].every(value => typeof value === "string" && /^#[\da-f]{6}$/i.test(value))) return invalid("foreground and background must be six-digit hex colours");
     if (typeof admin_user_id !== "string" || !admin_user_id.startsWith("user_")) return invalid("admin_user_id must identify an existing user");
-    const reserved = new Set(["pk", "rk", "partitionKey", "rowKey", "timestamp", "etag", "ts", "et", "__proto__", "constructor", "prototype"]);
+    const reserved = new Set(["pk", "rk", "partitionKey", "rowKey", "timestamp", "etag", "ts", "et", "__proto__", "constructor", "prototype", "caller_id", "device_id", "signature"]);
     for (const [key, value] of Object.entries(attributes)) {
         if (reserved.has(key) || !/^[A-Za-z_][A-Za-z0-9_]*$/.test(key)) return invalid(`Invalid club attribute: ${key}`);
         if (!["string", "number", "boolean"].includes(typeof value) || (typeof value === "number" && !Number.isFinite(value))) return invalid(`Club attribute ${key} must be a string, number or boolean`);

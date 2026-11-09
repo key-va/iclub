@@ -3,6 +3,7 @@ import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/fu
 import { DefaultAzureCredential } from "@azure/identity";
 import { TableClient } from "@azure/data-tables";
 
+import { doBotVerification } from "../services/doSignatureVerification";
 import { doGuidsToPublic } from "../services/doGuidsToPublic";
 
 import { resourceName, resourceSuffix } from "../stores/resourceNames";
@@ -22,16 +23,21 @@ export async function systemRestore(
     context: InvocationContext
 ): Promise<HttpResponseInit> {
 
-    try {
+    let body: { caller_id?: string; signature?: string; data?: unknown };
+    try { body = await request.json() as typeof body; }
+    catch { return { status: 400, jsonBody: { success: false, message: "Invalid JSON payload" } }; }
+    try { doBotVerification({ callerId: body?.caller_id, signature: body?.signature }); }
+    catch (error) { return { status: 401, jsonBody: { success: false, message: error instanceof Error ? error.message : "Unauthorised" } }; }
 
-        const rows = await request.json();
+    try {
+        const rows = body.data;
 
         if (!Array.isArray(rows)) {
             return {
                 status: 400,
                 jsonBody: {
                     success: false,
-                    message: "POST body must contain a JSON array."
+                    message: "data must contain a JSON array."
                 }
             };
         }

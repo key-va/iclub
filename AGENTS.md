@@ -282,7 +282,7 @@ This is deliberate: the scaffold is meant to stay generic and composable for fut
 
 ## Club provisioning
 
-- `POST club/create` is intentionally unsigned and anonymous, per the owner's provisioning workflow. There is no Svelte creation form. Body is `{ data: { name, url, foreground, background, admin_user_id, image, ...attributes } }`. Do not add caller/device/signature requirements.
+- `POST club/create` is bot-key authenticated. There is no Svelte creation form. Body is `{ caller_id: "bot_...", signature: "<bot key>", data: { name, url, foreground, background, admin_user_id, image, ...attributes } }`. Bots do not use ECDSA or need a device ID.
 - `image` is raw Base64 or a JPEG data URL, exactly 512x512 and at most 2 MB. Sharp validates and resizes actual image data, including EXIF orientation.
 - A new club GUID is generated. Club attributes are saved on its entity, and the existing admin user gets mirrored `{ is_admin: true }` relations. Input image/admin fields are not club attributes.
 - Public assets: original `<club_id>.jpg`, plus `<club_id>_180.png`, `<club_id>_192.png`, `<club_id>_512.png`. The manifest uses explicit 192/512 PNG entries; the Apple touch icon uses the 180 PNG.
@@ -295,3 +295,12 @@ This is deliberate: the scaffold is meant to stay generic and composable for fut
 - `ladder/create` uses a supplied `data.image` first. Otherwise it resolves the frontend `Origin` header through `doClubForOrigin` and copies that club's existing public `<club_id>.jpg` to the new `<ladder_id>.jpg`.
 - `doAssetToPublic` accepts `{ publicName }` to copy an existing blob in the same public container, in addition to local asset names and uploaded buffers. No arbitrary remote URLs are fetched.
 - Missing/unknown origins and missing club icon blobs retain the default local `icon-00.jpg` fallback. The submitted `data.club_id` relation is unchanged by image branding.
+
+## Bot access
+
+- API-only `INTRA_CLUB_BOT_KEY` references vault secret `intra-club-bot-key`. The owner creates the secret; deployment wires its reference and does not generate/read the value. The old `SYSTEM_BOT_SECRET` path is removed.
+- `doBotVerification` (exported from `doSignatureVerification.ts`) requires a `bot_...` caller ID and the exact key in `signature`. Missing/unresolved configuration and wrong keys fail closed; comparison uses fixed-length SHA-256 digests and `timingSafeEqual`. Never log request credentials.
+- `system/restore` and `club/create` require this bot authentication before validation/writes. Restore now accepts `{ caller_id, signature, data: [ ...rows ] }`; a raw unauthenticated array is no longer accepted. Bootstrap works with an empty graph because bot verification does not require a bot row to exist.
+- Existing mutation endpoints accept bot keys through `doSignatureVerification` and allow bots to omit `device_id`; endpoint-specific role/ownership rules still apply. Human callers retain device-based ECDSA authentication. `user/push` remains a real-user/device endpoint.
+- `system/about` and `system/manifest` remain public. OTP/login/signup remain public entry flows. No key is exposed to frontend configuration.
+- Examples: [docs/bot-access.md](./docs/bot-access.md).

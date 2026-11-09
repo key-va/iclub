@@ -50,8 +50,8 @@ export async function matchCreate(request: HttpRequest, context: InvocationConte
     const challengerId = data?.challenger_id;
     const defenderId = data?.defender_id;
 
-    if (!caller_id || !device_id || !signature) {
-        return { status: 400, jsonBody: { success: false, message: "caller_id, device_id and signature are required" } };
+    if (typeof caller_id !== "string" || !caller_id || (!device_id && !caller_id.startsWith("bot_")) || !signature) {
+        return { status: 400, jsonBody: { success: false, message: "caller_id and signature are required; user callers also require device_id" } };
     }
 
     if (typeof ladderId !== "string" || !ladderId.startsWith("ladder_")) {

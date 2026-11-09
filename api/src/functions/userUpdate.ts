@@ -38,8 +38,8 @@ export async function userUpdate(request: HttpRequest, context: InvocationContex
 
     const { caller_id, device_id, signature, data } = body ?? {};
 
-    if (!caller_id || !device_id || !signature) {
-        return { status: 400, jsonBody: { success: false, message: "caller_id, device_id and signature are required" } };
+    if (typeof caller_id !== "string" || !caller_id || (!device_id && !caller_id.startsWith("bot_")) || !signature) {
+        return { status: 400, jsonBody: { success: false, message: "caller_id and signature are required; user callers also require device_id" } };
     }
 
     // 1. Verify the request signature

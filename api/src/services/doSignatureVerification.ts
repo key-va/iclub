@@ -17,7 +17,7 @@ const tableClient = new TableClient(
 
 export interface SignatureVerificationInput {
     callerId: string;
-    deviceId: string;
+    deviceId?: string;
     url: string;
     signature: string;
 }
@@ -47,20 +47,15 @@ export async function doSignatureVerification(
     context?: InvocationContext
 ): Promise<void> {
 
-    // Temporary bot path
+    if (typeof input.callerId !== "string" || typeof input.signature !== "string" || !input.signature) {
+        throw new Error("Caller and signature are required");
+    }
     if (input.callerId.startsWith("bot_")) {
-
-        const botSecret = process.env.SYSTEM_BOT_SECRET;
-
-        if (!botSecret) {
-            throw new Error("SYSTEM_BOT_SECRET not configured");
-        }
-
-        if (!input.signature || input.signature !== botSecret) {
-            throw new Error("Invalid bot secret");
-        }
-
+        doBotVerification({ callerId: input.callerId, signature: input.signature });
         return;
+    }
+    if (typeof input.deviceId !== "string" || !input.deviceId) {
+        throw new Error("Device ID is required for user callers");
     }
 
     let publicKeyBase64: string | undefined;
@@ -110,4 +105,18 @@ export async function doSignatureVerification(
     if (!isValid) {
         throw new Error("Invalid signature");
     }
+}
+
+
+// Shared-key authentication for bot-only provisioning endpoints and bot callers.
+// No device registration or ECDSA operation is involved in this path.
+export function doBotVerification(input: { callerId?: unknown; signature?: unknown }): void {
+    if (typeof input.callerId !== "string" || !/^bot_[A-Za-z0-9_-]+$/.test(input.callerId) ||
+        typeof input.signature !== "string" || !input.signature) {
+        throw new Error("Valid bot caller_id and signature key are required");
+    }
+    const key = process.env.INTRA_CLUB_BOT_KEY;
+    if (!key || /^@Microsoft\.KeyVault\(/i.test(key)) throw new Error("Bot key is not configured");
+    const digest = (value: string) => crypto.createHash("sha256").update(value, "utf8").digest();
+    if (!crypto.timingSafeEqual(digest(input.signature), digest(key))) throw new Error("Invalid bot key");
 }

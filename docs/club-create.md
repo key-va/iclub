@@ -1,11 +1,13 @@
 # Create a club
 
-`POST /api/club/create` is an unsigned, anonymous provisioning endpoint. It does not require `caller_id`, `device_id` or `signature`. There is no Svelte creation form.
+`POST /api/club/create` is a bot-key authenticated provisioning endpoint. Supply a `bot_...` caller ID and the shared bot key in `signature`. No device ID or ECDSA signing is required. There is no Svelte creation form.
 
-Send JSON using the existing unsigned `data` envelope:
+Send JSON using the bot-authenticated `data` envelope:
 
 ```json
 {
+  "caller_id": "bot_0000-00-00_00-00-00_bootstrap00b",
+  "signature": "YOUR_BOT_KEY",
   "data": {
     "name": "Example Club",
     "url": "example.intra.club",
@@ -38,3 +40,5 @@ Success returns 201 with `subject` and `data.club_id`, `data.admin_user_id` and 
 Uploads precede graph publication. Upload/graph-write failures attempt to remove only new resources. Azure Table/Blob writes are not a cross-service transaction; cleanup can also fail. If public graph export alone fails, the complete club is retained and the endpoint returns 503 with `data.created: true` and the generated ID. Republish the graph rather than submitting another creation request. Concurrent requests for the same unused hostname are not serialized.
 
 Existing bootstrap clubs and manually uploaded JPEGs are not migrated by this endpoint. Before testing their updated install manifests, supply their `_180.png`, `_192.png` and `_512.png` assets too. Creating a new club automatically supplies all four files.
+
+The server reads `INTRA_CLUB_BOT_KEY` through its Key Vault reference to `intra-club-bot-key`. Anonymous calls, user callers and incorrect/missing keys return 401 before uploads or graph changes. See [bot-access.md](./bot-access.md).
