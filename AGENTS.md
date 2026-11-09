@@ -17,7 +17,7 @@ Use this guide to keep future AI-driven feature development consistent with the 
 
 Primary resources and roles:
 
-- **Azure Static Web App**: hosts the SvelteKit app
+- **Azure Static Web App (Standard)**: hosts the SvelteKit app
 - **Azure Function App**: hosts the Node API
 - **Azure Storage Account**:
   - `guids` table (public app graph data source)
@@ -71,7 +71,7 @@ Current endpoints in `api/src/functions/`:
 
 - `system/about` ([systemAbout.ts](./api/src/functions/systemAbout.ts))
   - returns entity counts from `guids`
-  - returns `WEB_PUSH_PUBLIC_KEY` when configured (never the private key)
+  - returns `version` (`261110`) for the app footer, entity counts and `WEB_PUSH_PUBLIC_KEY` when configured (never private keys)
 - `system/restore` ([systemRestore.ts](./api/src/functions/systemRestore.ts))
   - replaces `guids` table from posted array, then republishes `guids.json`
 - `user/otp` ([userOtp.ts](./api/src/functions/userOtp.ts))
@@ -304,3 +304,9 @@ This is deliberate: the scaffold is meant to stay generic and composable for fut
 - Existing mutation endpoints accept bot keys through `doSignatureVerification` and allow bots to omit `device_id`; endpoint-specific role/ownership rules still apply. Human callers retain device-based ECDSA authentication. `user/push` remains a real-user/device endpoint.
 - `system/about` and `system/manifest` remain public. OTP/login/signup remain public entry flows. No key is exposed to frontend configuration.
 - Examples: [docs/bot-access.md](./docs/bot-access.md).
+
+## Deployment plan and displayed version
+
+- SWA uses the Standard SKU in the shared infrastructure template for both branch-selected environments.
+- `system/about` owns the displayed `data.version` string, currently `261110`. The layout loads it through an unsigned `callApi` request on mount and displays that exact value in the footer. There is no build-time/hardcoded frontend version fallback.
+- The about endpoint remains public and retains the Web Push public key required for registration; legacy OneSignal App IDs are not returned.

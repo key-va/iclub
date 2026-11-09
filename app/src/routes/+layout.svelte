@@ -3,13 +3,16 @@
 	import '#lib/style.css';
 	import { onMount } from 'svelte';
 	import { goto, onNavigate } from '$app/navigation';
-	import { APP_VERSION, PUBLIC_URL, API_URL } from '#lib/config.ts';
+	import { PUBLIC_URL, API_URL } from '#lib/config.ts';
 	import { guids, nameOf, hrefOf } from '#lib/stores/guids.ts';
 	import { local } from '#lib/stores/local.ts';
 	import { startPush } from '#lib/stores/push.ts';
+	import { callApi } from '#lib/stores/remote.ts';
 	import type { LayoutProps } from './$types';
 
 	let { children }: LayoutProps = $props();
+
+	let version = $state<string | null>(null);
 
 	const appOrigin = window.location.origin;
 	const manifestUrl = $derived($branding.clubId ? `${API_URL}/system/manifest?origin=${encodeURIComponent(appOrigin)}` : '/manifest.webmanifest');
@@ -51,6 +54,10 @@
 	});
 
 	onMount(() => {
+		callApi<{ version: string }>('system/about', {}, false)
+			.then(result => { version = result.data?.version ?? null; })
+			.catch(error => console.error('[about] could not load API version', error));
+
 		const track = (e: PointerEvent) => {
 			originX = e.clientX;
 			originY = e.clientY;
@@ -107,7 +114,7 @@
 
 <div class="footer">
 	<div class="row left">
-		<p class="truncate"><strong>{$branding.name}</strong><br />{APP_VERSION}</p>
+		<p class="truncate"><strong>{$branding.name}</strong>{#if version}<br />{version}{/if}</p>
 	</div>
 </div>
 

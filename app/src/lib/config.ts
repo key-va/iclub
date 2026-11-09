@@ -13,6 +13,3 @@ export const GUIDS_URL = `${PUBLIC_URL}/guids.json`;
 
 // Function App hosting the API
 export const API_URL: string = import.meta.env.VITE_API_URL ?? `https://${PREFIX}xfa.azurewebsites.net/api`;
-
-// App version
-export const APP_VERSION = 'v.26.10.10 alpha';

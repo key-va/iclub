@@ -310,8 +310,8 @@
    location: 'eastasia'
 
    sku: {
-     name: 'Free'
-     tier: 'Free'
+     name: 'Standard'
+     tier: 'Standard'
    }
 
    properties: {}

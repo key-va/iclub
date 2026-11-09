@@ -73,7 +73,7 @@ test('restore supports an empty bootstrap database and the authenticated data en
 });
 test('about and manifest remain public and never expose the bot key',async()=>{
  seed('guids','club','club_next',{name:'Next Club',url:'next.intra.club',foreground:'#00BFFF',background:'#B67233'});
- const about=await systemAbout({},context);assert.equal(about.status,200);assert.equal(JSON.stringify(about).includes(botKey),false);
+ const about=await systemAbout({},context);assert.equal(about.status,200);assert.equal(about.jsonBody.data.version,'261110');assert.equal('ONESIGNAL_APP_ID' in about.jsonBody.data,false);assert.equal(JSON.stringify(about).includes(botKey),false);
  const manifest=await systemManifest({query:new URLSearchParams({origin:'https://next.intra.club'})});assert.equal(manifest.status,200);assert.equal(JSON.stringify(manifest).includes(botKey),false);
 });
 test('bot calls can omit device_id but still require the existing ladder-admin permission',async()=>{
