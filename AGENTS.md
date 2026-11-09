@@ -271,3 +271,11 @@ This is deliberate: the scaffold is meant to stay generic and composable for fut
 - `WEB_PUSH_VAPID_KEYS` is a JSON Key Vault secret containing `publicKey` and `privateKey`; `WEB_PUSH_SUBJECT` optionally overrides the default contact URL. Deployment runs `api/scripts/configure-web-push.cjs` to create the secret once and configure its environment-variable reference. Do not regenerate keys on ordinary deployments.
 - `service.js` displays visible notifications and handles same-origin click navigation. No OneSignal SDK or provider credentials are used.
 - See [docs/web-push.md](./docs/web-push.md) for configuration and device checks.
+
+## Hostname branding
+
+- Club entities use `url` as a hostname (no scheme/path), `foreground` for the former blue colour, and `background` for the former pink colour. Club icons are public `<club_id>.jpg` assets.
+- `app/src/lib/stores/branding.ts` selects the current hostname's club from the public graph. CSS variables theme shared controls, page headings and generic app icons. Unknown hosts retain default app branding; entity photos and graph visibility are unchanged.
+- `system/manifest?origin=<frontend origin>` returns a registered club's PWA manifest, name, colours and icon, with start URL/scope on that frontend origin. Unknown or malformed origins return 404.
+- `doClubForOrigin` is shared by the manifest endpoint and push sender. Push branding uses each subscription's stored origin, never ladder context or membership. Missing branding falls back to the current static notification icon.
+- Bootstrap source is `shared/sample-data.json`, with both directions of club-admin relations. Editing it does not restore or delete live storage data.

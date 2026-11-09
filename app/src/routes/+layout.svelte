@@ -1,14 +1,22 @@
 <script lang="ts">
+	import { branding } from '#lib/stores/branding.ts';
 	import '#lib/style.css';
 	import { onMount } from 'svelte';
 	import { goto, onNavigate } from '$app/navigation';
-	import { APP_VERSION, PUBLIC_URL } from '#lib/config.ts';
+	import { APP_VERSION, PUBLIC_URL, API_URL } from '#lib/config.ts';
 	import { guids, nameOf, hrefOf } from '#lib/stores/guids.ts';
 	import { local } from '#lib/stores/local.ts';
 	import { startPush } from '#lib/stores/push.ts';
 	import type { LayoutProps } from './$types';
 
 	let { children }: LayoutProps = $props();
+
+	const appOrigin = window.location.origin;
+	const manifestUrl = $derived($branding.clubId ? `${API_URL}/system/manifest?origin=${encodeURIComponent(appOrigin)}` : '/manifest.webmanifest');
+	$effect(() => {
+		document.documentElement.style.setProperty('--brand-foreground', $branding.foreground);
+		document.documentElement.style.setProperty('--brand-background', $branding.background);
+	});
 
 	const callerId = $derived($local.caller_id);
 	const isLoggedIn = $derived(Boolean($local.caller_id && $local.device_id));
@@ -69,13 +77,11 @@
 </script>
 
 <svelte:head>
-	<link rel="manifest" href="/manifest.webmanifest" />
-	<meta name="theme-color" content="#00bfff" />
-
-	<link rel="apple-touch-icon" sizes="180x180" href="/favicons/favicon-180.png" />
-	<link rel="icon" href="/favicons/favicon.ico" sizes="any" />
-	<link rel="icon" type="image/png" sizes="32x32" href="/favicons/favicon-32.png" />
-	<link rel="icon" type="image/png" sizes="16x16" href="/favicons/favicon-16.png" />
+	<title>{$branding.name}</title>
+	<link rel="manifest" href={manifestUrl} />
+	<meta name="theme-color" content={$branding.foreground} />
+	<link rel="apple-touch-icon" href={$branding.clubId ? $branding.icon : '/favicons/favicon-180.png'} />
+	<link rel="icon" type={$branding.clubId ? 'image/jpeg' : 'image/png'} href={$branding.clubId ? $branding.icon : '/favicons/favicon-32.png'} />
 </svelte:head>
 
 <div class="wipe-tint" aria-hidden="true"></div>
@@ -101,7 +107,7 @@
 
 <div class="footer">
 	<div class="row left">
-		<p class="truncate"><strong>Intra Club</strong><br />{APP_VERSION}</p>
+		<p class="truncate"><strong>{$branding.name}</strong><br />{APP_VERSION}</p>
 	</div>
 </div>
 
@@ -138,7 +144,7 @@
 		width: 100%;
 		min-height: 5rem;
 		display: flex;
-		background: deepskyblue;
+		background: var(--brand-foreground, #00BFFF);
 		color: #e6e6e6;
 	}
 

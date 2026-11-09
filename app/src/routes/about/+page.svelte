@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { branding } from '#lib/stores/branding.ts';
 	import InstallApp from '#lib/components/installApp.svelte';
 	import { local } from '#lib/stores/local.ts';
 
@@ -7,18 +8,18 @@
 
 <div class="page">
 	<div class="row right">
-		<p class="truncate"><strong>Intra Club</strong><br />about</p>
+		<p class="truncate"><strong>{$branding.name}</strong><br />about</p>
 		<div class="blank-icon-small"></div>
 	</div>
 
 	<div class="row center">
-		<div class="round-icon-big" style="background-image: url('/favicons/icon-00.png');"></div>
+		<div class="round-icon-big" style="background-image: url('{$branding.icon}');"></div>
 	</div>
 	<InstallApp />
 
     <div class="group">
         <div class="row center">
-            <p>Intra Club is an application designed to help you manage and participate in club activities, including ladders, events, and teams.</p>
+            <p>{$branding.name} is an application designed to help you manage and participate in club activities, including ladders, events, and teams.</p>
         </div>
     </div>
 

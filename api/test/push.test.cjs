@@ -20,8 +20,8 @@ class TableClient {
  }
  async *listEntities({queryOptions:{filter}}) {
   for(const row of [...rows.values()]) {
-   const field=filter.text.includes('PartitionKey')?'partitionKey':'push_endpoint';
-   if(row[field]===filter.values[0])yield {...row};
+   const fields=[...filter.text.matchAll(/(PartitionKey|push_endpoint|url) eq /g)].map(m=>m[1]==='PartitionKey'?'partitionKey':m[1]);
+   if(fields.every((field,i)=>row[field]===filter.values[i]))yield {...row};
   }
  }
 }
@@ -32,6 +32,7 @@ Module._load=function(id){
  if(id==='@azure/functions')return {app:{http(){}}};
  return original.apply(this,arguments);
 };
+const {systemManifest}=require('../dist/src/functions/systemManifest');
 const {userPush}=require('../dist/src/functions/userPush');
 const {doSendPush}=require('../dist/src/services/doSendPush');
 const {buildSignedMessage}=require('../dist/src/services/doSignatureVerification');
@@ -89,4 +90,26 @@ test('expired endpoints are cleared while auth survives; transient failures reta
  assert.equal(await doSendPush(message,context),false);assert.equal(rows.get('user_a|device_a').push_endpoint,endpoint);
  mockSend=async()=>{throw {statusCode:410};};
  assert.equal(await doSendPush(message,context),false);assert.equal(rows.get('user_a|device_a').push_endpoint,'');assert.ok(rows.get('user_a|device_a').key);
+});
+
+
+test('manifest selects the club for the visiting origin and keeps navigation on that origin',async()=>{
+ seed('club','club_next',{name:'Next Club',url:'next.intra.club',foreground:'#E75480',background:'#B67233'});
+ const result=await systemManifest({query:new URLSearchParams({origin:'https://next.intra.club'})});
+ assert.equal(result.status,200);assert.equal(result.headers['Content-Type'],'application/manifest+json');
+ assert.equal(result.jsonBody.name,'Next Club');assert.equal(result.jsonBody.theme_color,'#E75480');
+ assert.equal(result.jsonBody.start_url,'https://next.intra.club/');assert.equal(result.jsonBody.scope,'https://next.intra.club/');
+ assert.equal(result.jsonBody.icons[0].src,'https://testxsa.blob.core.windows.net/public/club_next.jpg');
+ for(const origin of ['https://unknown.example','https://next.intra.club/path','http://next.intra.club','not-a-url'])
+  assert.equal((await systemManifest({query:new URLSearchParams({origin})})).status,404);
+});
+test('push uses each subscription origin brand without requiring user-club relations',async()=>{
+ await userPush(request(),context);
+ seed('club','club_a',{name:'Club A',url:'app.example',foreground:'#00BFFF',background:'#E75480'});
+ seed('club','club_b',{name:'Club B',url:'other.example',foreground:'#E75480',background:'#B67233'});
+ seed('user_a','device_other',{origin:'https://other.example',push_endpoint:endpoint+'other',push_p256dh:subscription.keys.p256dh,push_auth:subscription.keys.auth});
+ assert.equal(await doSendPush({userIds:['user_a'],heading:'Match update',content:'Updated',path:'match/match_1'},context),true);
+ assert.deepEqual(sent.map(s=>s.payload.icon),['https://testxsa.blob.core.windows.net/public/club_a.jpg','https://testxsa.blob.core.windows.net/public/club_b.jpg']);
+ assert.deepEqual(sent.map(s=>s.payload.badge),sent.map(s=>s.payload.icon));
+ assert.deepEqual(sent.map(s=>new URL(s.payload.url).origin),['https://app.example','https://other.example']);
 });

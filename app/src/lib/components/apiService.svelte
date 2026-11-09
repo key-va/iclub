@@ -208,7 +208,7 @@
 		inset: 0;
 		width: 100vw;
 		height: 100vh;
-		background: deeppink;
+		background: var(--brand-background, #E75480);
 		color: white;
 		z-index: 10;
 		overflow: hidden;

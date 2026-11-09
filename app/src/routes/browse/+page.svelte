@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { branding } from '#lib/stores/branding.ts';
 	import InstallApp from '#lib/components/installApp.svelte';
 	import { local } from '#lib/stores/local.ts';
 	import { entities, hrefOf, imageOf } from '#lib/stores/guids.ts';
@@ -22,12 +23,12 @@
 
 <div class="page">
 	<div class="row right">
-		<p class="truncate"><strong>Intra Club</strong><br />browse</p>
+		<p class="truncate"><strong>{$branding.name}</strong><br />browse</p>
 		<div class="blank-icon-small"></div>
 	</div>
 
 	<div class="row center">
-		<div class="round-icon-big" style="background-image: url('/favicons/icon-00.png');"></div>
+		<div class="round-icon-big" style="background-image: url('{$branding.icon}');"></div>
 	</div>
 	<InstallApp />
 

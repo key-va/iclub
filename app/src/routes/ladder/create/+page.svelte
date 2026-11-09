@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { branding } from '#lib/stores/branding.ts';
 	import InstallApp from '#lib/components/installApp.svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
@@ -86,7 +87,7 @@
 	<div class="row center">
 		<div
 			class="round-icon-big"
-			style="background-image: url('{image || '/favicons/icon-00.png'}');"
+			style="background-image: url('{image || $branding.icon}');"
 		></div>
 	</div>
 	<InstallApp />

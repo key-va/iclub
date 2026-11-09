@@ -2,9 +2,10 @@ import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer } from 'vite';
 process.env.VITE_PREFIX = 'iclub-test';
-let server, summary, challenge;
+let server, summary, challenge, branding;
 before(async () => {
     server = await createServer({server:{middlewareMode:true,hmr:false,ws:false,watch:null},logLevel:'error',optimizeDeps:{noDiscovery:true}});
+    branding = await server.ssrLoadModule('/src/lib/stores/branding.ts');
     summary = await server.ssrLoadModule('/src/lib/matchSummary.ts');
     challenge = await server.ssrLoadModule('/src/lib/challenge.ts');
 });
@@ -42,4 +43,15 @@ test('challenge controls work for pair and user competitors across rank, reach a
         assert.equal(challenge.canChallenge({ladder_system:'win_points'},{...me,state:'busy'},`${prefix}_me`,target),false);
         assert.equal(challenge.canChallenge({ladder_system:'win_points'},me,target.rk,target),false);
     }
+});
+
+
+test('hostname selects branding without user/club relations, with safe fallback colours',()=>{
+ const rows=[{pk:'club',rk:'club_c',name:'Intra Club',url:'app.intra.club',foreground:'#00BFFF',background:'#E75480'},
+  {pk:'club',rk:'club_n',name:'Next Club',url:'next.intra.club',foreground:'#E75480',background:'#B67233'}];
+ const next=branding.brandingForHost(rows,'next.intra.club');
+ assert.equal(next.name,'Next Club');assert.equal(next.foreground,'#E75480');assert.equal(next.background,'#B67233');assert.match(next.icon,/club_n\.jpg$/);
+ assert.equal(branding.brandingForHost(rows,'APP.INTRA.CLUB').name,'Intra Club');
+ assert.equal(branding.brandingForHost(rows,'localhost').clubId,null);
+ rows[1].foreground='url(https://bad.example)';assert.equal(branding.brandingForHost(rows,'next.intra.club').foreground,'#00BFFF');
 });

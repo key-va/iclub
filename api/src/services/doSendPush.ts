@@ -2,6 +2,7 @@ import { InvocationContext } from "@azure/functions";
 import { DefaultAzureCredential } from "@azure/identity";
 import { TableClient, odata } from "@azure/data-tables";
 import webpush from "web-push";
+import { doClubForOrigin } from "./doClubForOrigin";
 import { doWebPushConfig, isPushEndpoint } from "./doWebPushConfig";
 import { resourceName, resourceSuffix } from "../stores/resourceNames";
 
@@ -22,6 +23,7 @@ export async function doSendPush(message: PushMessage, context?: InvocationConte
         const vapidDetails = doWebPushConfig();
         if (!vapidDetails) { context?.warn("WEB_PUSH_VAPID_KEYS is not configured; push not sent."); return false; }
         const seen = new Set<string>();
+        const brands = new Map<string, Awaited<ReturnType<typeof doClubForOrigin>>>();
         let accepted = false;
         for (const userId of new Set(message.userIds.filter(id => id !== message.exceptUserId))) {
             for await (const row of client.listEntities({ queryOptions: { filter: odata`PartitionKey eq ${userId}` } })) {
@@ -33,10 +35,12 @@ export async function doSendPush(message: PushMessage, context?: InvocationConte
                     // Always open the app origin where this device subscribed.
                     const url = new URL(`/${message.path.replace(/^\/+/, "")}`, origin);
                     if (url.origin !== origin || !/^https?:$/.test(url.protocol)) continue;
+                    if (!brands.has(origin)) brands.set(origin, await doClubForOrigin(origin).catch(() => null));
+                    const brand = brands.get(origin);
                     await webpush.sendNotification({ endpoint, keys: { p256dh: String(row.push_p256dh), auth: String(row.push_auth) } }, JSON.stringify({
                         title: message.heading, body: message.content, url: url.href,
-                        icon: new URL("/favicons/favicon-192.png", origin).href,
-                        badge: new URL("/favicons/favicon-android.png", origin).href,
+                        icon: brand?.icon ?? new URL("/favicons/favicon-192.png", origin).href,
+                        badge: brand?.icon ?? new URL("/favicons/favicon-android.png", origin).href,
                         tag: message.collapseId
                     }), { vapidDetails, TTL: 86400, timeout: 10000 });
                     accepted = true;
