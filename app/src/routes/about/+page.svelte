@@ -8,7 +8,7 @@
 
 <div class="page">
 	<div class="row right">
-		<p class="truncate"><strong>Intra Club</strong><br />about</p>
+		<p class="truncate"><strong>{$branding.name}</strong><br />about</p>
 		<div class="blank-icon-small"></div>
 	</div>
 
@@ -18,6 +18,9 @@
 	<InstallApp />
 
     <div class="group">
+	<div class="row center">
+            <p class="info"><strong>{$branding.name}</strong></p>
+        </div>
         <div class="row center">
             <p class="info">Intra Club helps you manage and participate in ladders, events, and teams.</p>
         </div>
