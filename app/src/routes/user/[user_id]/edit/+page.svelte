@@ -142,29 +142,26 @@
 
 			{#if showHelp}
 				<div class="row left">
-					<p class="info">Enter your name in the format First Last. eg: John Doe</p>
-				</div>
-				<div class="row left">
 					<p class="info">Updates to your profile image may take some time to show</p>
 				</div>
 			{/if}
 
 			<div class="row right">
-				<input type="email" inputmode="email" placeholder="new email" autocomplete="off" autocapitalize="none" bind:value={email} />
+				<input type="email" inputmode="email" placeholder="email@example.com" autocomplete="off" autocapitalize="none" bind:value={email} />
 			</div>
 			{#if emailError}
 				<div class="row right"><p class="error">enter a valid email address</p></div>
 			{/if}
 
 			<div class="row right">
-				<input type="tel" inputmode="numeric" pattern="[0-9]*" placeholder="new phone (61XXXXXXXXX)" autocomplete="off" bind:value={phone} />
+				<input type="tel" inputmode="numeric" pattern="[0-9]*" placeholder="61XXXXXXXXX" autocomplete="off" bind:value={phone} />
 			</div>
 			{#if phoneError}
 				<div class="row right"><p class="error">phone must be 8 to 15 digits including country code</p></div>
 			{/if}
 			{#if showHelp}
 				<div class="row left">
-					<p class="info">Your email and phone number is not shown here, but entering them will update the information on file</p>
+					<p class="info">Your email and phone number are never shown in the app, they are used only for login and account validation. Entering them here will update the information on file.</p>
 				</div>
 			{/if}
 		</div>

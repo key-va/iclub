@@ -54,11 +54,11 @@ svg {
 }
 
 .pink {
-    background: var(--brand-foreground, #FF1493); color: white;
+    background: var(--brand-foreground, #FF1493); color: var(--brand-foreground-text, white);
 }
 
 .blue {
-    background: var(--brand-background, #00BFFF); color: white;
+    background: var(--brand-background, #00BFFF); color: var(--brand-background-text, white);
 }
 
 .grey {

@@ -275,14 +275,14 @@ This is deliberate: the scaffold is meant to stay generic and composable for fut
 ## Hostname branding
 
 - Club entities use `url` as a hostname (no scheme/path), `background` for the page/former blue colour, and `foreground` for the action/former pink colour. Club icons are public `<club_id>.jpg` assets.
-- `app/src/lib/stores/branding.ts` selects the current hostname's club from the public graph. CSS variables theme shared controls, page headings and generic app icons. Unknown hosts retain default app branding; entity photos and graph visibility are unchanged.
+- `app/src/lib/stores/branding.ts` selects the current hostname's club from the public graph. CSS variables theme shared controls, page headings and generic app icons. Club `background_text` and `foreground_text` optionally set text colors on `.blue` and `.pink` controls; both default to white. Unknown hosts retain default app branding; entity photos and graph visibility are unchanged.
 - `system/manifest?origin=<frontend origin>` returns a registered club's PWA manifest, name, colours and icon, with start URL/scope on that frontend origin. Unknown or malformed origins return 404.
 - `doClubForOrigin` is shared by the manifest endpoint and push sender. Push branding uses each subscription's stored origin, never ladder context or membership. Missing branding falls back to the current static notification icon.
 - Bootstrap source is `shared/sample-data.json`, with both directions of club-admin relations. Editing it does not restore or delete live storage data.
 
 ## Club provisioning
 
-- `POST club/create` is bot-key authenticated. There is no Svelte creation form. Body is `{ caller_id: "bot_...", signature: "<bot key>", data: { name, url, foreground, background, admin_user_id, image, ...attributes } }`. Bots do not use ECDSA or need a device ID.
+- `POST club/create` is bot-key authenticated. There is no Svelte creation form. Body is `{ caller_id: "bot_...", signature: "<bot key>", data: { name, url, foreground, background, foreground_text?, background_text?, admin_user_id, image, ...attributes } }`. The optional text-color attributes are six-digit hex values. Bots do not use ECDSA or need a device ID.
 - `image` is raw Base64 or a JPEG data URL, exactly 512x512 and at most 2 MB. Sharp validates and resizes actual image data, including EXIF orientation.
 - A new club GUID is generated. Club attributes are saved on its entity, and the existing admin user gets mirrored `{ is_admin: true }` relations. Input image/admin fields are not club attributes.
 - Public assets: original `<club_id>.jpg`, plus `<club_id>_180.png`, `<club_id>_192.png`, `<club_id>_512.png`. The manifest uses explicit 192/512 PNG entries; the Apple touch icon uses the 180 PNG.

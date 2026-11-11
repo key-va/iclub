@@ -13,6 +13,8 @@ Send JSON using the bot-authenticated `data` envelope:
     "url": "example.intra.club",
     "background": "#B67233",
     "foreground": "#00BFFF",
+    "background_text": "#FFFFFF",
+    "foreground_text": "#111111",
     "street": "6/9 Dickens Street",
     "suburb": "Elwood",
     "postcode": "3184",
@@ -24,7 +26,7 @@ Send JSON using the bot-authenticated `data` envelope:
 
 Replace `BASE64_JPEG_DATA` with the unwrapped Base64 content of a valid, complete 512x512 JPEG. A `data:image/jpeg;base64,...` value is also accepted. Maximum decoded size is 2 MB. Other dimensions and image formats are rejected. EXIF orientation is applied to generated PNGs; the original JPEG is preserved.
 
-`name`, hostname `url`, six-digit hex `foreground` and `background`, `admin_user_id` and `image` are required. The admin must already exist as a `user` entity. Extra club attributes may be strings, numbers or booleans; storage metadata/keys and nested values are rejected. Hostnames are trimmed and lowercased and cannot include a scheme, path or port. An existing hostname returns 409 without creating another club.
+`name`, hostname `url`, six-digit hex `foreground` and `background`, `admin_user_id` and `image` are required. Optional `foreground_text` and `background_text` are six-digit hex colors used for text on pink and blue controls, respectively; the app defaults them to white when absent or invalid. The admin must already exist as a `user` entity. Extra club attributes may be strings, numbers or booleans; storage metadata/keys and nested values are rejected. Hostnames are trimmed and lowercased and cannot include a scheme, path or port. An existing hostname returns 409 without creating another club.
 
 The endpoint generates a club GUID and saves all club attributes, excluding `image` and `admin_user_id`, on the new `club` entity. It creates both admin relation rows with `is_admin: true`, uploads these assets to the public container, then republishes `guids.json`:
 

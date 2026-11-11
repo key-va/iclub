@@ -19,6 +19,8 @@
 	$effect(() => {
 		document.documentElement.style.setProperty('--brand-foreground', $branding.foreground);
 		document.documentElement.style.setProperty('--brand-background', $branding.background);
+		document.documentElement.style.setProperty('--brand-foreground-text', $branding.foregroundText);
+		document.documentElement.style.setProperty('--brand-background-text', $branding.backgroundText);
 	});
 
 	const callerId = $derived($local.caller_id);
