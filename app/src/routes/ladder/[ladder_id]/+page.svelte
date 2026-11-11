@@ -3,7 +3,7 @@
 	import { page } from '$app/state';
 	import { PUBLIC_URL } from '#lib/config.ts';
 	import { local } from '#lib/stores/local.ts';
-	import { guids, entityOf, relatedEntities, relationsOf, hrefOf, imageOf } from '#lib/stores/guids.ts';
+	import { guids, nameOf, entityOf, relatedEntities, relationsOf, hrefOf, imageOf } from '#lib/stores/guids.ts';
 	import { ladderSettings } from '#lib/strings.ts';
 	import { canChallenge as sharedCanChallenge, type ChallengeTarget } from '#lib/challenge.ts';
 	import { matchSummary, pastMatches } from '#lib/matchSummary.ts';
@@ -99,11 +99,11 @@
 
 		{#if ladder.state === 'pending'}
 			<div class="group">
-				<HiddenOptions inline title="Pending" description="waiting approval">
+				<HiddenOptions inline title="Pending" description="pending approval">
 					<ApiService
 						inline
 						name="accept"
-						message={`accept the ladder ${ladder.name} and make it active?`}
+						message={`approve the ladder ${ladder.name} to make it active?`}
 						endpoint={`ladder/${ladderId}/activate`}
 						disabled={!isClubAdmin}
 					/>
@@ -111,8 +111,10 @@
 			</div>
 		{/if}
 
+		<div class="group">
+
 		{#if isLadderAdmin && pending.length > 0}
-			<div class="group">
+			
 				{#each pending as player (player.rk)}
 					<RouteLink href={hrefOf(player.rk)} title={player.name ?? 'no name'} description="waiting to join" image={imageOf(player.rk)}>
 						{#if ladder.format === 'doubles'}
@@ -126,17 +128,30 @@
 						{/if}
 					</RouteLink>
 				{/each}
-			</div>
+			
 		{/if}
+
+		</div>
 
 		<div class="group">
 
-		<HiddenOptions title="Leaderboard" badge={leaderboard.length}>
-		</HiddenOptions>
+		{#if isPending}
+            <RouteLink title={nameOf($guids.items, caller_id ?? '')} description="waiting to join" href={hrefOf(caller_id ?? '')} image={imageOf(caller_id ?? '')} />
+        {/if}
+
+		{#if yourMatches.length > 0}
+			{#each yourMatches as match (match.rk)}
+				<RouteLink href={hrefOf(match.rk)} title={match.name ?? 'Match'} description={String(match.state) + ' match'} />
+			{/each}
+        {/if}
+
 		{#if ladder.state === 'active' && myRelation?.is_participant !== true && !isPending}
 				<ApiService name="join" message={`join the ladder ${ladder.name}?`} endpoint={`ladder/${ladderId}/join`} disabled={!caller_id} />
 		{/if}
 
+		<HiddenOptions title="Leaderboard" badge={leaderboard.length}>
+		</HiddenOptions>
+		
 		{#each leaderboard as player (player.rk)}
 			<RouteLink
 				href={hrefOf(player.rk)}
@@ -158,18 +173,7 @@
 			</RouteLink>
 		{/each}
 		</div>
-
-        {#if yourMatches.length > 0}
-            <div class="group">
-                <HiddenOptions title="Your matches" badge={yourMatches.length} />
-                {#each yourMatches as match (match.rk)}
-                    <RouteLink href={hrefOf(match.rk)} title={match.name ?? 'Match'} description={String(match.state)} />
-                {/each}
-            </div>
-        {/if}
-        {#if isPending}
-            <HiddenOptions title="Waiting to join" description={ladder.format === 'doubles' ? 'An admin will pair you with another pending player' : 'Waiting for admin approval'} />
-        {/if}
+        
         <HiddenOptions title="Match History">
 			{#each history as match (match.rk)}
 				<RouteLink href={hrefOf(match.rk)} title={match.name ?? 'no name'} description={matchSummary($guids.items, match.rk)} />

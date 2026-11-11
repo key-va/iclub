@@ -114,7 +114,7 @@
 
 <div class="footer">
 	<div class="row left">
-		<p class="truncate"><strong>{$branding.name}</strong>{#if version}<br />{version}{/if}</p>
+		<p class="truncate"><strong>Intra Club</strong>{#if version}<br />v{version}{/if}</p>
 	</div>
 </div>
 

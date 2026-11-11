@@ -33,6 +33,8 @@
 		fast_four: ['set 1', 'set 2', 'set 3']
 	};
 	const labels = $derived(setLabels[String(ladder?.match_format ?? 'super_set')] ?? setLabels.super_set);
+	const maxGamesByFormat: Record<string, number> = { super_set: 8, best_of_three: 7, fast_four: 4 };
+	const maxGames = $derived(maxGamesByFormat[String(ladder?.match_format ?? 'super_set')] ?? 8);
 	const formatRules = $derived.by(() => {
 		const format = String(ladder?.match_format ?? ladderSettings.match_format.default);
 		const setting = ladderSettings.match_format;
@@ -63,12 +65,17 @@
 	let showHelp = $state(false);
 
 	// A set counts once either side has a score; unplayed trailing sets stay empty
-	const isGames = (text: string) => /^\d{1,2}$/.test(text.trim());
+	const isGames = (text: string) => /^\d+$/.test(text.trim()) && Number(text) <= maxGames;
 	const playedRows = $derived(
 		labels.map((_, i) => i).filter((i) => challengerScores[i].trim() !== '' || defenderScores[i].trim() !== '')
 	);
 	const challengerSets = $derived(playedRows.map((i) => Number(challengerScores[i])));
 	const defenderSets = $derived(playedRows.map((i) => Number(defenderScores[i])));
+	const hasInvalidScores = $derived(
+		labels.some((_, i) =>
+			[challengerScores[i], defenderScores[i]].some((score) => score.trim() !== '' && !isGames(score))
+		)
+	);
 	const scoreValid = $derived(
 		playedRows.length > 0 &&
 			playedRows.every((row, index) => row === index && isGames(challengerScores[row]) && isGames(defenderScores[row]))
@@ -136,11 +143,14 @@
 				{#if match.state === 'active'}
 					{#each labels as label, i (label)}
 						<div class="row scores">
-							<input type="text" inputmode="numeric" maxlength="2" placeholder="0" aria-label="{challenger.name} {label}" bind:value={challengerScores[i]} />
+							<input type="text" inputmode="numeric" maxlength="1" pattern={`[0-${maxGames}]`} title={`from 0 to ${maxGames}`} placeholder="0" aria-label="{challenger.name} {label}" aria-invalid={challengerScores[i].trim() !== '' && !isGames(challengerScores[i])} bind:value={challengerScores[i]} />
 							<span class="set-label">{label}</span>
-							<input type="text" inputmode="numeric" maxlength="2" placeholder="0" aria-label="{defender.name} {label}" bind:value={defenderScores[i]} />
+							<input type="text" inputmode="numeric" maxlength="1" pattern={`[0-${maxGames}]`} title={`from 0 to ${maxGames}`} placeholder="0" aria-label="{defender.name} {label}" aria-invalid={defenderScores[i].trim() !== '' && !isGames(defenderScores[i])} bind:value={defenderScores[i]} />
 						</div>
 					{/each}
+					{#if hasInvalidScores}
+						<div class="row left help"><p class="error">Scores must be a number from 0 to {maxGames}.</p></div>
+					{/if}
 					{#if showHelp}
 						<div class="row left help">
 							<p>Match score: enter the games won by each player in each set played, with a tiebreak counting as a single game. Leave unplayed sets empty.</p>
@@ -151,20 +161,19 @@
 					{/if}
 				{/if}
 				{#if match.state === 'pending'}
-					<div class="center">
-						<p>waiting for {defender.name} to accept</p>
+					<div class="row center">
+						<p class="info">waiting for <strong>{defender.name}</strong> to accept</p>
 					</div>
 				{/if}
+				{#if match.state === 'pending' && canAccept}
+					<ApiService
+						name="accept"
+						message={`accept the challenge from ${challenger?.name ?? 'your opponent'}?`}
+						endpoint={`match/${matchId}/accept`}
+						disabled={!canAccept}
+					/>
+				{/if}
 			</div>
-		{/if}
-
-		{#if match.state === 'pending' && canAccept}
-			<ApiService
-				name="accept"
-				message={`accept the challenge from ${challenger?.name ?? 'your opponent'}?`}
-				endpoint={`match/${matchId}/accept`}
-				disabled={!canAccept}
-			/>
 		{/if}
 
 		{#if match.state === 'active'}

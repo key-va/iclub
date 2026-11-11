@@ -15,6 +15,14 @@
 
 	const user_id = $derived(page.params.user_id ?? '');
 	const user_entity = $derived(entityOf($guids.items, user_id));
+	const adminClubs = $derived(
+		relatedEntities($guids.items, user_id, 'club').filter((club) => club.relation.is_admin === true)
+	);
+	const pendingApprovalLadders = $derived(
+		adminClubs.flatMap((club) =>
+			relatedEntities($guids.items, club.rk, 'ladder').filter((ladder) => ladder.state === 'pending')
+		)
+	);
 
 	// Ladders this user is associated with, carrying their rank (if any) from the relation
 	const ladders = $derived(
@@ -45,6 +53,7 @@
 		const state = String(ladder.relation?.state);
 		if (state === 'active') return 'available';
 		if (state === 'busy') return 'in a match';
+		if (state === 'undefined') return 'pending';
 		return state;
 	}
 
@@ -57,6 +66,9 @@
 			relation: ladder.relation
 		});
 	}
+
+	// Whether the caller is an admin of the ladder
+	const isLadderAdmin = (ladderId: string) => relatedEntities($guids.items, ladderId, 'user').some((user) => user.rk === caller_id && user.relation?.is_admin === true);
 </script>
 
 <div class="page">
@@ -70,7 +82,21 @@
 			<div class="round-icon-big" style="background-image: url('{PUBLIC_URL}/{user_entity.rk}.jpg');"></div>
 		</div>
 		<InstallApp />
-		
+
+		{#if user_id === caller_id && adminClubs.length > 0}
+			<div class="group">
+				{#each pendingApprovalLadders as ladder (ladder.rk)}
+					<RouteLink
+						href={hrefOf(ladder.rk)}
+						title={ladder.name ?? 'no name'}
+						description="pending approval"
+						isWhite={false}
+						image={imageOf(ladder.rk)}
+					/>
+				{/each}
+			</div>
+		{/if}
+
 		{#each ladders as ladder (ladder.rk)}
 			<div class="group">
 				<RouteLink
@@ -88,17 +114,26 @@
 					<RouteLink
 						href={hrefOf(match.rk)}
 						title={match.name ?? 'no name'}
-						description={String(match.state)}
+						description={String(match.state) + ' match'}
 						isWhite={false}
 					/>
 				{:else}
-					{#if user_id !== caller_id && ladder.format !== 'doubles'}
+					{#if user_id !== caller_id && ladder.format !== 'doubles' && canChallenge(ladder, ladder.rk)}
 						<ApiService
 							name="challenge"
 							message={`challenge ${user_entity.name ?? 'this player'}?`}
 							endpoint="match/create"
 							data={{ ladder_id: ladder.rk, challenger_id: caller_id, defender_id: user_id }}
 							disabled={!canChallenge(ladder, ladder.rk)}
+						/>
+					{/if}
+					{#if stateText(ladder) === 'pending' && isLadderAdmin(ladder.rk)}
+						<ApiService
+							name="accept"
+							message={`accept ${user_entity.name ?? 'this player'} into this ladder?`}
+							endpoint={`ladder/${ladder.rk}/accept`} 
+							data={{ user_id: user_id }}
+							disabled={!isLadderAdmin(ladder.rk)}
 						/>
 					{/if}
 				{/each}
@@ -109,7 +144,7 @@
 				<RouteLink
 					href="/browse"
 					title="No Ladders"
-					description="browse and join a ladder"
+					description="find and join a ladder"
 				/>
 			</div>
 		{:else}

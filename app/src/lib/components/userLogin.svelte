@@ -11,6 +11,8 @@
 	let phone = $state('');
 	let otp = $state('');
 	let name = $state('');
+	let fname = $state('');
+	let lname = $state('');
 	let publicKey = $state('');
 	let privateKey = $state('');
 	let isLoading = $state(false);
@@ -80,13 +82,10 @@
 	{#if step === 'create'}
 	<div class="group">
 		<div class="row right">
-			<input type="text" placeholder="First Last" autocomplete="name" bind:value={name} />
-		</div>
-		<div class="row left">
-			<p class="info">Enter your name in the format First Last. eg: John Doe</p>
+			<input type="text" placeholder="First" bind:value={fname} />
 		</div>
 		<div class="row right">
-			<input type="text" inputmode="numeric" pattern="[0-9]*" placeholder="61XXXXXXXXX" autocomplete="tel" bind:value={phone} />
+			<input type="text" placeholder="Last" bind:value={lname} />
 		</div>
 	</div>
 
@@ -95,8 +94,8 @@
 			message="are you sure you want to create an account?"
 			endpoint="user/create"
 			signed={false}
-			disabled={!name.trim()}
-			data={{ name: name.trim(), email: email.trim(), phone: phone.trim() || undefined, key: publicKey }}
+			disabled={!fname.trim() || !lname.trim()}
+			data={{ name: `${fname.trim()} ${lname.trim()}`, email: email.trim(), phone: phone.trim() || undefined, key: publicKey }}
 			onsuccess={onAuthenticated}
 		/>
 	{:else if step === 'otp'}

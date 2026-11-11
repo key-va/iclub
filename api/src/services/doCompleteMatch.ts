@@ -98,6 +98,18 @@ export async function doCompleteMatch(input: CompleteMatchInput, context: Invoca
 
     if (!ladder) return { ok: false, status: 404, message: "Ladder not found" };
 
+    const maxGames = ladder.match_format === "fast_four" ? 4 :
+        ladder.match_format === "best_of_three" ? 7 : 8;
+    const scores = [...(challengerScore ?? []), ...(defenderScore ?? [])];
+
+    if (scores.some(games => !Number.isInteger(games) || games < 0 || games > maxGames)) {
+        return {
+            ok: false,
+            status: 400,
+            message: `Each score must be a whole number from 0 to ${maxGames} for this match format`
+        };
+    }
+
     if (forfeiterId && forfeiterId !== challengerId && forfeiterId !== defenderId) {
         return { ok: false, status: 400, message: "Forfeiter must be a match competitor" };
     }

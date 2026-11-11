@@ -62,7 +62,7 @@
 		<RouteLink
 			href={`/ladder/create?name=${encodeURIComponent(filter.trim())}`}
 			title="New Ladder"
-			description={`create a ladder named ${filter.trim()}`}
+			description={`create a new ladder ${filter.trim()}`}
 			isWhite={false}
 		/>
 	{/if}    

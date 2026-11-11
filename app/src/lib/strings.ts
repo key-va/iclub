@@ -42,7 +42,7 @@ export const ladderSettings: Record<string, LadderSetting> = {
 	'cool_period': {
 		type: 'number',
 		label: 'cool period',
-		default: 2,
+		default: 3,
 		description: 'days a player has to accept a challenge and must wait after a loss before issuing another challenge.',
 		min: 1,
 		max: 9
