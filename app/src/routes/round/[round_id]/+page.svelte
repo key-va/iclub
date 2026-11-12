@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
+	import { roundView } from '#lib/rounds.ts';
 	import { local } from '#lib/stores/local.ts';
 	import {
 		guids,
@@ -14,24 +15,24 @@
 	import RoundRoleDot from '#lib/components/roundRoleDot.svelte';
 	import InstallApp from '#lib/components/installApp.svelte';
 	const id = $derived(page.params.round_id ?? '');
-	const round = $derived(entityOf($guids.items, id));
+	const roundEntity = $derived(entityOf($guids.items, id));
+	const round = $derived(roundEntity ? roundView(roundEntity) : undefined);
 	const team = $derived(relatedEntities($guids.items, id, 'team')[0]);
-	const complete = $derived(round?.status === 'completed');
+	const complete = $derived(round?.state === 'complete');
 	const fixtureName = $derived(`${round?.opponent} vs ${team?.name}`);
 	const result = $derived.by(() => {
 		if (!round || !team) return { name: '', outcome: '', scores: '' };
-		const hasPoints =
-			typeof round.points_for === 'number' &&
-			typeof round.points_against === 'number';
-		const opponentWon =
-			hasPoints && Number(round.points_against) > Number(round.points_for);
+		if (round.result === 'bye' || round.result === 'washout')
+			return { name: team.name, outcome: round.result, scores: '' };
+		const opponentWon = round.result === 'loser';
 		return {
 			name: opponentWon ? String(round.opponent) : team.name,
-			outcome: hasPoints
-				? round.points_for === round.points_against
+			outcome:
+				round.result === 'draw'
 					? 'draws'
-					: 'wins'
-				: 'result',
+					: ['winner', 'loser'].includes(String(round.result))
+						? 'wins'
+						: 'result',
 			scores: ['points', 'sets', 'games']
 				.filter(
 					(key) =>
@@ -83,35 +84,35 @@
 			<p class="info center"><strong>{fixtureName}</strong></p>
 			{#if complete}
 				<p class="info center">
-					{result.name}<br/>
-					{result.outcome} {result.scores}
+					{result.name}<br />
+					{result.outcome}
+					{result.scores}
 				</p>
 			{:else}
 				<p class="info center">
 					{round.date}{round.venue ? ` at ${round.venue}` : ''}
 				</p>
 			{/if}
-			
 		</div>
 		{#if !complete && mine}
-				<HiddenOptions
-					inline
-					title="More Options"
-					description={`you are ${mine.relation.role}`}
-				>
-					{#each ['unavailable', 'available'] as role}
-						<ApiService
-							inline
-							name={role}
-							message={`Mark yourself ${role}?`}
-							endpoint="round/role"
-							data={{ round_id: id, role }}
-							disabled={mine.relation.role === role}
-							confirm={false}
-						/>
-					{/each}
-				</HiddenOptions>
-			{/if}
+			<HiddenOptions
+				inline
+				title="More Options"
+				description={`you are ${mine.relation.role}`}
+			>
+				{#each ['unavailable', 'available'] as role}
+					<ApiService
+						inline
+						name={role}
+						message={`Mark yourself ${role}?`}
+						endpoint="round/role"
+						data={{ round_id: id, role }}
+						disabled={mine.relation.role === role}
+						confirm={false}
+					/>
+				{/each}
+			</HiddenOptions>
+		{/if}
 		<div class="group">
 			<RouteLink
 				href={hrefOf(team.rk)}

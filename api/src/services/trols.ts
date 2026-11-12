@@ -209,6 +209,7 @@ export function parseFixture(html: string, teamName: string) {
                 home_away: bye ? "" : home ? "home" : "away",
                 venue: venue ?? "",
                 status: bye ? "bye" : "scheduled",
+                source_status: bye ? opponent : "",
             });
         } else if (c[1] && /No Play/i.test(c[2] ?? ""))
             calendar.push({ date: dateOf(c[1]), name: "No Play" });
@@ -263,12 +264,14 @@ export function parseResults(
             throw Error("TROLS fixture/results disagree");
         if (/^bye$/i.test(opponent)) {
             round.status = "bye";
+            round.source_status = opponent;
             continue;
         }
         if (c.length === 3) {
             if (/wash\s*out/i.test(c[1])) round.status = "washout";
             else if (/postpon/i.test(c[1])) round.status = "postponed";
             else if (c[1]) throw Error("Unknown TROLS result status");
+            if (c[1]) round.source_status = c[1];
             continue;
         }
         if (c.length !== 9) throw Error("Invalid TROLS score row");
@@ -279,6 +282,7 @@ export function parseResults(
         const mine = home ? [1, 2, 3] : [5, 6, 7];
         const theirs = home ? [5, 6, 7] : [1, 2, 3];
         round.status = "completed";
+        round.source_status = "";
         ["points", "sets", "games"].forEach((key, i) => {
             round[`${key}_for`] = Number(c[mine[i]]);
             round[`${key}_against`] = Number(c[theirs[i]]);

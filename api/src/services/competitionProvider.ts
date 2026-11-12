@@ -17,7 +17,8 @@ export interface OfficialRound {
     opponent: string;
     home_away: string;
     venue: string;
-    status: string;
+    status: string; // transient normalized classification, never a stored entity attribute
+    source_status?: string; // literal TROLS label, if supplied
     external_match?: string;
     points_for?: number;
     points_against?: number;

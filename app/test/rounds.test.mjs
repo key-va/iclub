@@ -79,3 +79,87 @@ test("role colours and result summaries match the contract, including zero score
     assert.equal(rounds.isTeamMember("pending"), false);
     assert.equal(rounds.isTeamMember("is_admin"), true);
 });
+
+test("prefixed external values render through derived views and app lifecycle states drive upcoming rounds", () => {
+    const items = [
+        {
+            pk: "round",
+            rk: "round_new",
+            name: "Royals vs Lobs",
+            state: "pending",
+            ext_number: 1,
+            ext_date: "2026-11-17",
+            ext_opponent: "Royals",
+            ext_venue: "Kings Park",
+        },
+        {
+            pk: "round",
+            rk: "round_done",
+            state: "complete",
+            result: "winner",
+            ext_number: 2,
+            ext_date: "2026-11-18",
+            ext_points_for: 7,
+            ext_points_against: 3,
+        },
+        {
+            pk: "round",
+            rk: "round_bye",
+            state: "complete",
+            result: "bye",
+            ext_number: 3,
+            ext_date: "2026-11-19",
+        },
+        { pk: "team_a", rk: "round_new" },
+        { pk: "team_a", rk: "round_done" },
+        { pk: "team_a", rk: "round_bye" },
+        { pk: "user_a", rk: "round_new", role: "available" },
+        { pk: "user_a", rk: "round_done", role: "selected" },
+        { pk: "user_a", rk: "round_bye", role: "pending" },
+    ];
+    const upcoming = rounds.upcomingTeamRounds(
+        items,
+        "user_a",
+        "team_a",
+        "2026-11-12",
+    );
+    assert.equal(upcoming.length, 1);
+    assert.equal(upcoming[0].date, "2026-11-17");
+    assert.equal(upcoming[0].opponent, "Royals");
+    assert.equal(upcoming[0].state, "pending");
+    assert.equal(upcoming[0].relation.role, "available");
+    assert.equal(rounds.officialResult(items[1]), "7–3 points");
+    assert.equal(rounds.officialResult(items[2]), "bye");
+    assert.equal(
+        rounds.officialResult({ state: "pending", ext_status: "Postponed" }),
+        "postponed",
+    );
+    assert.equal(items[0].date, undefined); // aliases do not mutate/duplicate the shared dataset
+});
+
+test("team view handles both prefixed and legacy standings without persisting aliases", () => {
+    const source = {
+        pk: "team",
+        rk: "team_a",
+        name: "Lobs",
+        state: "active",
+        ext_competition_name: "Tuesday Night",
+        ext_section_name: "Section 1",
+        ext_standings: '[{"name":"Lobs","rank":1}]',
+    };
+    const view = rounds.teamView(source);
+    assert.equal(view.competition_name, "Tuesday Night");
+    assert.equal(view.section_name, "Section 1");
+    assert.equal(view.standings, source.ext_standings);
+    assert.equal(source.standings, undefined);
+    const legacy = rounds.roundView({
+        pk: "round",
+        rk: "round_old",
+        status: "completed",
+        points_for: 5,
+        points_against: 5,
+    });
+    assert.equal(legacy.state, "complete");
+    assert.equal(legacy.result, "draw");
+    assert.equal(legacy.status, undefined);
+});

@@ -224,6 +224,10 @@ test("options do not write; signed creation resolves host club, validates select
     assert.equal(result.status, 201);
     const id = result.jsonBody.subject;
     assert.equal(get("team", id).state, "pending");
+    assert.equal(get("team", id).ext_provider, "trols");
+    assert.equal(get("team", id).ext_competition, "TN");
+    assert.equal(get("team", id).ext_team, "TN004");
+    assert.equal(get("team", id).provider, undefined);
     assert.equal(get("team", id).club_id, C);
     assert.equal(get(id, A).state, "pending");
     assert.equal(get(id, A).role, undefined);
@@ -392,7 +396,7 @@ test("manual sync preserves round IDs, postponement identity, memberships, roles
     assert.equal(sync.status, 200);
     assert.equal(sync.jsonBody.data.created, 1);
     assert.equal(sync.jsonBody.data.updated, 1);
-    assert.equal(get("round", id).date, "2026-11-24");
+    assert.equal(get("round", id).ext_date, "2026-11-24");
     assert.equal(get(id, U).role, "selected");
     assert.ok(get(id, "message_m"));
     assert.equal(get(T, U).role, "is_member");
@@ -408,8 +412,8 @@ test("manual sync preserves round IDs, postponement identity, memberships, roles
     delete source.rounds[0].points_against;
     source.rounds[0].status = "scheduled";
     await call("sync", A);
-    assert.equal(get("round", id).status, "completed");
-    assert.equal(get("round", id).points_for, 7);
+    assert.equal(get("round", id).state, "complete");
+    assert.equal(get("round", id).ext_points_for, 7);
     failFetch = true;
     const before = JSON.stringify(
         [...rows].filter(([k]) => k.startsWith("round|")),
@@ -518,7 +522,7 @@ test("sync names rounds opposition vs owning team and stores ownership only in m
     source.rounds[0].date = "2026-11-24";
     await doSyncTeam(T);
     assert.equal(get("round", r.rowKey).name, "Royals vs Lobs");
-    assert.equal(get("round", r.rowKey).date, "2026-11-24");
+    assert.equal(get("round", r.rowKey).ext_date, "2026-11-24");
     assert.equal(
         [...rows.values()].filter((row) => row.partitionKey === "round").length,
         1,
@@ -575,7 +579,7 @@ test("migration retains omitted legacy rounds and does not let their deprecated 
     });
     await doSyncTeam(T);
     const omitted = [...rows.values()].find(
-        (row) => row.partitionKey === "round" && row.number === 2,
+        (row) => row.partitionKey === "round" && row.ext_number === 2,
     );
     omitted.team_id = T;
     omitted.name = "Round 2 — Other team";
@@ -583,7 +587,7 @@ test("migration retains omitted legacy rounds and does not let their deprecated 
     await doSyncTeam(T);
     assert.equal(get("round", omitted.rowKey).name, "Other team vs Lobs");
     assert.equal(get("round", omitted.rowKey).team_id, undefined);
-    assert.equal(get("round", omitted.rowKey).date, "2026-11-17");
+    assert.equal(get("round", omitted.rowKey).ext_date, "2026-11-17");
     const other = "team_other";
     entity("team", other, { ...mapping, state: "active" });
     relation(other, B, { role: "is_member" });
@@ -591,5 +595,166 @@ test("migration retains omitted legacy rounds and does not let their deprecated 
     await doSyncTeam(other);
     assert.equal(get(other, omitted.rowKey), undefined);
     assert.ok(get(T, omitted.rowKey));
+    mirrored();
+});
+
+test("source attributes use ext_ while rounds expose normalized app state/result without synthetic external statuses", async () => {
+    seed();
+    source.rounds = [
+        {
+            number: 1,
+            date: "2026-11-17",
+            opponent: "Royals",
+            venue: "Hurlingham Park",
+            home_away: "home",
+            status: "scheduled",
+            source_status: "",
+        },
+        {
+            number: 2,
+            date: "2026-11-18",
+            opponent: "Battlers",
+            venue: "Hurlingham Park",
+            home_away: "away",
+            status: "completed",
+            source_status: "",
+            points_for: 7,
+            points_against: 3,
+            sets_for: 4,
+            sets_against: 2,
+            games_for: 33,
+            games_against: 27,
+            external_match: "TN001123",
+        },
+        {
+            number: 3,
+            date: "2026-11-19",
+            opponent: "Bye",
+            venue: "",
+            home_away: "",
+            status: "bye",
+            source_status: "Bye",
+        },
+        {
+            number: 4,
+            date: "2026-11-20",
+            opponent: "Other",
+            venue: "Kings Park",
+            home_away: "away",
+            status: "washout",
+            source_status: "Wash Out",
+        },
+        {
+            number: 5,
+            date: "2026-11-21",
+            opponent: "Other",
+            venue: "Kings Park",
+            home_away: "away",
+            status: "postponed",
+            source_status: "Postponed",
+        },
+    ];
+    await doSyncTeam(T);
+    const rounds = [...rows.values()]
+        .filter((row) => row.partitionKey === "round")
+        .sort((a, b) => a.ext_number - b.ext_number);
+    assert.deepEqual(
+        rounds.map((r) => r.state),
+        ["pending", "complete", "complete", "complete", "pending"],
+    );
+    assert.deepEqual(
+        rounds.map((r) => r.result),
+        [undefined, "winner", "bye", "washout", undefined],
+    );
+    for (const r of rounds) {
+        assert.equal(r.status, undefined);
+        assert.equal(r.number, undefined);
+        assert.equal(r.date, undefined);
+        assert.equal(r.opponent, undefined);
+        assert.equal(r.venue, undefined);
+        assert.equal(r.provider, undefined);
+        assert.ok(r.ext_date);
+        assert.ok(r.ext_opponent);
+        assert.equal(r.ext_provider, "trols");
+    }
+    assert.equal(rounds[0].ext_status, undefined);
+    assert.equal(rounds[1].ext_status, undefined);
+    assert.equal(rounds[2].ext_status, "Bye");
+    assert.equal(rounds[3].ext_status, "Wash Out");
+    assert.equal(rounds[4].ext_status, "Postponed");
+    assert.equal(rounds[1].ext_match, "TN001123");
+    assert.equal(rounds[1].ext_points_for, 7);
+    assert.equal(rounds[1].points_for, undefined);
+    const team = get("team", T);
+    for (const field of [
+        "provider",
+        "association",
+        "competition",
+        "section",
+        "external_team",
+        "season",
+        "standings",
+        "calendar",
+        "rank",
+        "wins",
+        "points",
+        "percentage",
+    ])
+        assert.equal(team[field], undefined, field);
+    assert.equal(team.ext_team, "TN004");
+    assert.equal(team.ext_competition, "TN");
+    assert.equal(team.name, "Lobs");
+    assert.equal(team.state, "active");
+    assert.equal(team.ext_name, "Lobs");
+    assert.ok(team.ext_standings);
+    assert.equal((await doSyncTeam(T)).updated, 0);
+    mirrored();
+});
+
+test("legacy field migration preserves IDs, scores, source mapping, availability and messages; duplicates still fail", async () => {
+    seed();
+    relation(T, U, { role: "is_member" });
+    const legacyId = "round_legacy";
+    const { externalRoundKey } = require("../dist/src/services/doSyncTeam");
+    entity("round", legacyId, {
+        name: "Royals vs Lobs",
+        external_key: externalRoundKey(mapping, 1),
+        provider: "trols",
+        number: 1,
+        date: "2026-11-17",
+        opponent: "Royals",
+        home_away: "home",
+        venue: "Hurlingham Park",
+        status: "completed",
+        points_for: 7,
+        points_against: 3,
+    });
+    relation(T, legacyId);
+    relation(legacyId, U, { role: "selected" });
+    entity("message", "message_legacy", { name: "Hello" });
+    relation(legacyId, "message_legacy");
+    const summary = await doSyncTeam(T);
+    assert.equal(summary.created, 0);
+    assert.equal(summary.updated, 1);
+    const migrated = get("round", legacyId);
+    assert.equal(migrated.state, "complete");
+    assert.equal(migrated.result, "winner");
+    assert.equal(migrated.ext_points_for, 7);
+    assert.equal(migrated.points_for, undefined);
+    assert.equal(migrated.status, undefined);
+    assert.equal(migrated.ext_status, undefined);
+    assert.equal(get(legacyId, U).role, "selected");
+    assert.ok(get(legacyId, "message_legacy"));
+    assert.equal(
+        (
+            await call("create", A, {
+                association: "brta",
+                competition: "TN",
+                section: "TN001",
+                team: "TN004",
+            })
+        ).status,
+        409,
+    );
     mirrored();
 });

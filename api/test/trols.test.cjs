@@ -34,6 +34,7 @@ test("live-captured TROLS tables yield independent numbered fixtures, venues, by
             home_away: "home",
             venue: "Hurlingham Park",
             status: "completed",
+            source_status: "",
             points_for: 5,
             points_against: 5,
             sets_for: 3,
@@ -44,6 +45,8 @@ test("live-captured TROLS tables yield independent numbered fixtures, venues, by
         },
     );
     assert.equal(parsed.rounds[4].status, "washout");
+    assert.equal(parsed.rounds[4].source_status, "Wash Out");
+    assert.equal(parsed.rounds[2].source_status, "Bye");
     assert.equal(parsed.rounds[0].points_for, 4);
     assert.equal(parsed.rounds[0].points_against, 6);
     assert.equal(

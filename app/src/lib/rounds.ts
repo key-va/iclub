@@ -11,6 +11,73 @@ export const roundRoleColour: Record<string, string> = {
 };
 export const isTeamMember = (role: unknown) =>
 	role === 'is_admin' || role === 'is_member';
+// Read the new stored contract while older datasets remain visible until refresh.
+// These aliases are derived views, never copies persisted back to guids.json.
+export function roundView<T extends GuidRow>(round: T): T {
+	const view: GuidRow = { ...round };
+	for (const key of [
+		'number',
+		'date',
+		'opponent',
+		'venue',
+		'points_for',
+		'points_against',
+		'sets_for',
+		'sets_against',
+		'games_for',
+		'games_against',
+	]) {
+		view[key] = round[`ext_${key}`] ?? round[key];
+	}
+	view.state =
+		round.state ??
+		(['completed', 'bye', 'washout'].includes(String(round.status))
+			? 'complete'
+			: 'pending');
+	if (round.state === undefined) {
+		if (round.status === 'bye' || round.status === 'washout')
+			view.result = round.status;
+		else if (
+			round.status === 'completed' &&
+			typeof view.points_for === 'number' &&
+			typeof view.points_against === 'number'
+		)
+			view.result =
+				view.points_for === view.points_against
+					? 'draw'
+					: view.points_for > view.points_against
+						? 'winner'
+						: 'loser';
+		if (round.status === 'postponed') view.condition = 'postponed'; // legacy display only
+	}
+	delete view.status;
+	return view as T;
+}
+export function teamView<T extends GuidRow>(team: T): T {
+	const view: GuidRow = { ...team };
+	for (const key of [
+		'competition_name',
+		'section_name',
+		'standings',
+		'calendar',
+		'rank',
+		'wins',
+		'points',
+		'percentage',
+	])
+		view[key] = team[`ext_${key}`] ?? team[key];
+	return view as T;
+}
+export function roundLabel(round: GuidRow): string {
+	if (round.result === 'bye' || round.result === 'washout') return round.result;
+	if (
+		round.state === 'pending' &&
+		(round.condition === 'postponed' ||
+			/postpon/i.test(String(round.ext_status ?? '')))
+	)
+		return 'postponed';
+	return String(round.state ?? 'pending');
+}
 export function upcomingTeamRounds(
 	items: GuidRow[],
 	userId: string,
@@ -23,11 +90,12 @@ export function upcomingTeamRounds(
 			.map((relation) => relation.rk),
 	);
 	return relatedEntities(items, userId, 'round')
+		.map(roundView)
 		.filter(
 			(round) =>
 				teamRounds.has(round.rk) &&
 				String(round.date) >= today &&
-				!['completed', 'bye', 'washout'].includes(String(round.status)),
+				round.state !== 'complete',
 		)
 		.sort(
 			(a, b) =>
@@ -35,8 +103,13 @@ export function upcomingTeamRounds(
 				Number(a.number) - Number(b.number),
 		);
 }
-export function officialResult(round: GuidRow) {
-	if (round.status !== 'completed') return String(round.status ?? 'scheduled');
+export function officialResult(record: GuidRow) {
+	const round = roundView(record);
+	if (
+		round.state !== 'complete' ||
+		['bye', 'washout'].includes(String(round.result))
+	)
+		return roundLabel(round);
 	return ['points', 'sets', 'games']
 		.filter(
 			(key) =>

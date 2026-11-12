@@ -7,6 +7,13 @@ import { doUpsertRelation } from "./doUpsertRelation";
 import { doGuidsToPublic } from "./doGuidsToPublic";
 import { CompetitionSnapshot, TeamMapping } from "./competitionProvider";
 import { providerFor } from "./trols";
+import {
+    teamMapping,
+    teamAttributes,
+    roundAttributes,
+    roundCondition,
+} from "./competitionData";
+export { teamMapping } from "./competitionData";
 
 const client = new TableClient(
     `https://${resourceName(resourceSuffix.storageAccount)}.table.core.windows.net`,
@@ -15,21 +22,6 @@ const client = new TableClient(
 );
 export const approvedTeamRole = (role: unknown) =>
     role === "is_admin" || role === "is_member";
-export function teamMapping(team: Record<string, unknown>): TeamMapping {
-    const keys = [
-        "provider",
-        "association",
-        "competition",
-        "section",
-        "external_team",
-        "season",
-    ];
-    if (keys.some((key) => typeof team[key] !== "string" || !team[key]))
-        throw Error("Team external mapping is incomplete");
-    return Object.fromEntries(
-        keys.map((key) => [key, team[key]]),
-    ) as unknown as TeamMapping;
-}
 export const externalRoundKey = (mapping: TeamMapping, number: number) =>
     JSON.stringify([
         mapping.provider,
@@ -160,8 +152,8 @@ export async function doSyncTeam(
         const old = existing.get(externalRoundKey(mapping, round.number));
         if (
             old &&
-            round.opponent !== old.opponent &&
-            old.status === "completed"
+            round.opponent !== (old.ext_opponent ?? old.opponent) &&
+            roundCondition(old) === "completed"
         )
             throw Error("A completed round has a conflicting fixture");
     }
@@ -171,33 +163,33 @@ export async function doSyncTeam(
         const external_key = externalRoundKey(mapping, round.number);
         const old = existing.get(external_key);
         const id = old?.rowKey ?? doNewGuid("round");
-        const {
-            partitionKey,
-            rowKey,
-            timestamp,
-            etag,
-            team_id: legacyTeamId,
-            ...attributes
-        } = old ?? {};
-        // An omitted result is not evidence that a previously published result was withdrawn.
-        const official = { ...round };
-        if (
-            old &&
-            round.status === "scheduled" &&
-            ["completed", "washout", "postponed"].includes(old.status)
-        )
-            official.status = old.status;
-        const next = {
-            ...attributes,
-            ...official,
-            provider: mapping.provider,
+        const next = roundAttributes(
+            old ?? {},
+            mapping.provider,
             external_key,
-            name: `${round.opponent} vs ${team.name}`,
-        };
+            String(team.name),
+            round,
+        );
+        const previousAttributes = old
+            ? Object.fromEntries(
+                  Object.entries(old).filter(
+                      ([key]) =>
+                          ![
+                              "partitionKey",
+                              "rowKey",
+                              "timestamp",
+                              "etag",
+                          ].includes(key),
+                  ),
+              )
+            : {};
         if (
             !old ||
-            legacyTeamId !== undefined ||
-            Object.entries(next).some(([k, v]) => old[k] !== v)
+            Object.keys(previousAttributes).length !==
+                Object.keys(next).length ||
+            Object.entries(next).some(
+                ([key, value]) => previousAttributes[key] !== value,
+            )
         ) {
             await doUpsertEntity("round", id, next);
             if (old) updated++;
@@ -212,37 +204,46 @@ export async function doSyncTeam(
     );
     for (const [key, old] of existing) {
         if (importedKeys.has(key)) continue;
-        const {
-            partitionKey,
-            rowKey,
-            timestamp,
-            etag,
-            team_id: legacyTeamId,
-            ...attributes
-        } = old;
-        const name =
-            typeof old.opponent === "string"
-                ? `${old.opponent} vs ${team.name}`
-                : old.name;
-        if (legacyTeamId !== undefined || name !== old.name) {
-            await doUpsertEntity("round", rowKey, { ...attributes, name });
+        const rowKey = old.rowKey;
+        const next = roundAttributes(
+            old,
+            mapping.provider,
+            key,
+            String(team.name),
+        );
+        const previousAttributes = Object.fromEntries(
+            Object.entries(old).filter(
+                ([key]) =>
+                    !["partitionKey", "rowKey", "timestamp", "etag"].includes(
+                        key,
+                    ),
+            ),
+        );
+        if (
+            Object.keys(previousAttributes).length !==
+                Object.keys(next).length ||
+            Object.entries(next).some(
+                ([key, value]) => previousAttributes[key] !== value,
+            )
+        ) {
+            await doUpsertEntity("round", rowKey, next);
             updated++;
         }
         await doUpsertRelation(teamId, rowKey);
     }
     await doEnsureRoundUsers(teamId);
-    const { partitionKey, rowKey, timestamp, etag, ...attributes } = team;
+    const attributes = teamAttributes(team);
     const standing = source.standings.find((s) => s.name === team.name);
     await doUpsertEntity("team", teamId, {
         ...attributes,
-        standings: JSON.stringify(source.standings),
-        calendar: JSON.stringify(source.calendar),
+        ext_standings: JSON.stringify(source.standings),
+        ext_calendar: JSON.stringify(source.calendar),
         ...(standing
             ? {
-                  rank: standing.rank,
-                  wins: standing.wins,
-                  points: standing.points,
-                  percentage: standing.percentage,
+                  ext_rank: standing.rank,
+                  ext_wins: standing.wins,
+                  ext_points: standing.points,
+                  ext_percentage: standing.percentage,
               }
             : {}),
         last_synced: new Date().toISOString(),

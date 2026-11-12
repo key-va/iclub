@@ -22,6 +22,7 @@ import {
     teamMapping,
 } from "../services/doSyncTeam";
 import { providerFor } from "../services/trols";
+import { teamExternalFields } from "../services/competitionData";
 
 const client = new TableClient(
     `https://${resourceName(resourceSuffix.storageAccount)}.table.core.windows.net`,
@@ -246,7 +247,7 @@ export async function teamAction(
                             "season",
                             "section",
                             "external_team",
-                        ].every((k) => old[k] === mapping[k])
+                        ].every((k) => teamMapping(old)[k] === mapping[k])
                     ) {
                         return reply(
                             409,
@@ -268,7 +269,8 @@ export async function teamAction(
                     else throw e;
                 }
                 await doUpsertEntity("team", id, {
-                    ...mapping,
+                    ...teamExternalFields(mapping),
+                    name: mapping.name,
                     state: "pending",
                     requested_by: caller_id,
                     club_id: brand.clubId,
@@ -329,7 +331,7 @@ export async function teamAction(
                 let snapshot;
                 try {
                     snapshot = await providerFor(
-                        String(team.provider),
+                        teamMapping(team).provider,
                     ).snapshot(teamMapping(team));
                 } catch (error) {
                     context.warn("Initial team synchronisation failed", error);
@@ -567,7 +569,7 @@ export async function roundRole(
                         )
                         .map((r) => r.rowKey),
                     `Player unavailable — ${team.name}`,
-                    `A selected player is now unavailable for Round ${round.number}. A replacement player is needed.`,
+                    `A selected player is now unavailable for Round ${round.ext_number ?? round.number}. A replacement player is needed.`,
                     `round/${id}`,
                     context,
                 );

@@ -9,13 +9,21 @@
 		imageOf,
 		type GuidRow,
 	} from '#lib/stores/guids.ts';
-	import { isTeamMember, jsonArray, officialResult } from '#lib/rounds.ts';
+	import {
+		isTeamMember,
+		jsonArray,
+		officialResult,
+		roundView,
+		teamView,
+		roundLabel,
+	} from '#lib/rounds.ts';
 	import ApiService from '#lib/components/apiService.svelte';
 	import RouteLink from '#lib/components/routeLink.svelte';
 	import HiddenOptions from '#lib/components/hiddenOptions.svelte';
 	import InstallApp from '#lib/components/installApp.svelte';
 	const id = $derived(page.params.team_id ?? '');
-	const team = $derived(entityOf($guids.items, id));
+	const teamEntity = $derived(entityOf($guids.items, id));
+	const team = $derived(teamEntity ? teamView(teamEntity) : undefined);
 	const users = $derived(relatedEntities($guids.items, id, 'user'));
 	const mine = $derived(users.find((u) => u.rk === $local.caller_id)?.relation);
 	const admin = $derived(mine?.role === 'is_admin');
@@ -27,33 +35,35 @@
 			),
 	);
 	const rounds = $derived(
-		relatedEntities($guids.items, id, 'round').sort(
-			(a, b) => Number(a.number) - Number(b.number),
-		),
+		relatedEntities($guids.items, id, 'round')
+			.map(roundView)
+			.sort((a, b) => Number(a.number) - Number(b.number)),
 	);
 	const members = $derived(users.filter((u) => isTeamMember(u.relation.role)));
 	const pending = $derived(users.filter((u) => u.relation.state === 'pending'));
 	const standings = $derived(jsonArray(team?.standings));
 	const calendar = $derived(jsonArray(team?.calendar));
 	function roundSummary(round: GuidRow) {
+		if (round.result === 'bye' || round.result === 'washout')
+			return String(round.result);
 		const mine = round.points_for;
 		const theirs = round.points_against;
 		if (
-			round.status === 'completed' &&
+			round.state === 'complete' &&
 			typeof mine === 'number' &&
-			typeof theirs === 'number'
+			typeof theirs === 'number' &&
+			['winner', 'loser', 'draw'].includes(String(round.result))
 		) {
-			if (mine === theirs)
+			if (round.result === 'draw')
 				return `${team?.name} draws ${mine}-${theirs} `;
-			const winner = mine > theirs ? team?.name : round.opponent;
+			const winner = round.result === 'loser' ? round.opponent : team?.name;
 			return `${winner} wins ${Math.max(mine, theirs)}-${Math.min(mine, theirs)}`;
 		}
-		if (round.status === 'bye') return 'bye';
-		if (round.status === 'completed') return officialResult(round);
+		if (round.state === 'complete') return officialResult(round);
 		const fixture =
 			`${round.home_away === 'home' ? 'home' : round.home_away === 'away' ? 'away' : ''} vs ${round.opponent}`.trim();
-		return ['washout', 'postponed'].includes(String(round.status))
-			? `${fixture} · ${round.status}`
+		return ['washout', 'postponed'].includes(roundLabel(round))
+			? `${fixture} · ${roundLabel(round)}`
 			: fixture;
 	}
 	let syncMessage = $state('');
@@ -108,7 +118,6 @@
 							/>
 						</RouteLink>
 					{/each}
-					
 				</div>
 			{/if}
 
@@ -142,18 +151,18 @@
 					/>
 				{/each}
 				<ApiService
-						name="refresh TROLS"
-						message="Refresh the official fixtures, results and standings?"
-						endpoint="team/sync"
-						data={{ team_id: id }}
-						onsuccess={(result) => {
-							syncMessage = result.message;
-						}}
-					/>
-					{#if syncMessage}<div class="row right">
-							<p role="status">{syncMessage}</p>
-						</div>
-					{/if}
+					name="refresh TROLS"
+					message="Refresh the official fixtures, results and standings?"
+					endpoint="team/sync"
+					data={{ team_id: id }}
+					onsuccess={(result) => {
+						syncMessage = result.message;
+					}}
+				/>
+				{#if syncMessage}<div class="row right">
+						<p role="status">{syncMessage}</p>
+					</div>
+				{/if}
 			</div>
 
 			{#if standings.length}
@@ -182,7 +191,6 @@
 				{/each}
 			</HiddenOptions>
 		{/if}
-
 	{:else}<div class="row right">
 			<p>{$guids.loaded ? 'Team not found' : 'Loading…'}</p>
 		</div>{/if}
