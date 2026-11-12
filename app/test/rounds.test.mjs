@@ -195,3 +195,39 @@ test("round views read the owning team relation outcome without changing public 
         "washout",
     );
 });
+
+test("home/away display reads is_home from the team relation, preserving false and legacy compatibility", () => {
+    const entity = {
+        pk: "round",
+        rk: "round_a",
+        state: "pending",
+        home_away: "home",
+    };
+    const away = rounds.roundView(entity, {
+        pk: "team_a",
+        rk: "round_a",
+        is_home: false,
+    });
+    assert.equal(away.is_home, false);
+    assert.equal(away.home_away, undefined);
+    assert.equal(entity.home_away, "home");
+    assert.equal(
+        rounds.roundView(
+            { pk: "round", rk: "round_a", state: "pending" },
+            { pk: "round_a", rk: "team_a", is_home: true },
+        ).is_home,
+        true,
+    );
+    assert.equal(rounds.roundView(entity).is_home, true);
+    assert.equal(
+        rounds.roundView({ ...entity, home_away: "away" }).is_home,
+        false,
+    );
+    assert.equal(
+        rounds.roundView(
+            { ...entity, state: "complete" },
+            { pk: "team_a", rk: "round_a", result: "bye" },
+        ).is_home,
+        false,
+    );
+});

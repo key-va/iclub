@@ -1,8 +1,8 @@
 import { OfficialRound, TeamMapping } from "./competitionProvider";
 
 // Stored graph contract: ext_* is imported data/source mapping; name, state,
-// home_away and external_key are the app's normalized interpretation. A team's
-// result belongs to the mirrored team-round relationship, never the round entity.
+// external_key are the app's normalized interpretation. A team's result and
+// is_home belong to the mirrored team-round relationship, never the round entity.
 const mappingFields = {
     provider: "provider",
     association: "association",
@@ -100,8 +100,9 @@ export function roundRecord(
     provider: string,
     externalKey: string,
     incoming?: OfficialRound,
-    relationshipResult?: unknown,
+    relationship?: Record<string, any>,
 ) {
+    const relationshipResult = relationship?.result;
     const next = attributes(old, [
         ...roundFields,
         "provider",
@@ -109,6 +110,8 @@ export function roundRecord(
         "external_match",
         "team_id",
         "result",
+        "home_away",
+        "is_home",
     ]);
     for (const key of roundFields) {
         if (next[`ext_${key}`] === undefined && old[key] !== undefined)
@@ -132,7 +135,18 @@ export function roundRecord(
     }
     next.ext_provider = provider;
     next.external_key = externalKey; // generated stable app key, not a source ID
-    next.home_away = incoming?.home_away ?? old.home_away ?? "";
+    const direction =
+        incoming?.home_away ?? relationship?.home_away ?? old.home_away;
+    let is_home: boolean | undefined;
+    if (condition === "bye") is_home = false;
+    else {
+        if (!incoming && typeof relationship?.is_home === "boolean")
+            is_home = relationship.is_home;
+        else if (direction === "home") is_home = true;
+        else if (direction === "away") is_home = false;
+        else if (!incoming && typeof old.is_home === "boolean")
+            is_home = old.is_home;
+    }
     next.state = ["completed", "bye", "washout"].includes(condition)
         ? "complete"
         : "pending";
@@ -158,5 +172,5 @@ export function roundRecord(
         result = String(relationshipResult ?? old.result);
     }
     next.name = `Round ${next.ext_number} vs ${next.ext_opponent ?? ""}`;
-    return { entity: next, result };
+    return { entity: next, result, is_home };
 }

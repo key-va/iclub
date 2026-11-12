@@ -856,15 +856,74 @@ test("an interrupted outcome mirror write retains the legacy entity result for a
     await doSyncTeam(T);
     const r = [...rows.values()].find((row) => row.partitionKey === "round");
     r.result = "winner";
+    r.home_away = "home";
     relation(T, r.rowKey);
     failTeamRoundMirror = true;
     await assert.rejects(doSyncTeam(T), /inverse write failure/);
     assert.equal(get("round", r.rowKey).result, "winner");
+    assert.equal(get("round", r.rowKey).home_away, "home");
     assert.equal(get(T, r.rowKey).result, "winner");
     failTeamRoundMirror = false;
     await doSyncTeam(T);
     assert.equal(get("round", r.rowKey).result, undefined);
     assert.equal(get(T, r.rowKey).result, "winner");
     assert.equal(get(r.rowKey, T).result, "winner");
+    mirrored();
+});
+
+test("home and away are mirrored boolean is_home values with no direction field on round entities", async () => {
+    seed();
+    source.rounds.push({ ...source.rounds[0], number: 2, home_away: "away" });
+    source.rounds.push({
+        ...source.rounds[0],
+        number: 3,
+        opponent: "Bye",
+        home_away: "",
+        venue: "",
+        status: "bye",
+    });
+    await doSyncTeam(T);
+    const rounds = [...rows.values()]
+        .filter((row) => row.partitionKey === "round")
+        .sort((a, b) => a.ext_number - b.ext_number);
+    assert.deepEqual(
+        rounds.map((r) => get(T, r.rowKey).is_home),
+        [true, false, false],
+    );
+    for (const r of rounds) {
+        assert.equal(r.home_away, undefined);
+        assert.equal(r.is_home, undefined);
+        assert.equal(get(r.rowKey, T).is_home, get(T, r.rowKey).is_home);
+        assert.equal(get(T, r.rowKey).home_away, undefined);
+    }
+    const id = rounds[0].rowKey;
+    source.rounds[0].home_away = "away";
+    const summary = await doSyncTeam(T);
+    assert.equal(get(T, id).is_home, false);
+    assert.equal(get(id, T).is_home, false);
+    assert.equal(summary.updated, 1);
+    assert.equal((await doSyncTeam(T)).updated, 0);
+    mirrored();
+});
+
+test("legacy directions migrate to the team-round relation even for omitted rounds, preserving outcome and other links", async () => {
+    seed();
+    relation(T, U, { role: "is_member" });
+    await doSyncTeam(T);
+    const r = [...rows.values()].find((row) => row.partitionKey === "round");
+    r.home_away = "away";
+    relation(T, r.rowKey, { note: "Keep this" });
+    relation(r.rowKey, U, { role: "selected" });
+    entity("message", "message_home", { name: "Hello" });
+    relation(r.rowKey, "message_home");
+    source.rounds = [{ ...source.rounds[0], number: 2 }];
+    await doSyncTeam(T);
+    assert.equal(get("round", r.rowKey).home_away, undefined);
+    assert.equal(get("round", r.rowKey).is_home, undefined);
+    assert.equal(get(T, r.rowKey).is_home, false);
+    assert.equal(get(r.rowKey, T).is_home, false);
+    assert.equal(get(T, r.rowKey).note, "Keep this");
+    assert.equal(get(r.rowKey, U).role, "selected");
+    assert.ok(get(r.rowKey, "message_home"));
     mirrored();
 });

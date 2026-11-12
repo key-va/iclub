@@ -61,7 +61,7 @@
 		}
 		if (round.state === 'complete') return officialResult(round);
 		const fixture =
-			`${round.home_away === 'home' ? 'home' : round.home_away === 'away' ? 'away' : ''} vs ${round.opponent}`.trim();
+			`${round.is_home === true ? 'home' : round.is_home === false ? 'away' : ''} vs ${round.opponent}`.trim();
 		return ['washout', 'postponed'].includes(roundLabel(round))
 			? `${fixture} · ${roundLabel(round)}`
 			: fixture;

@@ -20,6 +20,17 @@ export function roundView<T extends GuidRow>(
 	const view: GuidRow = { ...round };
 	// Entity fallback keeps pre-migration datasets readable until a team refresh.
 	view.result = teamRelation?.result ?? round.result;
+	view.is_home =
+		typeof teamRelation?.is_home === 'boolean'
+			? teamRelation.is_home
+			: round.home_away === 'home'
+				? true
+				: round.home_away === 'away'
+					? false
+					: typeof round.is_home === 'boolean'
+						? round.is_home
+						: undefined;
+
 	for (const key of [
 		'number',
 		'date',
@@ -55,6 +66,8 @@ export function roundView<T extends GuidRow>(
 						: 'loser';
 		if (round.status === 'postponed') view.condition = 'postponed'; // legacy display only
 	}
+	if (view.result === 'bye') view.is_home = false;
+	delete view.home_away;
 	delete view.status;
 	return view as T;
 }

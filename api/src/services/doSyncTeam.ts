@@ -64,10 +64,11 @@ export async function doEnsureRoundUsers(teamId: string) {
         }
 }
 
-// Preserve unrelated relationship attributes, but replace or clear the source-owned outcome.
+// Preserve unrelated relationship attributes while updating the derived outcome and home flag.
 function relationAttributes(
     old: Record<string, any> | undefined,
     result: string | undefined,
+    isHome: boolean | undefined,
 ) {
     const {
         partitionKey,
@@ -75,9 +76,26 @@ function relationAttributes(
         timestamp,
         etag,
         result: previousResult,
+        is_home: previousIsHome,
+        home_away: legacyDirection,
         ...attributes
     } = old ?? {};
-    return result === undefined ? attributes : { ...attributes, result };
+    return {
+        ...attributes,
+        ...(result === undefined ? {} : { result }),
+        ...(isHome === undefined ? {} : { is_home: isHome }),
+    };
+}
+
+function relationChanged(
+    old: Record<string, any> | undefined,
+    next: Record<string, any>,
+): boolean {
+    const { partitionKey, rowKey, timestamp, etag, ...attributes } = old ?? {};
+    return (
+        Object.keys(attributes).length !== Object.keys(next).length ||
+        Object.entries(next).some(([key, value]) => attributes[key] !== value)
+    );
 }
 
 // Fetch/parse before any writes; callers may prefetch for activation. No notifications or scheduling here.
@@ -167,6 +185,7 @@ export async function doSyncTeam(
             round.number < 1 ||
             !/^\d{4}-\d{2}-\d{2}$/.test(round.date) ||
             !round.opponent ||
+            !["home", "away", ""].includes(round.home_away) ||
             !["scheduled", "completed", "bye", "washout", "postponed"].includes(
                 round.status,
             )
@@ -187,15 +206,23 @@ export async function doSyncTeam(
         const external_key = externalRoundKey(mapping, round.number);
         const old = existing.get(external_key);
         const id = old?.rowKey ?? doNewGuid("round");
-        const { entity: next, result } = roundRecord(
+        const {
+            entity: next,
+            result,
+            is_home,
+        } = roundRecord(
             old ?? {},
             mapping.provider,
             external_key,
             round,
-            old ? roundRelations.get(id)?.result : undefined,
+            old ? roundRelations.get(id) : undefined,
         );
-        const relation = relationAttributes(roundRelations.get(id), result);
-        // Migrate the outcome to both mirrors before removing its legacy entity copy.
+        const relation = relationAttributes(
+            roundRelations.get(id),
+            result,
+            is_home,
+        );
+        // Migrate outcome/home flag to both mirrors before removing legacy entity copies.
         if (old) await doUpsertRelation(teamId, id, relation);
         const previousAttributes = old
             ? Object.fromEntries(
@@ -221,7 +248,7 @@ export async function doSyncTeam(
             await doUpsertEntity("round", id, next);
             if (old) updated++;
             else created++;
-        }
+        } else if (relationChanged(roundRelations.get(id), relation)) updated++;
         if (!old) await doUpsertRelation(teamId, id, relation);
     }
     // Retain rounds omitted from a later source response, but migrate their old
@@ -232,18 +259,23 @@ export async function doSyncTeam(
     for (const [key, old] of existing) {
         if (importedKeys.has(key)) continue;
         const rowKey = old.rowKey;
-        const { entity: next, result } = roundRecord(
+        const {
+            entity: next,
+            result,
+            is_home,
+        } = roundRecord(
             old,
             mapping.provider,
             key,
             undefined,
-            roundRelations.get(rowKey)?.result,
+            roundRelations.get(rowKey),
         );
-        await doUpsertRelation(
-            teamId,
-            rowKey,
-            relationAttributes(roundRelations.get(rowKey), result),
+        const relation = relationAttributes(
+            roundRelations.get(rowKey),
+            result,
+            is_home,
         );
+        await doUpsertRelation(teamId, rowKey, relation);
         const previousAttributes = Object.fromEntries(
             Object.entries(old).filter(
                 ([key]) =>
@@ -261,7 +293,8 @@ export async function doSyncTeam(
         ) {
             await doUpsertEntity("round", rowKey, next);
             updated++;
-        }
+        } else if (relationChanged(roundRelations.get(rowKey), relation))
+            updated++;
     }
     await doEnsureRoundUsers(teamId);
     const attributes = teamAttributes(team);
