@@ -86,27 +86,20 @@
 		</div>
 		<InstallApp />
 		<div class="group">
-			<p class="info">{fixtureName}</p>
+			<p class="info center"><strong>{fixtureName}</strong></p>
 			{#if complete}
-				<p class="info">
-					<strong>{result.name}</strong>
-					{result.outcome}
-					{result.scores}
+				<p class="info center">
+					{result.name}<br/>
+					{result.outcome} {result.scores}
 				</p>
 			{:else}
-				<p class="info">
+				<p class="info center">
 					{round.date}{round.venue ? ` at ${round.venue}` : ''}
 				</p>
 			{/if}
+			
 		</div>
-		<div class="group">
-			<RouteLink
-				href={hrefOf(team.rk)}
-				title={team.name}
-				description={team.pk}
-				image={imageOf(team.rk)}
-			/>
-			{#if !complete && mine}
+		{#if !complete && mine}
 				<HiddenOptions
 					inline
 					title="More Options"
@@ -125,6 +118,12 @@
 					{/each}
 				</HiddenOptions>
 			{/if}
+		<div class="group">
+			<RouteLink
+				href={hrefOf(team.rk)}
+				title={team.name}
+				image={imageOf(team.rk)}
+			/>
 			{#each players as player (player.rk)}
 				{#snippet selectionAction()}
 					<ApiService
