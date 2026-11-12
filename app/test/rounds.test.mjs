@@ -96,7 +96,6 @@ test("prefixed external values render through derived views and app lifecycle st
             pk: "round",
             rk: "round_done",
             state: "complete",
-            result: "winner",
             ext_number: 2,
             ext_date: "2026-11-18",
             ext_points_for: 7,
@@ -106,13 +105,12 @@ test("prefixed external values render through derived views and app lifecycle st
             pk: "round",
             rk: "round_bye",
             state: "complete",
-            result: "bye",
             ext_number: 3,
             ext_date: "2026-11-19",
         },
         { pk: "team_a", rk: "round_new" },
-        { pk: "team_a", rk: "round_done" },
-        { pk: "team_a", rk: "round_bye" },
+        { pk: "team_a", rk: "round_done", result: "winner" },
+        { pk: "team_a", rk: "round_bye", result: "bye" },
         { pk: "user_a", rk: "round_new", role: "available" },
         { pk: "user_a", rk: "round_done", role: "selected" },
         { pk: "user_a", rk: "round_bye", role: "pending" },
@@ -128,8 +126,8 @@ test("prefixed external values render through derived views and app lifecycle st
     assert.equal(upcoming[0].opponent, "Royals");
     assert.equal(upcoming[0].state, "pending");
     assert.equal(upcoming[0].relation.role, "available");
-    assert.equal(rounds.officialResult(items[1]), "7–3 points");
-    assert.equal(rounds.officialResult(items[2]), "bye");
+    assert.equal(rounds.officialResult(items[1], items[4]), "7–3 points");
+    assert.equal(rounds.officialResult(items[2], items[5]), "bye");
     assert.equal(
         rounds.officialResult({ state: "pending", ext_status: "Postponed" }),
         "postponed",
@@ -162,4 +160,38 @@ test("team view handles both prefixed and legacy standings without persisting al
     assert.equal(legacy.state, "complete");
     assert.equal(legacy.result, "draw");
     assert.equal(legacy.status, undefined);
+});
+
+test("round views read the owning team relation outcome without changing public entity rows", () => {
+    const entity = {
+        pk: "round",
+        rk: "round_a",
+        state: "complete",
+        ext_number: 1,
+        ext_points_for: 2,
+        ext_points_against: 8,
+    };
+    const forward = { pk: "team_a", rk: "round_a", result: "loser" };
+    const inverse = { pk: "round_a", rk: "team_a", result: "loser" };
+    assert.equal(
+        rounds.roundView({ ...entity, relation: forward }, forward).result,
+        "loser",
+    );
+    assert.equal(rounds.roundView(entity, inverse).result, "loser");
+    assert.equal(entity.result, undefined);
+    assert.equal(
+        rounds.roundView({ ...entity, result: "winner" }, inverse).result,
+        "loser",
+    );
+    assert.equal(
+        rounds.officialResult(
+            {
+                ...entity,
+                ext_points_for: undefined,
+                ext_points_against: undefined,
+            },
+            { ...inverse, result: "washout" },
+        ),
+        "washout",
+    );
 });

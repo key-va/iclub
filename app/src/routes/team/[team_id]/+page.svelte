@@ -36,7 +36,7 @@
 	);
 	const rounds = $derived(
 		relatedEntities($guids.items, id, 'round')
-			.map(roundView)
+			.map((round) => roundView(round, round.relation))
 			.sort((a, b) => Number(a.number) - Number(b.number)),
 	);
 	const members = $derived(users.filter((u) => isTeamMember(u.relation.role)));

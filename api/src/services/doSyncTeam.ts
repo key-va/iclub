@@ -10,7 +10,7 @@ import { providerFor } from "./trols";
 import {
     teamMapping,
     teamAttributes,
-    roundAttributes,
+    roundRecord,
     roundCondition,
 } from "./competitionData";
 export { teamMapping } from "./competitionData";
@@ -64,6 +64,22 @@ export async function doEnsureRoundUsers(teamId: string) {
         }
 }
 
+// Preserve unrelated relationship attributes, but replace or clear the source-owned outcome.
+function relationAttributes(
+    old: Record<string, any> | undefined,
+    result: string | undefined,
+) {
+    const {
+        partitionKey,
+        rowKey,
+        timestamp,
+        etag,
+        result: previousResult,
+        ...attributes
+    } = old ?? {};
+    return result === undefined ? attributes : { ...attributes, result };
+}
+
 // Fetch/parse before any writes; callers may prefetch for activation. No notifications or scheduling here.
 export async function doSyncTeam(
     teamId: string,
@@ -79,10 +95,14 @@ export async function doSyncTeam(
     // Ownership lives in the mirrored graph. Read either direction so an interrupted
     // mirror write can be repaired without changing a round's identity.
     const roundIds = new Set<string>();
+    const roundRelations = new Map<string, Record<string, any>>();
     for await (const relation of client.listEntities({
         queryOptions: { filter: odata`PartitionKey eq ${teamId}` },
     })) {
-        if (relation.rowKey.startsWith("round_")) roundIds.add(relation.rowKey);
+        if (relation.rowKey.startsWith("round_")) {
+            roundIds.add(relation.rowKey);
+            roundRelations.set(relation.rowKey, relation);
+        }
     }
     for await (const relation of client.listEntities({
         queryOptions: { filter: odata`RowKey eq ${teamId}` },
@@ -90,8 +110,11 @@ export async function doSyncTeam(
         if (
             relation.rowKey === teamId &&
             relation.partitionKey.startsWith("round_")
-        )
+        ) {
             roundIds.add(relation.partitionKey);
+            if (!roundRelations.has(relation.partitionKey))
+                roundRelations.set(relation.partitionKey, relation);
+        }
     }
     // Migration only: recover legacy rounds whose old team_id was saved before their
     // first relation write. Never let that deprecated attribute override graph ownership.
@@ -153,7 +176,8 @@ export async function doSyncTeam(
         if (
             old &&
             round.opponent !== (old.ext_opponent ?? old.opponent) &&
-            roundCondition(old) === "completed"
+            roundCondition(old, roundRelations.get(old.rowKey)?.result) ===
+                "completed"
         )
             throw Error("A completed round has a conflicting fixture");
     }
@@ -163,12 +187,16 @@ export async function doSyncTeam(
         const external_key = externalRoundKey(mapping, round.number);
         const old = existing.get(external_key);
         const id = old?.rowKey ?? doNewGuid("round");
-        const next = roundAttributes(
+        const { entity: next, result } = roundRecord(
             old ?? {},
             mapping.provider,
             external_key,
             round,
+            old ? roundRelations.get(id)?.result : undefined,
         );
+        const relation = relationAttributes(roundRelations.get(id), result);
+        // Migrate the outcome to both mirrors before removing its legacy entity copy.
+        if (old) await doUpsertRelation(teamId, id, relation);
         const previousAttributes = old
             ? Object.fromEntries(
                   Object.entries(old).filter(
@@ -194,7 +222,7 @@ export async function doSyncTeam(
             if (old) updated++;
             else created++;
         }
-        await doUpsertRelation(teamId, id);
+        if (!old) await doUpsertRelation(teamId, id, relation);
     }
     // Retain rounds omitted from a later source response, but migrate their old
     // ownership attribute/name too. Their last known official fields stay intact.
@@ -204,7 +232,18 @@ export async function doSyncTeam(
     for (const [key, old] of existing) {
         if (importedKeys.has(key)) continue;
         const rowKey = old.rowKey;
-        const next = roundAttributes(old, mapping.provider, key);
+        const { entity: next, result } = roundRecord(
+            old,
+            mapping.provider,
+            key,
+            undefined,
+            roundRelations.get(rowKey)?.result,
+        );
+        await doUpsertRelation(
+            teamId,
+            rowKey,
+            relationAttributes(roundRelations.get(rowKey), result),
+        );
         const previousAttributes = Object.fromEntries(
             Object.entries(old).filter(
                 ([key]) =>
@@ -223,7 +262,6 @@ export async function doSyncTeam(
             await doUpsertEntity("round", rowKey, next);
             updated++;
         }
-        await doUpsertRelation(teamId, rowKey);
     }
     await doEnsureRoundUsers(teamId);
     const attributes = teamAttributes(team);

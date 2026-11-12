@@ -13,8 +13,13 @@ export const isTeamMember = (role: unknown) =>
 	role === 'is_admin' || role === 'is_member';
 // Read the new stored contract while older datasets remain visible until refresh.
 // These aliases are derived views, never copies persisted back to guids.json.
-export function roundView<T extends GuidRow>(round: T): T {
+export function roundView<T extends GuidRow>(
+	round: T,
+	teamRelation?: GuidRow,
+): T {
 	const view: GuidRow = { ...round };
+	// Entity fallback keeps pre-migration datasets readable until a team refresh.
+	view.result = teamRelation?.result ?? round.result;
 	for (const key of [
 		'number',
 		'date',
@@ -34,7 +39,7 @@ export function roundView<T extends GuidRow>(round: T): T {
 		(['completed', 'bye', 'washout'].includes(String(round.status))
 			? 'complete'
 			: 'pending');
-	if (round.state === undefined) {
+	if (round.state === undefined && view.result === undefined) {
 		if (round.status === 'bye' || round.status === 'washout')
 			view.result = round.status;
 		else if (
@@ -84,13 +89,13 @@ export function upcomingTeamRounds(
 	teamId: string,
 	today: string,
 ) {
-	const teamRounds = new Set(
+	const teamRounds = new Map(
 		relationsOf(items, teamId)
 			.filter((relation) => relation.rk.startsWith('round_'))
-			.map((relation) => relation.rk),
+			.map((relation) => [relation.rk, relation]),
 	);
 	return relatedEntities(items, userId, 'round')
-		.map(roundView)
+		.map((round) => roundView(round, teamRounds.get(round.rk)))
 		.filter(
 			(round) =>
 				teamRounds.has(round.rk) &&
@@ -103,8 +108,8 @@ export function upcomingTeamRounds(
 				Number(a.number) - Number(b.number),
 		);
 }
-export function officialResult(record: GuidRow) {
-	const round = roundView(record);
+export function officialResult(record: GuidRow, teamRelation?: GuidRow) {
+	const round = roundView(record, teamRelation);
 	if (
 		round.state !== 'complete' ||
 		['bye', 'washout'].includes(String(round.result))

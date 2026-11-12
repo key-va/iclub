@@ -1,7 +1,8 @@
 import { OfficialRound, TeamMapping } from "./competitionProvider";
 
 // Stored graph contract: ext_* is imported data/source mapping; name, state,
-// result, home_away and external_key are the app's normalized interpretation.
+// home_away and external_key are the app's normalized interpretation. A team's
+// result belongs to the mirrored team-round relationship, never the round entity.
 const mappingFields = {
     provider: "provider",
     association: "association",
@@ -82,19 +83,24 @@ export function teamAttributes(row: Record<string, any>) {
     }
     return next;
 }
-export function roundCondition(row: Record<string, any>): string {
+export function roundCondition(
+    row: Record<string, any>,
+    relationshipResult?: unknown,
+): string {
+    const result = relationshipResult ?? row.result; // entity fallback only for migration
     if (row.state === undefined) return String(row.status ?? "scheduled"); // legacy dataset
-    if (row.result === "bye" || row.result === "washout") return row.result;
+    if (result === "bye" || result === "washout") return String(result);
     if (row.state === "complete") return "completed";
     return /postpon/i.test(String(row.ext_status ?? ""))
         ? "postponed"
         : "scheduled";
 }
-export function roundAttributes(
+export function roundRecord(
     old: Record<string, any>,
     provider: string,
     externalKey: string,
     incoming?: OfficialRound,
+    relationshipResult?: unknown,
 ) {
     const next = attributes(old, [
         ...roundFields,
@@ -102,6 +108,7 @@ export function roundAttributes(
         "status",
         "external_match",
         "team_id",
+        "result",
     ]);
     for (const key of roundFields) {
         if (next[`ext_${key}`] === undefined && old[key] !== undefined)
@@ -112,7 +119,7 @@ export function roundAttributes(
         next.ext_match = old.external_match;
     if (incoming?.external_match !== undefined)
         next.ext_match = incoming.external_match;
-    const previous = roundCondition(old);
+    const previous = roundCondition(old, relationshipResult);
     const preserveResult =
         incoming?.status === "scheduled" &&
         ["completed", "washout", "postponed"].includes(previous);
@@ -129,20 +136,27 @@ export function roundAttributes(
     next.state = ["completed", "bye", "washout"].includes(condition)
         ? "complete"
         : "pending";
-    delete next.result;
-    if (condition === "bye" || condition === "washout") next.result = condition;
+    let result: string | undefined;
+    if (condition === "bye" || condition === "washout") result = condition;
     else if (
         condition === "completed" &&
         typeof next.ext_points_for === "number" &&
         typeof next.ext_points_against === "number"
     ) {
-        next.result =
+        result =
             next.ext_points_for === next.ext_points_against
                 ? "draw"
                 : next.ext_points_for > next.ext_points_against
                   ? "winner"
                   : "loser";
+    } else if (
+        condition === "completed" &&
+        ["winner", "loser", "draw"].includes(
+            String(relationshipResult ?? old.result),
+        )
+    ) {
+        result = String(relationshipResult ?? old.result);
     }
     next.name = `Round ${next.ext_number} vs ${next.ext_opponent ?? ""}`;
-    return next;
+    return { entity: next, result };
 }

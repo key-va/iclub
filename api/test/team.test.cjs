@@ -5,6 +5,7 @@ const Module = require("node:module");
 const originalLoad = Module._load;
 const rows = new Map(),
     pushes = [];
+let failTeamRoundMirror = false;
 let rejectSignature = false,
     failPush = false,
     failFetch = false,
@@ -29,6 +30,12 @@ class TableClient {
         return { ...row };
     }
     async upsertEntity(row) {
+        if (
+            failTeamRoundMirror &&
+            row.partitionKey.startsWith("round_") &&
+            row.rowKey === T
+        )
+            throw Error("Simulated inverse write failure");
         entity(row.partitionKey, row.rowKey, row);
     }
     async updateEntity(row, mode, options) {
@@ -177,6 +184,7 @@ function mirrored() {
 beforeEach(() => {
     rows.clear();
     pushes.length = 0;
+    failTeamRoundMirror = false;
     rejectSignature = false;
     failPush = false;
     failFetch = false;
@@ -663,10 +671,12 @@ test("source attributes use ext_ while rounds expose normalized app state/result
         ["pending", "complete", "complete", "complete", "pending"],
     );
     assert.deepEqual(
-        rounds.map((r) => r.result),
+        rounds.map((r) => get(T, r.rowKey).result),
         [undefined, "winner", "bye", "washout", undefined],
     );
     for (const r of rounds) {
+        assert.equal(r.result, undefined);
+        assert.equal(get(T, r.rowKey).result, get(r.rowKey, T).result);
         assert.equal(r.status, undefined);
         assert.equal(r.number, undefined);
         assert.equal(r.date, undefined);
@@ -738,7 +748,9 @@ test("legacy field migration preserves IDs, scores, source mapping, availability
     assert.equal(summary.updated, 1);
     const migrated = get("round", legacyId);
     assert.equal(migrated.state, "complete");
-    assert.equal(migrated.result, "winner");
+    assert.equal(migrated.result, undefined);
+    assert.equal(get(T, legacyId).result, "winner");
+    assert.equal(get(legacyId, T).result, "winner");
     assert.equal(migrated.ext_points_for, 7);
     assert.equal(migrated.points_for, undefined);
     assert.equal(migrated.status, undefined);
@@ -756,5 +768,103 @@ test("legacy field migration preserves IDs, scores, source mapping, availability
         ).status,
         409,
     );
+    mirrored();
+});
+
+test("outcome migration preserves entity IDs and local relationships, and retains unrelated team-round attributes", async () => {
+    seed();
+    relation(T, U, { role: "is_member" });
+    source.rounds[0] = {
+        ...source.rounds[0],
+        status: "completed",
+        points_for: 7,
+        points_against: 3,
+    };
+    await doSyncTeam(T);
+    const r = [...rows.values()].find((row) => row.partitionKey === "round");
+    r.result = "winner";
+    relation(T, r.rowKey, { note: "team-specific information" });
+    relation(r.rowKey, U, { role: "selected" });
+    entity("message", "message_result", { name: "Hello" });
+    relation(r.rowKey, "message_result");
+    // A legacy round omitted from the next response must still be migrated.
+    source.rounds = [
+        {
+            ...source.rounds[0],
+            number: 2,
+            status: "scheduled",
+            points_for: undefined,
+            points_against: undefined,
+        },
+    ];
+    await doSyncTeam(T);
+    assert.equal(get("round", r.rowKey).result, undefined);
+    assert.equal(get("round", r.rowKey).state, "complete");
+    assert.equal(get(T, r.rowKey).result, "winner");
+    assert.equal(get(r.rowKey, T).result, "winner");
+    assert.equal(get(T, r.rowKey).note, "team-specific information");
+    assert.equal(get(r.rowKey, T).note, "team-specific information");
+    assert.equal(get(r.rowKey, U).role, "selected");
+    assert.ok(get(r.rowKey, "message_result"));
+    mirrored();
+});
+
+test("missing result responses preserve relation outcomes and a later result correction updates both mirrors", async () => {
+    seed();
+    source.rounds[0] = {
+        ...source.rounds[0],
+        status: "completed",
+        points_for: 3,
+        points_against: 7,
+    };
+    await doSyncTeam(T);
+    const r = [...rows.values()].find((row) => row.partitionKey === "round");
+    assert.equal(get(T, r.rowKey).result, "loser");
+    assert.equal(get("round", r.rowKey).result, undefined);
+    source.rounds[0] = {
+        number: 1,
+        date: "2026-11-17",
+        opponent: "Royals",
+        home_away: "home",
+        venue: "Hurlingham Park",
+        status: "scheduled",
+    };
+    await doSyncTeam(T);
+    assert.equal(get(T, r.rowKey).result, "loser");
+    assert.equal(get(r.rowKey, T).result, "loser");
+    source.rounds[0] = {
+        ...source.rounds[0],
+        status: "completed",
+        points_for: 5,
+        points_against: 5,
+    };
+    await doSyncTeam(T);
+    assert.equal(get(T, r.rowKey).result, "draw");
+    assert.equal(get(r.rowKey, T).result, "draw");
+    assert.equal(get("round", r.rowKey).result, undefined);
+    mirrored();
+});
+
+test("an interrupted outcome mirror write retains the legacy entity result for a safe retry", async () => {
+    seed();
+    source.rounds[0] = {
+        ...source.rounds[0],
+        status: "completed",
+        points_for: 7,
+        points_against: 3,
+    };
+    await doSyncTeam(T);
+    const r = [...rows.values()].find((row) => row.partitionKey === "round");
+    r.result = "winner";
+    relation(T, r.rowKey);
+    failTeamRoundMirror = true;
+    await assert.rejects(doSyncTeam(T), /inverse write failure/);
+    assert.equal(get("round", r.rowKey).result, "winner");
+    assert.equal(get(T, r.rowKey).result, "winner");
+    failTeamRoundMirror = false;
+    await doSyncTeam(T);
+    assert.equal(get("round", r.rowKey).result, undefined);
+    assert.equal(get(T, r.rowKey).result, "winner");
+    assert.equal(get(r.rowKey, T).result, "winner");
     mirrored();
 });
