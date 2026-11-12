@@ -19,6 +19,12 @@
 	const team = $derived(
 		round ? entityOf($guids.items, String(round.team_id)) : undefined,
 	);
+	const complete = $derived(round?.status === 'completed');
+	const fixtureName = $derived(
+		round?.home_away === 'away'
+			? `${round.opponent} vs ${team?.name}`
+			: `${team?.name} vs ${round?.opponent}`,
+	);
 	const players = $derived(relatedEntities($guids.items, id, 'user'));
 	const mine = $derived(players.find((p) => p.rk === $local.caller_id));
 	const admin = $derived(
@@ -43,7 +49,7 @@
 <div class="page">
 	{#if round && team}
 		<div class="row right">
-			<p><strong>{round.name}</strong><br />{team.name}</p>
+			<p class="truncate"><strong>{round.name}</strong><br />{round.pk}</p>
 			<div class="blank-icon-small"></div>
 		</div>
 		<div class="row center">
@@ -53,50 +59,42 @@
 			></div>
 		</div>
 		<InstallApp />
-		<RouteLink
-			href={hrefOf(team.rk)}
-			title={team.name}
-			description="team"
-			image={imageOf(team.rk)}
-		/>
 		<div class="group">
-			<HiddenOptions
-				title={String(round.date)}
-				description={`${round.opponent} · ${round.home_away || 'bye'}`}
+			<RouteLink
+				href={hrefOf(team.rk)}
+				title={fixtureName}
+				description={[round.date, round.venue, round.home_away]
+					.filter(Boolean)
+					.join(' · ')}
+				image={imageOf(team.rk)}
 			/>
-			<HiddenOptions
-				title={String(round.venue || 'No venue')}
-				description={officialResult(round)}
-			/>
-		</div>
-		{#if mine}<div class="group">
+			{#if complete}
+				<HiddenOptions title="Result" description={officialResult(round)} />
+			{:else if mine}
 				<HiddenOptions
-					title="Your availability"
-					description={String(mine.relation.role)}
-				/>
-				{#each ['pending', 'available', 'unavailable'] as role}<ApiService
-						name={role}
-						message={`Mark yourself ${role}?`}
-						endpoint="round/role"
-						data={{ round_id: id, role }}
-						disabled={mine.relation.role === role}
-						confirm={false}
-					/>{/each}
-			</div>{/if}
-		<div class="group">
-			<HiddenOptions title="Players" badge={players.length} />
-			{#each players as player}
-				<RouteLink
-					href={hrefOf(player.rk)}
-					title={player.name}
-					description={String(player.relation.role)}
-					image={imageOf(player.rk)}
-					>{#snippet detail()}<RoundRoleDot
-							role={player.relation.role}
-						/>{/snippet}</RouteLink
+					inline
+					title="More Options"
+					description={`you are ${mine.relation.role}`}
 				>
-				{#if admin && player.rk !== $local.caller_id && (player.relation.role === 'available' || player.relation.role === 'selected')}
+					{#each ['unavailable', 'available'] as role}
+						<ApiService
+							inline
+							name={role}
+							message={`Mark yourself ${role}?`}
+							endpoint="round/role"
+							data={{ round_id: id, role }}
+							disabled={mine.relation.role === role}
+							confirm={false}
+						/>
+					{/each}
+				</HiddenOptions>
+			{/if}
+		</div>
+		<div class="group">
+			{#each players as player (player.rk)}
+				{#snippet selectionAction()}
 					<ApiService
+						inline
 						name={player.relation.role === 'selected' ? 'deselect' : 'select'}
 						message={`${player.relation.role === 'selected' ? 'Deselect' : 'Select'} ${player.name}?`}
 						endpoint="round/role"
@@ -107,9 +105,27 @@
 								player.relation.role === 'selected' ? 'available' : 'selected',
 						}}
 					/>
-				{/if}
+				{/snippet}
+				<RouteLink
+					href={hrefOf(player.rk)}
+					title={player.name}
+					description={String(player.relation.role)}
+					image={imageOf(player.rk)}
+					children={!complete &&
+					admin &&
+					player.rk !== $local.caller_id &&
+					(player.relation.role === 'available' ||
+						player.relation.role === 'selected')
+						? selectionAction
+						: undefined}
+				>
+					{#snippet detail()}<RoundRoleDot
+							role={player.relation.role}
+						/>{/snippet}
+				</RouteLink>
 			{/each}
 		</div>
+
 		<div class="group">
 			<HiddenOptions title="Messages" badge={messages.length} />
 			{#each messages as message}<RouteLink
