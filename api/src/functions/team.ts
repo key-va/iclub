@@ -514,7 +514,12 @@ export async function roundRole(
     try {
         const round = await get("round", id);
         if (!round) return reply(404, "Round not found");
-        const teamId = String(round.team_id);
+        const owners = (await relations(id)).filter((relation) =>
+            relation.rowKey.startsWith("team_"),
+        );
+        if (owners.length !== 1)
+            return reply(409, "Round must belong to exactly one team");
+        const teamId = owners[0].rowKey;
         return await locked(teamId, async () => {
             const team = await get("team", teamId);
             if (team?.state !== "active" || !(await get(teamId, id)))

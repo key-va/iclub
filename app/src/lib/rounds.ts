@@ -1,4 +1,8 @@
-import { relatedEntities, type GuidRow } from '#lib/stores/guids.ts';
+import {
+	relatedEntities,
+	relationsOf,
+	type GuidRow,
+} from '#lib/stores/guids.ts';
 export const roundRoleColour: Record<string, string> = {
 	selected: 'green',
 	available: 'blue',
@@ -13,10 +17,15 @@ export function upcomingTeamRounds(
 	teamId: string,
 	today: string,
 ) {
+	const teamRounds = new Set(
+		relationsOf(items, teamId)
+			.filter((relation) => relation.rk.startsWith('round_'))
+			.map((relation) => relation.rk),
+	);
 	return relatedEntities(items, userId, 'round')
 		.filter(
 			(round) =>
-				round.team_id === teamId &&
+				teamRounds.has(round.rk) &&
 				String(round.date) >= today &&
 				!['completed', 'bye', 'washout'].includes(String(round.status)),
 		)

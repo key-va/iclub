@@ -15,15 +15,9 @@
 	import InstallApp from '#lib/components/installApp.svelte';
 	const id = $derived(page.params.round_id ?? '');
 	const round = $derived(entityOf($guids.items, id));
-	const team = $derived(
-		round ? entityOf($guids.items, String(round.team_id)) : undefined,
-	);
+	const team = $derived(relatedEntities($guids.items, id, 'team')[0]);
 	const complete = $derived(round?.status === 'completed');
-	const fixtureName = $derived(
-		round?.home_away === 'away'
-			? `${round.opponent} vs ${team?.name}`
-			: `${team?.name} vs ${round?.opponent}`,
-	);
+	const fixtureName = $derived(`${round?.opponent} vs ${team?.name}`);
 	const result = $derived.by(() => {
 		if (!round || !team) return { name: '', outcome: '', scores: '' };
 		const hasPoints =

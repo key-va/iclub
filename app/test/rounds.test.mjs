@@ -25,7 +25,9 @@ test("upcoming rounds use inverse roles and remain grouped by team, omitting old
         ["round_f", "team_one", "2026-11-20", "postponed", "available"],
     ]) {
         items.push(
-            { pk: "round", rk: id, team_id: team, date, status },
+            { pk: "round", rk: id, date, status },
+            { pk: team, rk: id },
+            { pk: id, rk: team },
             { pk: "user_a", rk: id, role },
         );
     }

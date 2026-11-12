@@ -12,7 +12,7 @@ If a selected player marks themselves unavailable, the existing Web Push service
 
 ## Refreshing TROLS
 
-The team administrator can choose **refresh TROLS**. This refreshes official schedules, results and standings, returning created/updated counts. Dates may change without changing internal round IDs. Memberships, player responses/selections and messages are retained. A past date alone never marks a round completed. A missing result does not erase an existing official result. Byes are numbered rounds; no-play/finals dates without known encounters appear as competition calendar information.
+The team administrator can choose **refresh TROLS**. This refreshes official schedules, results and standings, returning created/updated counts. Round names are `opposition vs your team`, regardless of home/away. Ownership uses mirrored team-round relation rows rather than a `team_id` attribute on the round. Refreshing an existing team updates names and removes that legacy attribute in place. Dates may change without changing internal round IDs. Memberships, player responses/selections and messages are retained. A past date alone never marks a round completed. A missing result does not erase an existing official result. Byes are numbered rounds; no-play/finals dates without known encounters appear as competition calendar information.
 
 Only current BRTA competitions exposed by TROLS are discoverable. The stored season is checked on every sync. If TROLS rolls a competition code to a new season, the old team is retained and sync fails safely: request a separate team for the new season. No background/hourly sync was introduced.
 
