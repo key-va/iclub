@@ -510,18 +510,18 @@ test("duplicate detection includes an incomplete team creation with no club rela
     assert.equal(result.jsonBody.subject, T);
 });
 
-test("sync names rounds opposition vs owning team and stores ownership only in mirrored relations", async () => {
+test("sync names rounds by number and opponent and stores ownership only in mirrored relations", async () => {
     seed();
     await doSyncTeam(T);
     const r = [...rows.values()].find((row) => row.partitionKey === "round");
-    assert.equal(r.name, "Royals vs Lobs");
+    assert.equal(r.name, "Round 1 vs Royals");
     assert.equal(Object.hasOwn(r, "team_id"), false);
     assert.ok(get(T, r.rowKey));
     assert.ok(get(r.rowKey, T));
     source.rounds[0].home_away = "away";
     source.rounds[0].date = "2026-11-24";
     await doSyncTeam(T);
-    assert.equal(get("round", r.rowKey).name, "Royals vs Lobs");
+    assert.equal(get("round", r.rowKey).name, "Round 1 vs Royals");
     assert.equal(get("round", r.rowKey).ext_date, "2026-11-24");
     assert.equal(
         [...rows.values()].filter((row) => row.partitionKey === "round").length,
@@ -547,7 +547,7 @@ test("refresh removes legacy ownership attribute and renames in place, retaining
     assert.equal(summary.created, 0);
     assert.equal(summary.updated, 1);
     const migrated = get("round", r.rowKey);
-    assert.equal(migrated.name, "Royals vs Lobs");
+    assert.equal(migrated.name, "Round 1 vs Royals");
     assert.equal(Object.hasOwn(migrated, "team_id"), false);
     assert.equal(get(r.rowKey, U).role, "selected");
     assert.ok(get(r.rowKey, "message_existing"));
@@ -585,7 +585,7 @@ test("migration retains omitted legacy rounds and does not let their deprecated 
     omitted.name = "Round 2 — Other team";
     source.rounds.pop();
     await doSyncTeam(T);
-    assert.equal(get("round", omitted.rowKey).name, "Other team vs Lobs");
+    assert.equal(get("round", omitted.rowKey).name, "Round 2 vs Other team");
     assert.equal(get("round", omitted.rowKey).team_id, undefined);
     assert.equal(get("round", omitted.rowKey).ext_date, "2026-11-17");
     const other = "team_other";

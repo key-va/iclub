@@ -167,7 +167,6 @@ export async function doSyncTeam(
             old ?? {},
             mapping.provider,
             external_key,
-            String(team.name),
             round,
         );
         const previousAttributes = old
@@ -205,12 +204,7 @@ export async function doSyncTeam(
     for (const [key, old] of existing) {
         if (importedKeys.has(key)) continue;
         const rowKey = old.rowKey;
-        const next = roundAttributes(
-            old,
-            mapping.provider,
-            key,
-            String(team.name),
-        );
+        const next = roundAttributes(old, mapping.provider, key);
         const previousAttributes = Object.fromEntries(
             Object.entries(old).filter(
                 ([key]) =>

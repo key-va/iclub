@@ -94,7 +94,6 @@ export function roundAttributes(
     old: Record<string, any>,
     provider: string,
     externalKey: string,
-    teamName: string,
     incoming?: OfficialRound,
 ) {
     const next = attributes(old, [
@@ -144,6 +143,6 @@ export function roundAttributes(
                   ? "winner"
                   : "loser";
     }
-    next.name = `${next.ext_opponent ?? ""} vs ${teamName}`;
+    next.name = `Round ${next.ext_number} vs ${next.ext_opponent ?? ""}`;
     return next;
 }
