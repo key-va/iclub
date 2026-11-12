@@ -154,7 +154,6 @@ function seed(state = "active") {
 }
 function round() {
     entity("round", "round_r", {
-        team_id: T,
         name: "Round 14",
         number: 14,
         date: "2026-11-17",
@@ -432,7 +431,7 @@ test("same external encounter owned by two Intra Club teams creates different in
     assert.equal(rounds.length, 2);
     assert.notEqual(rounds[0].rowKey, rounds[1].rowKey);
     assert.equal(rounds[0].external_key, rounds[1].external_key);
-    assert.ok(get(rounds.find((r) => r.team_id === "team_other").rowKey, B));
+    assert.ok(get(rounds.find((r) => get("team_other", r.rowKey)).rowKey, B));
     mirrored();
 });
 test("signed non-members may post round messages; sync preserves them and signatures still apply", async () => {
@@ -468,7 +467,6 @@ test("retry after interrupted ownership/membership mirrors repairs links while p
     await doSyncTeam(T);
     const round = [...rows.values()].find((r) => r.partitionKey === "round");
     rows.delete(key(T, round.rowKey));
-    rows.delete(key(round.rowKey, T));
     relation(round.rowKey, U, { role: "available" });
     rows.delete(key(U, round.rowKey));
     await doSyncTeam(T);
@@ -506,4 +504,92 @@ test("duplicate detection includes an incomplete team creation with no club rela
     });
     assert.equal(result.status, 409);
     assert.equal(result.jsonBody.subject, T);
+});
+
+test("sync names rounds opposition vs owning team and stores ownership only in mirrored relations", async () => {
+    seed();
+    await doSyncTeam(T);
+    const r = [...rows.values()].find((row) => row.partitionKey === "round");
+    assert.equal(r.name, "Royals vs Lobs");
+    assert.equal(Object.hasOwn(r, "team_id"), false);
+    assert.ok(get(T, r.rowKey));
+    assert.ok(get(r.rowKey, T));
+    source.rounds[0].home_away = "away";
+    source.rounds[0].date = "2026-11-24";
+    await doSyncTeam(T);
+    assert.equal(get("round", r.rowKey).name, "Royals vs Lobs");
+    assert.equal(get("round", r.rowKey).date, "2026-11-24");
+    assert.equal(
+        [...rows.values()].filter((row) => row.partitionKey === "round").length,
+        1,
+    );
+    mirrored();
+});
+
+test("refresh removes legacy ownership attribute and renames in place, retaining roles and messages", async () => {
+    seed();
+    relation(T, U, { role: "is_member" });
+    await doSyncTeam(T);
+    const r = [...rows.values()].find((row) => row.partitionKey === "round");
+    r.team_id = T;
+    r.name = "Round 1 — Royals";
+    relation(r.rowKey, U, { role: "selected" });
+    entity("message", "message_existing", { name: "On my way" });
+    relation(r.rowKey, "message_existing");
+    // A legacy import may have been interrupted before either owning relation was written.
+    rows.delete(key(T, r.rowKey));
+    rows.delete(key(r.rowKey, T));
+    const summary = await doSyncTeam(T);
+    assert.equal(summary.created, 0);
+    assert.equal(summary.updated, 1);
+    const migrated = get("round", r.rowKey);
+    assert.equal(migrated.name, "Royals vs Lobs");
+    assert.equal(Object.hasOwn(migrated, "team_id"), false);
+    assert.equal(get(r.rowKey, U).role, "selected");
+    assert.ok(get(r.rowKey, "message_existing"));
+    assert.ok(get(T, r.rowKey));
+    assert.ok(get(r.rowKey, T));
+    mirrored();
+});
+
+test("round role permissions follow graph ownership even if a legacy attribute claims another team", async () => {
+    seed();
+    round();
+    entity("team", "team_wrong", { state: "active" });
+    get("round", "round_r").team_id = "team_wrong";
+    assert.equal((await role(U, U, "available")).status, 200);
+    assert.equal(get("round_r", U).role, "available");
+    rows.delete(key("round_r", T));
+    rows.delete(key(T, "round_r"));
+    get("round", "round_r").team_id = T;
+    assert.equal((await role(U, U, "unavailable")).status, 409);
+    assert.equal(get("round_r", U).role, "available");
+});
+
+test("migration retains omitted legacy rounds and does not let their deprecated attribute steal graph ownership", async () => {
+    seed();
+    source.rounds.push({
+        ...source.rounds[0],
+        number: 2,
+        opponent: "Other team",
+    });
+    await doSyncTeam(T);
+    const omitted = [...rows.values()].find(
+        (row) => row.partitionKey === "round" && row.number === 2,
+    );
+    omitted.team_id = T;
+    omitted.name = "Round 2 — Other team";
+    source.rounds.pop();
+    await doSyncTeam(T);
+    assert.equal(get("round", omitted.rowKey).name, "Other team vs Lobs");
+    assert.equal(get("round", omitted.rowKey).team_id, undefined);
+    assert.equal(get("round", omitted.rowKey).date, "2026-11-17");
+    const other = "team_other";
+    entity("team", other, { ...mapping, state: "active" });
+    relation(other, B, { role: "is_member" });
+    get("round", omitted.rowKey).team_id = other;
+    await doSyncTeam(other);
+    assert.equal(get(other, omitted.rowKey), undefined);
+    assert.ok(get(T, omitted.rowKey));
+    mirrored();
 });

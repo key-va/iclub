@@ -84,14 +84,54 @@ export async function doSyncTeam(
     const source =
         snapshot ?? (await providerFor(mapping.provider).snapshot(mapping));
     const existing = new Map<string, Record<string, any>>();
-    // Read ownership from entity attributes too, so an interrupted team-round mirror
-    // write can be repaired without creating another internal round ID.
-    for await (const round of client.listEntities({
+    // Ownership lives in the mirrored graph. Read either direction so an interrupted
+    // mirror write can be repaired without changing a round's identity.
+    const roundIds = new Set<string>();
+    for await (const relation of client.listEntities({
+        queryOptions: { filter: odata`PartitionKey eq ${teamId}` },
+    })) {
+        if (relation.rowKey.startsWith("round_")) roundIds.add(relation.rowKey);
+    }
+    for await (const relation of client.listEntities({
+        queryOptions: { filter: odata`RowKey eq ${teamId}` },
+    })) {
+        if (
+            relation.rowKey === teamId &&
+            relation.partitionKey.startsWith("round_")
+        )
+            roundIds.add(relation.partitionKey);
+    }
+    // Migration only: recover legacy rounds whose old team_id was saved before their
+    // first relation write. Never let that deprecated attribute override graph ownership.
+    for await (const legacy of client.listEntities({
         queryOptions: {
             filter: odata`PartitionKey eq ${"round"} and team_id eq ${teamId}`,
         },
     })) {
-        if (round.team_id !== teamId) continue;
+        if (legacy.team_id !== teamId || roundIds.has(legacy.rowKey)) continue;
+        let otherOwner = false;
+        for await (const relation of client.listEntities({
+            queryOptions: { filter: odata`PartitionKey eq ${legacy.rowKey}` },
+        })) {
+            if (
+                relation.rowKey.startsWith("team_") &&
+                relation.rowKey !== teamId
+            )
+                otherOwner = true;
+        }
+        if (!otherOwner) roundIds.add(legacy.rowKey);
+    }
+    for (const id of roundIds) {
+        const round = await client.getEntity("round", id);
+        for await (const relation of client.listEntities({
+            queryOptions: { filter: odata`PartitionKey eq ${id}` },
+        })) {
+            if (
+                relation.rowKey.startsWith("team_") &&
+                relation.rowKey !== teamId
+            )
+                throw Error("A round cannot belong to multiple teams");
+        }
         if (
             typeof round.external_key !== "string" ||
             existing.has(round.external_key)
@@ -131,8 +171,14 @@ export async function doSyncTeam(
         const external_key = externalRoundKey(mapping, round.number);
         const old = existing.get(external_key);
         const id = old?.rowKey ?? doNewGuid("round");
-        const { partitionKey, rowKey, timestamp, etag, ...attributes } =
-            old ?? {};
+        const {
+            partitionKey,
+            rowKey,
+            timestamp,
+            etag,
+            team_id: legacyTeamId,
+            ...attributes
+        } = old ?? {};
         // An omitted result is not evidence that a previously published result was withdrawn.
         const official = { ...round };
         if (
@@ -146,15 +192,43 @@ export async function doSyncTeam(
             ...official,
             provider: mapping.provider,
             external_key,
-            team_id: teamId,
-            name: `Round ${round.number} — ${round.opponent}`,
+            name: `${round.opponent} vs ${team.name}`,
         };
-        if (!old || Object.entries(next).some(([k, v]) => old[k] !== v)) {
+        if (
+            !old ||
+            legacyTeamId !== undefined ||
+            Object.entries(next).some(([k, v]) => old[k] !== v)
+        ) {
             await doUpsertEntity("round", id, next);
             if (old) updated++;
             else created++;
         }
         await doUpsertRelation(teamId, id);
+    }
+    // Retain rounds omitted from a later source response, but migrate their old
+    // ownership attribute/name too. Their last known official fields stay intact.
+    const importedKeys = new Set(
+        source.rounds.map((round) => externalRoundKey(mapping, round.number)),
+    );
+    for (const [key, old] of existing) {
+        if (importedKeys.has(key)) continue;
+        const {
+            partitionKey,
+            rowKey,
+            timestamp,
+            etag,
+            team_id: legacyTeamId,
+            ...attributes
+        } = old;
+        const name =
+            typeof old.opponent === "string"
+                ? `${old.opponent} vs ${team.name}`
+                : old.name;
+        if (legacyTeamId !== undefined || name !== old.name) {
+            await doUpsertEntity("round", rowKey, { ...attributes, name });
+            updated++;
+        }
+        await doUpsertRelation(teamId, rowKey);
     }
     await doEnsureRoundUsers(teamId);
     const { partitionKey, rowKey, timestamp, etag, ...attributes } = team;
