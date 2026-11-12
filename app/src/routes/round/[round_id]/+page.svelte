@@ -8,7 +8,6 @@
 		hrefOf,
 		imageOf,
 	} from '#lib/stores/guids.ts';
-	import { officialResult } from '#lib/rounds.ts';
 	import ApiService from '#lib/components/apiService.svelte';
 	import RouteLink from '#lib/components/routeLink.svelte';
 	import HiddenOptions from '#lib/components/hiddenOptions.svelte';
@@ -25,6 +24,33 @@
 			? `${round.opponent} vs ${team?.name}`
 			: `${team?.name} vs ${round?.opponent}`,
 	);
+	const result = $derived.by(() => {
+		if (!round || !team) return { name: '', outcome: '', scores: '' };
+		const hasPoints =
+			typeof round.points_for === 'number' &&
+			typeof round.points_against === 'number';
+		const opponentWon =
+			hasPoints && Number(round.points_against) > Number(round.points_for);
+		return {
+			name: opponentWon ? String(round.opponent) : team.name,
+			outcome: hasPoints
+				? round.points_for === round.points_against
+					? 'draws'
+					: 'wins'
+				: 'result',
+			scores: ['points', 'sets', 'games']
+				.filter(
+					(key) =>
+						typeof round[`${key}_for`] === 'number' &&
+						typeof round[`${key}_against`] === 'number',
+				)
+				.map(
+					(key) =>
+						`${round[`${key}_${opponentWon ? 'against' : 'for'}`]}-${round[`${key}_${opponentWon ? 'for' : 'against'}`]} ${key}`,
+				)
+				.join(' · '),
+		};
+	});
 	const players = $derived(relatedEntities($guids.items, id, 'user'));
 	const mine = $derived(players.find((p) => p.rk === $local.caller_id));
 	const admin = $derived(
@@ -60,17 +86,27 @@
 		</div>
 		<InstallApp />
 		<div class="group">
+			<p class="info">{fixtureName}</p>
+			{#if complete}
+				<p class="info">
+					<strong>{result.name}</strong>
+					{result.outcome}
+					{result.scores}
+				</p>
+			{:else}
+				<p class="info">
+					{round.date}{round.venue ? ` at ${round.venue}` : ''}
+				</p>
+			{/if}
+		</div>
+		<div class="group">
 			<RouteLink
 				href={hrefOf(team.rk)}
-				title={fixtureName}
-				description={[round.date, round.venue, round.home_away]
-					.filter(Boolean)
-					.join(' · ')}
+				title={team.name}
+				description={team.pk}
 				image={imageOf(team.rk)}
 			/>
-			{#if complete}
-				<HiddenOptions title="Result" description={officialResult(round)} />
-			{:else if mine}
+			{#if !complete && mine}
 				<HiddenOptions
 					inline
 					title="More Options"
@@ -89,8 +125,6 @@
 					{/each}
 				</HiddenOptions>
 			{/if}
-		</div>
-		<div class="group">
 			{#each players as player (player.rk)}
 				{#snippet selectionAction()}
 					<ApiService
