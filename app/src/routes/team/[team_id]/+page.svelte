@@ -7,6 +7,7 @@
 		relatedEntities,
 		hrefOf,
 		imageOf,
+		type GuidRow,
 	} from '#lib/stores/guids.ts';
 	import { isTeamMember, jsonArray, officialResult } from '#lib/rounds.ts';
 	import ApiService from '#lib/components/apiService.svelte';
@@ -34,13 +35,34 @@
 	const pending = $derived(users.filter((u) => u.relation.state === 'pending'));
 	const standings = $derived(jsonArray(team?.standings));
 	const calendar = $derived(jsonArray(team?.calendar));
+	function roundSummary(round: GuidRow) {
+		const mine = round.points_for;
+		const theirs = round.points_against;
+		if (
+			round.status === 'completed' &&
+			typeof mine === 'number' &&
+			typeof theirs === 'number'
+		) {
+			if (mine === theirs)
+				return `${team?.name} draws ${mine}-${theirs} points`;
+			const winner = mine > theirs ? team?.name : round.opponent;
+			return `${winner} wins ${Math.max(mine, theirs)}-${Math.min(mine, theirs)} points`;
+		}
+		if (round.status === 'bye') return 'bye';
+		if (round.status === 'completed') return officialResult(round);
+		const fixture =
+			`${round.home_away === 'home' ? 'home' : round.home_away === 'away' ? 'away' : ''} vs ${round.opponent}`.trim();
+		return ['washout', 'postponed'].includes(String(round.status))
+			? `${fixture} · ${round.status}`
+			: fixture;
+	}
 	let syncMessage = $state('');
 </script>
 
 <div class="page">
 	{#if team}
 		<div class="row right">
-			<p><strong>{team.name}</strong><br />{String(team.state)}</p>
+			<p class="truncate"><strong>{team.name}</strong><br />{team.pk}</p>
 			<div class="blank-icon-small"></div>
 		</div>
 		<div class="row center">
@@ -50,106 +72,147 @@
 			></div>
 		</div>
 		<InstallApp />
-		<HiddenOptions
-			title={String(team.competition_name)}
-			description={`${String(team.section_name)} · BRTA`}
-		/>
 		{#if team.state === 'pending'}
-			<HiddenOptions
-				title="Pending club approval"
-				description="The requesting player will administer this team."
-			/>
-			{#if clubAdmin}<ApiService
-					name="approve team"
-					message={`Approve ${team.name} and import its rounds?`}
-					endpoint="team/activate"
-					data={{ team_id: id }}
-				/>{/if}
+			<div class="group">
+				<HiddenOptions
+					inline
+					title="Pending"
+					description="pending club approval"
+				>
+					<ApiService
+						inline
+						name="approve team"
+						message={`Approve ${team.name} and import its rounds?`}
+						endpoint="team/activate"
+						data={{ team_id: id }}
+						disabled={!clubAdmin}
+					/>
+				</HiddenOptions>
+			</div>
 		{:else if team.state === 'active'}
-			{#if $local.caller_id && !mine}<ApiService
-					name="request to join"
-					message={`Ask to join ${team.name}?`}
-					endpoint="team/join"
-					data={{ team_id: id }}
-				/>{:else if mine?.state === 'pending'}<HiddenOptions
-					title="Membership requested"
-					description="Waiting for the team administrator"
-				/>{/if}
 			{#if admin}
-				<ApiService
-					name="refresh TROLS"
-					message="Refresh the official fixtures, results and standings?"
-					endpoint="team/sync"
-					data={{ team_id: id }}
-					onsuccess={(result) => {
-						syncMessage = result.message;
-					}}
-				/>
-				{#if syncMessage}<div class="row right">
-						<p role="status">{syncMessage}</p>
-					</div>{/if}
-				{#each pending as user}<div class="group">
+				<div class="group">
+					{#each pending as user (user.rk)}
 						<RouteLink
 							href={hrefOf(user.rk)}
 							title={user.name}
-							description="membership requested"
+							description="waiting to join"
 							image={imageOf(user.rk)}
-						/><ApiService
-							name="accept player"
-							message={`Accept ${user.name}?`}
-							endpoint="team/accept"
-							data={{ team_id: id, user_id: user.rk }}
-						/>
-					</div>{/each}
+						>
+							<ApiService
+								inline
+								name="accept"
+								message={`Accept ${user.name} onto the team?`}
+								endpoint="team/accept"
+								data={{ team_id: id, user_id: user.rk }}
+							/>
+						</RouteLink>
+					{/each}
+					<ApiService
+						name="refresh TROLS"
+						message="Refresh the official fixtures, results and standings?"
+						endpoint="team/sync"
+						data={{ team_id: id }}
+						onsuccess={(result) => {
+							syncMessage = result.message;
+						}}
+					/>
+					{#if syncMessage}<div class="row right">
+							<p role="status">{syncMessage}</p>
+						</div>{/if}
+				</div>
 			{/if}
+
 			<div class="group">
-				<HiddenOptions
-					title="Standings"
-					description={team.last_synced
-						? `Last refreshed ${new Date(String(team.last_synced)).toLocaleString()}`
-						: 'Awaiting first refresh'}
-				/>
-				{#each standings as standing}<HiddenOptions
-						title={`${standing.rank}. ${standing.name}`}
-						description={`${standing.wins} wins · ${standing.points} points · ${standing.percentage}%`}
-					/>{/each}
-			</div>
-			<div class="group">
-				<HiddenOptions
-					title="Rounds"
-					badge={rounds.length}
-				/>{#each rounds as round}<RouteLink
-						href={hrefOf(round.rk)}
-						title={round.name}
-						description={`${round.date} · ${officialResult(round)}`}
-					/>{/each}
-			</div>
-			{#if calendar.length}<HiddenOptions title="Competition dates"
-					>{#each calendar as entry}<HiddenOptions
-							title={String(entry.name)}
-							description={String(entry.date)}
-						/>{/each}</HiddenOptions
-				>{/if}
-			<div class="group">
-				<HiddenOptions
-					title="Players"
-					badge={members.length}
-				/>{#each members as user}<RouteLink
+				{#if mine?.state === 'pending'}
+					{@const viewer = users.find((user) => user.rk === $local.caller_id)}
+					<RouteLink
+						href={hrefOf(viewer?.rk ?? '')}
+						title={viewer?.name}
+						description="waiting to join"
+						image={imageOf(viewer?.rk ?? '')}
+					/>
+				{:else if !mine}
+					<ApiService
+						name="join"
+						message={`Ask to join ${team.name}?`}
+						endpoint="team/join"
+						data={{ team_id: id }}
+						disabled={!$local.caller_id}
+					/>
+				{/if}
+				<HiddenOptions title="Members" badge={members.length} />
+				{#each members as user (user.rk)}
+					<RouteLink
 						href={hrefOf(user.rk)}
 						title={user.name}
 						description={user.relation.role === 'is_admin'
 							? 'administrator'
 							: 'member'}
 						image={imageOf(user.rk)}
-					/>{/each}
+					/>
+				{/each}
 			</div>
+
+			{#if standings.length}
+				<div class="group">
+					{#each standings as standing (String(standing.name))}
+						<HiddenOptions
+							title={String(standing.name)}
+							description={`${standing.wins} wins`}
+						>
+							{#snippet detail()}
+								<span class="dot" aria-hidden="true"></span>{standing.points} points<span
+									class="dot"
+									aria-hidden="true"
+								></span>rank {standing.rank}
+							{/snippet}
+						</HiddenOptions>
+					{/each}
+				</div>
+			{/if}
+
+			<HiddenOptions title="Rounds" badge={rounds.length}>
+				{#each rounds as round (round.rk)}
+					<RouteLink
+						href={hrefOf(round.rk)}
+						title={`Round ${round.number}`}
+						description={roundSummary(round)}
+					/>
+				{/each}
+			</HiddenOptions>
 		{/if}
+
+		<HiddenOptions
+			title={String(team.competition_name)}
+			description={`${String(team.section_name)} · BRTA`}
+		>
+			<p>
+				{team.last_synced
+					? `Last refreshed ${new Date(String(team.last_synced)).toLocaleString()}`
+					: 'Awaiting first refresh'}
+			</p>
+			{#if calendar.length}
+				{#each calendar as entry}<HiddenOptions
+						title={String(entry.name)}
+						description={String(entry.date)}
+					/>{/each}
+			{/if}
+		</HiddenOptions>
 	{:else}<div class="row right">
 			<p>{$guids.loaded ? 'Team not found' : 'Loading…'}</p>
 		</div>{/if}
 </div>
 
 <style>
+	.dot {
+		display: inline-block;
+		width: 0.5em;
+		height: 0.5em;
+		margin: 0 0.5em;
+		border-radius: 50%;
+		background: grey;
+	}
 	.page {
 		width: 100%;
 	}

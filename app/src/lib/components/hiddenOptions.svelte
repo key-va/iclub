@@ -4,6 +4,8 @@
 	interface Props {
 		title?: string;
 		description?: string;
+		// Extra inline detail, matching routeLink (for example coloured status separators).
+		detail?: Snippet;
 		// text shown in the round icon instead of the dots/dash glyph
 		badge?: string | number;
 		isWhite?: boolean;
@@ -18,6 +20,7 @@
 	let {
 		title,
 		description,
+		detail,
 		badge,
 		isWhite = false,
 		inline = false,
@@ -62,7 +65,7 @@
 				{@render children?.()}
 			</div>
 		{:else}
-			<p class="truncate"><strong>{title}</strong>{#if description}<br />{description}{/if}</p>
+			<p class="truncate"><strong>{title}</strong>{#if description || detail}<br />{description}{/if}{@render detail?.()}</p>
 		{/if}
 
 		{#if children}
