@@ -1,0 +1,18 @@
+<!DOCTYPE HTML>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Bayside Regiona Tennis</title>
+<link rel="stylesheet" type="text/css" href="/styles/style2.css">
+<link rel="stylesheet" type="text/css" href="/styles/style.css">
+<script src="/js/jmap.js"></script>
+<script src="/js/popup.js"></script>
+<script src="/js/popup_maps.js"></script>
+<script>
+	function select_submit(f,w){f.which.value=w;f.submit();}
+</script>
+</head>
+<body>
+<table style="width: 740px; margin: 0 auto;"><tr><td><img src="images/logo.png?v=4" alt="logo"></td><td><div class=page-tabs><table class="noPrint"><tr style="vertical-align: top;"><td class=off><div class=tab><a href="index.php">Bayside Regional Tennis</a></div></td><td class=off><div class=tab><a href="clubs.php">Clubs</a></div></td><td class=off><div class=tab><a href="ladders.php">Ladders</a></div></td><td class=off><div class=tab><a href="results.php">Results</a></div></td><td class=on><div class=tab><a href="fixture.php">Fixtures</a></div></td><td class=off><div class=tab><a href="#" onclick="window.open('s_start.php','Club_Zone','toolbar=no,location=no,directories=no,status=no, menubar=no,resizable=yes,copyhistory=no,scrollbars=yes, scrolling=yes,width=850,height=600');return false;">Club Zone</a></div></td><td class=off><div class=tab><a href="p_ladders.php">Past Seasons</a></div></td><td class="empty">&nbsp;</td></tr></table></div></td></tr><tr><td colspan="2" class="bar-blue-med">Fixture</td></tr><tr><td colspan="2"><form name="select" id="select" method="POST" action="/brta/fixture.php"><input type=hidden id="which" name="which"><input type=hidden id="style" name="style" value=""><table style="width:850px"><tr><td style="width:260px"><label for="daytime">Select a Competition:</label><br><select id="daytime" name="daytime" Onchange="select_submit(select,0);"><option value="">&nbsp;</option><option value="AA">Saturday AM - Spring 2026</option><option value="AP">Saturday PM - Summer 2026/27</option><option value="UA">Sunday AM - Spring 2026</option><option value="TA">Tuesday AM - Spring 2026</option><option value="TN">Tuesday Night - Spring 2026</option><option value="WA">Wednesday AM - Spring 2026</option><option value="HA">Thursday AM - Spring 2026</option></select></td></tr></table></form></td></tr></table>
+<div style="text-align: center"><img src="images/tennis_line.gif" style="width:488px;height:42px" alt="footer"></div>
+</body></html>

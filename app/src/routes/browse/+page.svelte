@@ -11,7 +11,7 @@
 	let filter = $state('');
 	function clearFilter() { filter = ''; }
 
-	const browsable = $derived($entities.filter((e) => e.pk === 'user' || e.pk === 'ladder'));
+	const browsable = $derived($entities.filter((e) => e.pk === 'user' || e.pk === 'ladder' || e.pk === 'team'));
 
 	const filtered = $derived.by(() => {
 		const q = filter.trim().toLowerCase();
@@ -47,6 +47,8 @@
             </button>
         </div>
     </div>
+
+    {#if caller_id && device_id}<RouteLink href="/team/create" title="Request a Team" description="BRTA competitions" />{/if}
 
 	{#each filtered as entity (entity.rk)}
 		<RouteLink

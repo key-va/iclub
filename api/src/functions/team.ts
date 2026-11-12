@@ -1,0 +1,593 @@
+import {
+    app,
+    HttpRequest,
+    HttpResponseInit,
+    InvocationContext,
+} from "@azure/functions";
+import { DefaultAzureCredential } from "@azure/identity";
+import { TableClient, odata } from "@azure/data-tables";
+import { resourceName, resourceSuffix } from "../stores/resourceNames";
+import { doSignatureVerification } from "../services/doSignatureVerification";
+import { doNewGuid } from "../services/doNewGuid";
+import { doUpsertEntity } from "../services/doUpsertEntity";
+import { doUpsertRelation } from "../services/doUpsertRelation";
+import { doGuidsToPublic } from "../services/doGuidsToPublic";
+import { doAssetToPublic } from "../services/doAssetToPublic";
+import { doClubForOrigin } from "../services/doClubForOrigin";
+import { doSendPush } from "../services/doSendPush";
+import {
+    approvedTeamRole,
+    doEnsureRoundUsers,
+    doSyncTeam,
+    teamMapping,
+} from "../services/doSyncTeam";
+import { providerFor } from "../services/trols";
+
+const client = new TableClient(
+    `https://${resourceName(resourceSuffix.storageAccount)}.table.core.windows.net`,
+    "guids",
+    new DefaultAzureCredential(),
+);
+const reply = (
+    status: number,
+    message: string,
+    data?: object,
+    subject?: string,
+): HttpResponseInit => ({
+    status,
+    jsonBody: {
+        success: status < 400,
+        message,
+        ...(data ? { data } : {}),
+        ...(subject ? { subject } : {}),
+    },
+});
+async function get(pk: string, rk: string) {
+    try {
+        return await client.getEntity(pk, rk);
+    } catch (e: any) {
+        if (e.statusCode === 404) return undefined;
+        throw e;
+    }
+}
+async function relations(id: string) {
+    const rows = [];
+    for await (const row of client.listEntities({
+        queryOptions: { filter: odata`PartitionKey eq ${id}` },
+    }))
+        rows.push(row);
+    return rows;
+}
+async function push(
+    userIds: string[],
+    heading: string,
+    content: string,
+    path: string,
+    context: InvocationContext,
+) {
+    try {
+        await doSendPush({ userIds, heading, content, path }, context);
+    } catch (error) {
+        context.warn("Team push delivery failed", error);
+    }
+}
+// Serialize mutations to the same team/round across function instances using the existing entity's ETag.
+// A crashed invocation's lease expires; no new storage row or entity type is introduced.
+async function locked<T>(teamId: string, action: () => Promise<T>): Promise<T> {
+    const row = await client.getEntity("team", teamId);
+    if (Number(row.operation_until) > Date.now())
+        throw Object.assign(Error("Team update in progress; please retry"), {
+            statusCode: 409,
+        });
+    try {
+        await client.updateEntity(
+            {
+                partitionKey: "team",
+                rowKey: teamId,
+                operation_until: Date.now() + 180000,
+            },
+            "Merge",
+            { etag: row.etag },
+        );
+    } catch (e: any) {
+        if (e.statusCode === 412)
+            throw Object.assign(
+                Error("Team update in progress; please retry"),
+                { statusCode: 409 },
+            );
+        throw e;
+    }
+    try {
+        return await action();
+    } finally {
+        await client.updateEntity(
+            { partitionKey: "team", rowKey: teamId, operation_until: 0 },
+            "Merge",
+        );
+    }
+}
+export async function teamAction(
+    action: string,
+    request: HttpRequest,
+    context: InvocationContext,
+): Promise<HttpResponseInit> {
+    let body: any;
+    try {
+        body = await request.json();
+    } catch {
+        return reply(400, "Invalid JSON payload");
+    }
+    const { caller_id, device_id, signature, data = {} } = body ?? {};
+    if (!data || typeof data !== "object" || Array.isArray(data))
+        return reply(400, "Invalid data");
+    if (action !== "options") {
+        if (
+            typeof caller_id !== "string" ||
+            !caller_id ||
+            !signature ||
+            (!device_id && !caller_id.startsWith("bot_"))
+        )
+            return reply(400, "Caller credentials are required");
+        try {
+            await doSignatureVerification(
+                {
+                    callerId: caller_id,
+                    deviceId: device_id,
+                    url: request.url,
+                    signature,
+                },
+                context,
+            );
+        } catch {
+            return reply(401, "Unauthorised");
+        }
+    }
+    try {
+        if (action === "options") {
+            if (
+                ["association", "competition", "section"].some(
+                    (k) => data[k] !== undefined && typeof data[k] !== "string",
+                )
+            )
+                return reply(400, "Invalid selection");
+            try {
+                return reply(
+                    200,
+                    "Competition options",
+                    await providerFor("trols").options(data),
+                );
+            } catch (error) {
+                context.warn("TROLS options failed", error);
+                return reply(
+                    502,
+                    "Competition options could not be loaded. Please retry.",
+                );
+            }
+        }
+        if (action === "create") {
+            if (
+                !caller_id.startsWith("user_") ||
+                !(await get("user", caller_id))
+            )
+                return reply(403, "A user account is required");
+            if (
+                ["association", "competition", "section", "team"].some(
+                    (k) => typeof data[k] !== "string" || !data[k],
+                )
+            )
+                return reply(400, "Complete all competition selections");
+            const brand = await doClubForOrigin(
+                request.headers.get("origin") ?? "",
+            );
+            if (!brand)
+                return reply(400, "Open your club website to request a team");
+            let mapping;
+            try {
+                mapping = await providerFor("trols").resolve(data);
+            } catch (error) {
+                context.warn("TROLS selection validation failed", error);
+                return reply(
+                    400,
+                    "The selected competition or team is no longer available",
+                );
+            }
+            let image: Buffer | undefined;
+            if (data.image !== undefined) {
+                if (typeof data.image !== "string")
+                    return reply(400, "Invalid team image");
+                image = Buffer.from(
+                    data.image.replace(/^data:image\/jpe?g;base64,/i, ""),
+                    "base64",
+                );
+                if (
+                    image.length > 1024 * 1024 ||
+                    image[0] !== 255 ||
+                    image[1] !== 216 ||
+                    image[2] !== 255
+                )
+                    return reply(400, "Image must be a JPEG of 1MB or less");
+            }
+            // A short club-entity lease protects duplicate checks across independent API instances.
+            const club = await client.getEntity("club", brand.clubId);
+            if (Number(club.team_request_until) > Date.now())
+                return reply(
+                    409,
+                    "Another team request is being saved; please retry",
+                );
+            try {
+                await client.updateEntity(
+                    {
+                        partitionKey: "club",
+                        rowKey: brand.clubId,
+                        team_request_until: Date.now() + 60000,
+                    },
+                    "Merge",
+                    { etag: club.etag },
+                );
+            } catch (e: any) {
+                if (e.statusCode === 412)
+                    return reply(
+                        409,
+                        "Another team request is being saved; please retry",
+                    );
+                throw e;
+            }
+            try {
+                // Include incomplete earlier creations too: a failed relation write must not
+                // allow another entity for the same external team on a retry.
+                for await (const old of client.listEntities({
+                    queryOptions: { filter: odata`PartitionKey eq ${"team"}` },
+                })) {
+                    if (
+                        old.club_id === brand.clubId &&
+                        [
+                            "provider",
+                            "association",
+                            "season",
+                            "section",
+                            "external_team",
+                        ].every((k) => old[k] === mapping[k])
+                    ) {
+                        return reply(
+                            409,
+                            "This team has already been requested for your club",
+                            { team_id: old.rowKey },
+                            old.rowKey,
+                        );
+                    }
+                }
+                const id = doNewGuid("team");
+                try {
+                    await doAssetToPublic(
+                        image ?? { publicName: `${brand.clubId}.jpg` },
+                        `${id}.jpg`,
+                    );
+                } catch (e: any) {
+                    if (!image && e.statusCode === 404)
+                        await doAssetToPublic("icon-00.jpg", `${id}.jpg`);
+                    else throw e;
+                }
+                await doUpsertEntity("team", id, {
+                    ...mapping,
+                    state: "pending",
+                    requested_by: caller_id,
+                    club_id: brand.clubId,
+                });
+                await doUpsertRelation(id, brand.clubId);
+                await doUpsertRelation(id, caller_id, { state: "pending" });
+                await doGuidsToPublic();
+                await push(
+                    (await relations(brand.clubId))
+                        .filter(
+                            (r) =>
+                                r.rowKey.startsWith("user_") &&
+                                r.is_admin === true,
+                        )
+                        .map((r) => r.rowKey),
+                    mapping.name,
+                    "New team pending approval",
+                    `team/${id}`,
+                    context,
+                );
+                return reply(
+                    201,
+                    "Team requested; waiting for club approval",
+                    undefined,
+                    id,
+                );
+            } finally {
+                await client.updateEntity(
+                    {
+                        partitionKey: "club",
+                        rowKey: brand.clubId,
+                        team_request_until: 0,
+                    },
+                    "Merge",
+                );
+            }
+        }
+        const teamId = request.params.team_id ?? data.team_id;
+        if (typeof teamId !== "string" || !teamId.startsWith("team_"))
+            return reply(400, "team_id is required");
+        if (!(await get("team", teamId))) return reply(404, "Team not found");
+        return await locked(teamId, async () => {
+            const team = await get("team", teamId);
+            const mine = await get(teamId, caller_id);
+            if (action === "activate") {
+                const clubAdmin = await get(String(team.club_id), caller_id);
+                if (clubAdmin?.is_admin !== true)
+                    return reply(
+                        403,
+                        "Only the associated club administrator can activate this team",
+                    );
+                if (
+                    team.state !== "pending" &&
+                    !(team.state === "active" && !team.last_synced)
+                )
+                    return reply(409, "Only a pending team can be activated");
+                // A failed external fetch leaves approval pending, with no imported records.
+                let snapshot;
+                try {
+                    snapshot = await providerFor(
+                        String(team.provider),
+                    ).snapshot(teamMapping(team));
+                } catch (error) {
+                    context.warn("Initial team synchronisation failed", error);
+                    return reply(
+                        502,
+                        "TROLS could not be loaded; the team is still pending. Retry approval.",
+                    );
+                }
+                const { partitionKey, rowKey, timestamp, etag, ...attrs } =
+                    team;
+                await doUpsertEntity("team", teamId, {
+                    ...attrs,
+                    state: "active",
+                });
+                await doUpsertRelation(teamId, String(team.requested_by), {
+                    role: "is_admin",
+                });
+                const summary = await doSyncTeam(teamId, snapshot);
+                await push(
+                    [String(team.requested_by)],
+                    String(team.name),
+                    "Your team is approved and active",
+                    `team/${teamId}`,
+                    context,
+                );
+                return reply(200, "Team activated", summary, teamId);
+            }
+            if (team.state !== "active")
+                return reply(409, "The team must be active");
+            if (action === "join") {
+                if (
+                    !caller_id.startsWith("user_") ||
+                    !(await get("user", caller_id))
+                )
+                    return reply(403, "A user account is required");
+                if (mine)
+                    return reply(
+                        409,
+                        "You already belong to this team or have a pending request",
+                    );
+                await doUpsertRelation(teamId, caller_id, { state: "pending" });
+                await doGuidsToPublic();
+                await push(
+                    (await relations(teamId))
+                        .filter((r) => r.role === "is_admin")
+                        .map((r) => r.rowKey),
+                    String(team.name),
+                    "A player has requested to join",
+                    `team/${teamId}`,
+                    context,
+                );
+                return reply(200, "Membership requested");
+            }
+            if (mine?.role !== "is_admin")
+                return reply(403, "Only a team administrator can do this");
+            if (action === "accept") {
+                const user = data.user_id;
+                if (typeof user !== "string" || !user.startsWith("user_"))
+                    return reply(400, "user_id is required");
+                const membership = await get(teamId, user);
+                if (membership?.role === "is_member") {
+                    await doEnsureRoundUsers(teamId);
+                    await doGuidsToPublic();
+                    return reply(
+                        200,
+                        "Player already accepted; round links refreshed",
+                    );
+                }
+                if (
+                    membership?.state !== "pending" ||
+                    !(await get("user", user))
+                )
+                    return reply(
+                        409,
+                        "The player must have a pending membership request",
+                    );
+                await doUpsertRelation(teamId, user, { role: "is_member" });
+                await doEnsureRoundUsers(teamId);
+                await doGuidsToPublic();
+                await push(
+                    [user],
+                    String(team.name),
+                    "Your team membership has been approved",
+                    `team/${teamId}`,
+                    context,
+                );
+                return reply(200, "Player accepted");
+            }
+            if (action === "sync") {
+                try {
+                    const summary = await doSyncTeam(teamId);
+                    return reply(
+                        200,
+                        `Refreshed: ${summary.created} created, ${summary.updated} updated`,
+                        summary,
+                    );
+                } catch (error) {
+                    context.warn("Team synchronisation failed", error);
+                    return reply(
+                        502,
+                        "Synchronisation failed. Refresh the page and retry; your player roles and messages are preserved.",
+                    );
+                }
+            }
+            return reply(404, "Unknown team action");
+        });
+    } catch (error: any) {
+        context.error("Team operation failed", error);
+        return reply(
+            error.statusCode === 409 ? 409 : 503,
+            error.statusCode === 409
+                ? error.message
+                : "Team update could not be completed; refresh and retry",
+        );
+    }
+}
+for (const action of [
+    "options",
+    "create",
+    "activate",
+    "join",
+    "accept",
+    "sync",
+]) {
+    app.http(`team${action}`, {
+        methods: ["POST"],
+        route: `team/${action}`,
+        authLevel: "anonymous",
+        handler: (request, context) => teamAction(action, request, context),
+    });
+    if (!["options", "create"].includes(action))
+        app.http(`teamById${action}`, {
+            methods: ["POST"],
+            route: `team/{team_id}/${action}`,
+            authLevel: "anonymous",
+            handler: (request, context) => teamAction(action, request, context),
+        });
+}
+export async function roundRole(
+    request: HttpRequest,
+    context: InvocationContext,
+): Promise<HttpResponseInit> {
+    let body: any;
+    try {
+        body = await request.json();
+    } catch {
+        return reply(400, "Invalid JSON payload");
+    }
+    const { caller_id, device_id, signature, data = {} } = body ?? {};
+    if (
+        typeof caller_id !== "string" ||
+        !caller_id ||
+        !signature ||
+        (!device_id && !caller_id.startsWith("bot_"))
+    )
+        return reply(400, "Caller credentials are required");
+    try {
+        await doSignatureVerification(
+            {
+                callerId: caller_id,
+                deviceId: device_id,
+                url: request.url,
+                signature,
+            },
+            context,
+        );
+    } catch {
+        return reply(401, "Unauthorised");
+    }
+    if (!data || typeof data !== "object") return reply(400, "Invalid data");
+    const id = request.params.round_id ?? data.round_id;
+    const user = data.user_id ?? caller_id;
+    const role = data.role;
+    if (
+        typeof id !== "string" ||
+        !id.startsWith("round_") ||
+        typeof user !== "string" ||
+        !user.startsWith("user_") ||
+        !["pending", "available", "unavailable", "selected"].includes(role)
+    )
+        return reply(400, "Valid round_id, user_id and role are required");
+    try {
+        const round = await get("round", id);
+        if (!round) return reply(404, "Round not found");
+        const teamId = String(round.team_id);
+        return await locked(teamId, async () => {
+            const team = await get("team", teamId);
+            if (team?.state !== "active" || !(await get(teamId, id)))
+                return reply(409, "Round must belong to an active team");
+            const membership = await get(teamId, user);
+            const caller = await get(teamId, caller_id);
+            const previous = await get(id, user);
+            if (!approvedTeamRole(membership?.role) || !previous)
+                return reply(
+                    403,
+                    "Only approved team players have round roles",
+                );
+            const old = previous.role;
+            if (role === "selected") {
+                if (user === caller_id || caller?.role !== "is_admin")
+                    return reply(
+                        403,
+                        "Only an administrator can select another player",
+                    );
+                if (old !== "available" && old !== "selected")
+                    return reply(409, "Only available players can be selected");
+            } else if (
+                user !== caller_id &&
+                !(
+                    caller?.role === "is_admin" &&
+                    old === "selected" &&
+                    role === "available"
+                )
+            )
+                return reply(403, "You may only update your own availability");
+            if (old === role) {
+                await doUpsertRelation(id, user, { role });
+                await doGuidsToPublic();
+                return reply(200, "Role unchanged");
+            }
+            await doUpsertRelation(id, user, { role });
+            // Persist both directions before notifying, and target every approved member, including the actor.
+            if (old === "selected" && role === "unavailable")
+                await push(
+                    (await relations(teamId))
+                        .filter(
+                            (r) =>
+                                r.rowKey.startsWith("user_") &&
+                                approvedTeamRole(r.role),
+                        )
+                        .map((r) => r.rowKey),
+                    `Player unavailable — ${team.name}`,
+                    `A selected player is now unavailable for Round ${round.number}. A replacement player is needed.`,
+                    `round/${id}`,
+                    context,
+                );
+            await doGuidsToPublic();
+            return reply(200, "Round role updated");
+        });
+    } catch (error: any) {
+        context.error("Round role update failed", error);
+        return reply(
+            error.statusCode === 409 ? 409 : 503,
+            error.statusCode === 409
+                ? error.message
+                : "Role update could not be completed; refresh and retry",
+        );
+    }
+}
+app.http("roundRole", {
+    methods: ["POST"],
+    route: "round/role",
+    authLevel: "anonymous",
+    handler: roundRole,
+});
+app.http("roundByIdRole", {
+    methods: ["POST"],
+    route: "round/{round_id}/role",
+    authLevel: "anonymous",
+    handler: roundRole,
+});

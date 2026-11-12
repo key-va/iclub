@@ -63,12 +63,10 @@
 
 	const numbersValid = $derived(Object.keys(ladderSettings).every(numberOk));
 
-	// Intra Club is the only club for now; this becomes a user choice later
-	const CLUB_ID = 'club_0000-00-00_00-00-00_bootstrap00c';
 
 	const createData = $derived({
 		name: cleanName,
-		club_id: CLUB_ID,
+		club_id: $branding.clubId,
 		...Object.fromEntries(Object.entries(values).filter(([, value]) => value !== null)),
 		...(image !== '' ? { image } : {})
 	});
@@ -160,7 +158,7 @@
 		message={`create the ladder ${cleanName}?`}
 		endpoint="ladder/create"
 		data={createData}
-		disabled={cleanName === '' || !numbersValid}
+		disabled={cleanName === '' || !numbersValid || !$branding.clubId}
 	>
 		<button class="blue" aria-label="help" aria-pressed={showHelp} onclick={() => (showHelp = !showHelp)}>
 			<svg viewBox="0 0 24 24" width="1rem" height="1rem" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="Help">

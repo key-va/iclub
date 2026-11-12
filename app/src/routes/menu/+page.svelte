@@ -25,6 +25,7 @@
 	{#if caller_id && device_id}
 
 		<RouteLink href="/browse" title="Browse" description="ladders, events and teams" isWhite={true} />
+		<RouteLink href="/team/create" title="Request a Team" description="join a BRTA competition" />
 		<RouteLink href="{hrefOf(caller_id)}/edit" title="Profile" description="edit your profile" isWhite={false} />
 
 	{:else}

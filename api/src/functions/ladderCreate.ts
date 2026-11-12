@@ -114,27 +114,15 @@ export async function ladderCreate(request: HttpRequest, context: InvocationCont
         settings[key] = value;
     }
 
-    // 3. Create the ladder (pending) under the chosen club and make the caller its admin
-    if (typeof rawClubId !== "string" || !rawClubId.startsWith("club_")) {
-        return { status: 400, jsonBody: { success: false, message: "club_id is required" } };
-    }
-
-    try {
-        await guidsClient.getEntity("club", rawClubId);
-    } catch (err: any) {
-        if (err?.statusCode === 404) {
-            return { status: 404, jsonBody: { success: false, message: "Club not found" } };
-        }
-        throw err;
-    }
-
-    const clubId = rawClubId;
+    // Hostname branding also owns club approval context; never trust a submitted club ID.
+    const brand = await doClubForOrigin(request.headers.get("origin") ?? "");
+    if (!brand) return { status: 400, jsonBody: { success: false, message: "Open your club website to create a ladder" } };
+    const clubId = brand.clubId;
 
     const ladderId = doNewGuid("ladder");
 
     let ladderImage: string | Buffer | { publicName: string } = image ?? "icon-00.jpg";
     if (!image) {
-        const brand = await doClubForOrigin(request.headers.get("origin") ?? "");
         if (brand) ladderImage = { publicName: `${brand.clubId}.jpg` };
     }
     try { await doAssetToPublic(ladderImage, `${ladderId}.jpg`); }

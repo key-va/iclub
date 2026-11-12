@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { isTeamMember, upcomingTeamRounds } from '#lib/rounds.ts';
+	import RoundRoleDot from '#lib/components/roundRoleDot.svelte';
 	import InstallApp from '#lib/components/installApp.svelte';
 	import { page } from '$app/state';
 	import { PUBLIC_URL } from '#lib/config.ts';
@@ -23,6 +25,10 @@
 			relatedEntities($guids.items, club.rk, 'ladder').filter((ladder) => ladder.state === 'pending')
 		)
 	);
+
+    const teams = $derived(relatedEntities($guids.items, user_id, 'team'));
+    const pendingTeams = $derived(adminClubs.flatMap(club => relatedEntities($guids.items, club.rk, 'team').filter(team => team.state === 'pending')));
+    const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Australia/Sydney', year:'numeric',month:'2-digit',day:'2-digit' }).format(new Date());
 
 	// Ladders this user is associated with, carrying their rank (if any) from the relation
 	const ladders = $derived(
@@ -96,6 +102,22 @@
 				{/each}
 			</div>
 		{/if}
+
+        {#if user_id === $local.caller_id}
+            {#each pendingTeams as team}<RouteLink href={hrefOf(team.rk)} title={team.name} description="team pending club approval" image={imageOf(team.rk)} />{/each}
+        {/if}
+        {#each teams as team (team.rk)}
+            <div class="group">
+                <RouteLink href={hrefOf(team.rk)} title={team.name} description={team.state === 'pending' ? 'pending club approval' : isTeamMember(team.relation.role) ? 'team' : 'membership requested'} image={imageOf(team.rk)} />
+                {#if isTeamMember(team.relation.role)}
+                    {#each upcomingTeamRounds($guids.items,user_id,team.rk,today) as round (round.rk)}
+                        <RouteLink href={hrefOf(round.rk)} title={round.name} description={`${round.date} · ${round.relation.role}`}>
+                            {#snippet detail()}<RoundRoleDot role={round.relation.role} />{/snippet}
+                        </RouteLink>
+                    {:else}<HiddenOptions title="No upcoming rounds" />{/each}
+                {/if}
+            </div>
+        {/each}
 
 		{#each ladders as ladder (ladder.rk)}
 			<div class="group">

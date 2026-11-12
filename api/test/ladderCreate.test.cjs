@@ -39,15 +39,14 @@ async function create(origin='https://next.intra.club',extra={}){
 test('default ladder image copies the visiting origin club JPEG into its own blob',async()=>{
  const r=await create();assert.equal(r.status,201);const id=r.jsonBody.subject;
  assert.deepEqual(downloads,['club_next.jpg']);assert.deepEqual(blobs.get(`${id}.jpg`),icon);assert.deepEqual(blobs.get('club_next.jpg'),icon);
- assert.ok(rows.has(key(id,'club_intra')));assert.ok(rows.has(key('club_intra',id)));assert.equal(rows.get(key(id,'user_admin')).is_admin,true);assert.equal(exported,true);
+ assert.ok(rows.has(key(id,'club_next')));assert.ok(rows.has(key('club_next',id)));assert.equal(rows.get(key(id,'user_admin')).is_admin,true);assert.equal(exported,true);
 });
 test('an uploaded ladder image takes priority over origin branding',async()=>{
  const custom=Buffer.from([0xff,0xd8,0xff,0x01]);const r=await create('https://next.intra.club',{image:custom.toString('base64')});
  assert.equal(r.status,201);assert.deepEqual(downloads,[]);assert.deepEqual(blobs.get(`${r.jsonBody.subject}.jpg`),custom);
 });
-test('unknown/missing origins and missing club image preserve the default image fallback',async()=>{
+test('unknown/missing origins cannot choose a club; missing known club image falls back',async()=>{
+ for(const origin of ['', 'https://unknown.example']){const r=await create(origin);assert.equal(r.status,400);}
  const fallback=fs.readFileSync(path.join(__dirname,'../src/assets/icon-00.jpg'));
- for(const origin of ['', 'https://unknown.example','https://next.intra.club']){
-  blobs.delete('club_next.jpg');const r=await create(origin);assert.equal(r.status,201);assert.deepEqual(blobs.get(`${r.jsonBody.subject}.jpg`),fallback);
- }
+ blobs.delete('club_next.jpg');const r=await create();assert.equal(r.status,201);assert.deepEqual(blobs.get(`${r.jsonBody.subject}.jpg`),fallback);
 });

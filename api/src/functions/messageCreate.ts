@@ -38,7 +38,7 @@ export async function messageCreate(request: HttpRequest, context: InvocationCon
         caller_id?: string;
         device_id?: string;
         signature?: string;
-        data?: { match_id?: unknown; text?: unknown };
+        data?: { match_id?: unknown; round_id?: unknown; text?: unknown };
     };
 
     try {
@@ -53,10 +53,12 @@ export async function messageCreate(request: HttpRequest, context: InvocationCon
         return { status: 400, jsonBody: { success: false, message: "caller_id and signature are required; user callers also require device_id" } };
     }
 
-    const matchId = typeof data?.match_id === "string" ? data.match_id : "";
+    if (data?.match_id !== undefined && data?.round_id !== undefined) return { status: 400, jsonBody: { success: false, message: "Choose a match or a round" } };
+    const isRound = typeof data?.round_id === "string";
+    const matchId = isRound ? data.round_id as string : typeof data?.match_id === "string" ? data.match_id : "";
 
     if (!matchId) {
-        return { status: 400, jsonBody: { success: false, message: "match_id is required" } };
+        return { status: 400, jsonBody: { success: false, message: "match_id or round_id is required" } };
     }
 
     const text = typeof data?.text === "string" ? data.text.trim().replace(/\s+/g, " ") : "";
@@ -84,10 +86,10 @@ export async function messageCreate(request: HttpRequest, context: InvocationCon
     }
 
     // 2. Any signed-in user can post on any existing match, whatever its state
-    const match = await getRow("match", matchId);
+    const match = await getRow(isRound ? "round" : "match", matchId);
 
     if (!match) {
-        return { status: 404, jsonBody: { success: false, message: "Match not found" } };
+        return { status: 404, jsonBody: { success: false, message: "Match or round not found" } };
     }
 
     const players: string[] = [];
@@ -95,7 +97,8 @@ export async function messageCreate(request: HttpRequest, context: InvocationCon
     for await (const relation of guidsClient.listEntities({
         queryOptions: { filter: odata`PartitionKey eq ${matchId}` }
     })) {
-        if (relation.role === "challenger" || relation.role === "defender") players.push(...await doCompetitorUsers(guidsClient, relation.rowKey as string));
+        if (isRound && ["pending", "available", "unavailable", "selected"].includes(String(relation.role)) && relation.rowKey.startsWith("user_")) players.push(relation.rowKey);
+        if (!isRound && (relation.role === "challenger" || relation.role === "defender")) players.push(...await doCompetitorUsers(guidsClient, relation.rowKey as string));
     }
 
     // 3. Store the message: the text is the entity name, related to its sender and to the match
@@ -109,7 +112,7 @@ export async function messageCreate(request: HttpRequest, context: InvocationCon
         exceptUserId: caller_id,
         heading: `${match.name}`,
         content: `${sender?.name ?? "A player"}: ${text}`,
-        path: `match/${matchId}`,
+        path: `${isRound ? "round" : "match"}/${matchId}`,
         collapseId: matchId
     }, context);
 
