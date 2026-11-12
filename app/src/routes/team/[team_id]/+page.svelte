@@ -44,9 +44,9 @@
 			typeof theirs === 'number'
 		) {
 			if (mine === theirs)
-				return `${team?.name} draws ${mine}-${theirs} points`;
+				return `${team?.name} draws ${mine}-${theirs} `;
 			const winner = mine > theirs ? team?.name : round.opponent;
-			return `${winner} wins ${Math.max(mine, theirs)}-${Math.min(mine, theirs)} points`;
+			return `${winner} wins ${Math.max(mine, theirs)}-${Math.min(mine, theirs)}`;
 		}
 		if (round.status === 'bye') return 'bye';
 		if (round.status === 'completed') return officialResult(round);
@@ -108,18 +108,7 @@
 							/>
 						</RouteLink>
 					{/each}
-					<ApiService
-						name="refresh TROLS"
-						message="Refresh the official fixtures, results and standings?"
-						endpoint="team/sync"
-						data={{ team_id: id }}
-						onsuccess={(result) => {
-							syncMessage = result.message;
-						}}
-					/>
-					{#if syncMessage}<div class="row right">
-							<p role="status">{syncMessage}</p>
-						</div>{/if}
+					
 				</div>
 			{/if}
 
@@ -152,6 +141,19 @@
 						image={imageOf(user.rk)}
 					/>
 				{/each}
+				<ApiService
+						name="refresh TROLS"
+						message="Refresh the official fixtures, results and standings?"
+						endpoint="team/sync"
+						data={{ team_id: id }}
+						onsuccess={(result) => {
+							syncMessage = result.message;
+						}}
+					/>
+					{#if syncMessage}<div class="row right">
+							<p role="status">{syncMessage}</p>
+						</div>
+					{/if}
 			</div>
 
 			{#if standings.length}
@@ -160,45 +162,27 @@
 						<HiddenOptions
 							title={String(standing.name)}
 							description={`${standing.wins} wins`}
+							badge={String(standing.rank)}
 						>
 							{#snippet detail()}
-								<span class="dot" aria-hidden="true"></span>{standing.points} points<span
-									class="dot"
-									aria-hidden="true"
-								></span>rank {standing.rank}
+								<span class="dot" aria-hidden="true"></span>{standing.points} points
 							{/snippet}
 						</HiddenOptions>
 					{/each}
 				</div>
 			{/if}
 
-			<HiddenOptions title="Rounds" badge={rounds.length}>
+			<HiddenOptions title="Rounds">
 				{#each rounds as round (round.rk)}
 					<RouteLink
 						href={hrefOf(round.rk)}
-						title={`Round ${round.number}`}
+						title={`Round ${round.number} ${round.date}`}
 						description={roundSummary(round)}
 					/>
 				{/each}
 			</HiddenOptions>
 		{/if}
 
-		<HiddenOptions
-			title={String(team.competition_name)}
-			description={`${String(team.section_name)} · BRTA`}
-		>
-			<p>
-				{team.last_synced
-					? `Last refreshed ${new Date(String(team.last_synced)).toLocaleString()}`
-					: 'Awaiting first refresh'}
-			</p>
-			{#if calendar.length}
-				{#each calendar as entry}<HiddenOptions
-						title={String(entry.name)}
-						description={String(entry.date)}
-					/>{/each}
-			{/if}
-		</HiddenOptions>
 	{:else}<div class="row right">
 			<p>{$guids.loaded ? 'Team not found' : 'Loading…'}</p>
 		</div>{/if}
