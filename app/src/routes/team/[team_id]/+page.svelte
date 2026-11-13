@@ -11,6 +11,7 @@
 	} from '#lib/stores/guids.ts';
 	import {
 		isTeamMember,
+		isTeamAdmin,
 		jsonArray,
 		officialResult,
 		roundView,
@@ -26,7 +27,7 @@
 	const team = $derived(teamEntity ? teamView(teamEntity) : undefined);
 	const users = $derived(relatedEntities($guids.items, id, 'user'));
 	const mine = $derived(users.find((u) => u.rk === $local.caller_id)?.relation);
-	const admin = $derived(mine?.role === 'is_admin');
+	const admin = $derived(isTeamAdmin(mine));
 	const club = $derived(relatedEntities($guids.items, id, 'club')[0]);
 	const clubAdmin = $derived(
 		!!club &&
@@ -39,7 +40,7 @@
 			.map((round) => roundView(round, round.relation))
 			.sort((a, b) => Number(a.number) - Number(b.number)),
 	);
-	const members = $derived(users.filter((u) => isTeamMember(u.relation.role)));
+	const members = $derived(users.filter((u) => isTeamMember(u.relation)));
 	const pending = $derived(users.filter((u) => u.relation.state === 'pending'));
 	const standings = $derived(jsonArray(team?.standings));
 	const calendar = $derived(jsonArray(team?.calendar));
@@ -144,7 +145,7 @@
 					<RouteLink
 						href={hrefOf(user.rk)}
 						title={user.name}
-						description={user.relation.role === 'is_admin'
+						description={isTeamAdmin(user.relation)
 							? 'administrator'
 							: 'member'}
 						image={imageOf(user.rk)}

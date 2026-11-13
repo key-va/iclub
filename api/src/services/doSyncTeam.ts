@@ -14,14 +14,17 @@ import {
     roundCondition,
 } from "./competitionData";
 export { teamMapping } from "./competitionData";
+import {
+    isTeamMember,
+    teamContext,
+    migrateTeamRelations,
+} from "./teamRelations";
 
 const client = new TableClient(
     `https://${resourceName(resourceSuffix.storageAccount)}.table.core.windows.net`,
     "guids",
     new DefaultAzureCredential(),
 );
-export const approvedTeamRole = (role: unknown) =>
-    role === "is_admin" || role === "is_member";
 export const externalRoundKey = (mapping: TeamMapping, number: number) =>
     JSON.stringify([
         mapping.provider,
@@ -40,7 +43,7 @@ export async function doEnsureRoundUsers(teamId: string) {
     }))
         relations.push(row);
     const members = relations.filter(
-        (r) => r.rowKey.startsWith("user_") && approvedTeamRole(r.role),
+        (r) => r.rowKey.startsWith("user_") && isTeamMember(r),
     );
     for (const round of relations.filter((r) => r.rowKey.startsWith("round_")))
         for (const user of members) {
@@ -103,7 +106,8 @@ export async function doSyncTeam(
     teamId: string,
     snapshot?: CompetitionSnapshot,
 ) {
-    const team = await client.getEntity("team", teamId);
+    const graph = await teamContext(teamId);
+    const team = graph.team;
     if (team.state !== "active")
         throw Error("Only an active team can be synchronised");
     const mapping = teamMapping(team);
@@ -200,6 +204,7 @@ export async function doSyncTeam(
         )
             throw Error("A completed round has a conflicting fixture");
     }
+    await migrateTeamRelations(graph);
     let created = 0,
         updated = 0;
     for (const round of source.rounds) {

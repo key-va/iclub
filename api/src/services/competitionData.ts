@@ -72,16 +72,35 @@ export function teamExternalFields(source: Record<string, any>) {
     );
 }
 export function teamAttributes(row: Record<string, any>) {
-    // Preserve app-owned name/state, ownership and operational attributes.
-    const next = attributes(
-        row,
-        Object.keys(teamFields).filter((key) => key !== "name"),
-    );
+    // Preserve app-owned display/lifecycle fields and the in-entity operational guard.
+    const next = attributes(row, [
+        ...Object.keys(teamFields).filter((key) => key !== "name"),
+        "club_id",
+        "requested_by",
+        "operation_until",
+        "operational_until",
+    ]);
     for (const [key, external] of Object.entries(teamFields)) {
         if (next[`ext_${external}`] === undefined && row[key] !== undefined)
             next[`ext_${external}`] = row[key];
     }
+    if (
+        next.operation_guard === undefined &&
+        (row.operation_until !== undefined ||
+            row.operational_until !== undefined)
+    )
+        next.operation_guard = row.operation_until ?? row.operational_until;
+    next.external_key = externalTeamKey(teamMapping(row));
     return next;
+}
+export function externalTeamKey(mapping: TeamMapping): string {
+    return JSON.stringify([
+        mapping.provider,
+        mapping.association,
+        mapping.season,
+        mapping.section,
+        mapping.external_team,
+    ]);
 }
 export function roundCondition(
     row: Record<string, any>,

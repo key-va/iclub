@@ -9,8 +9,13 @@ export const roundRoleColour: Record<string, string> = {
 	unavailable: 'red',
 	pending: 'grey',
 };
-export const isTeamMember = (role: unknown) =>
-	role === 'is_admin' || role === 'is_member';
+export function isTeamAdmin(relation?: Record<string, unknown>): boolean {
+	return typeof relation?.is_admin === 'boolean'
+		? relation.is_admin
+		: relation?.role === 'is_admin';
+}
+export const isTeamMember = (relation?: Record<string, unknown>) =>
+	isTeamAdmin(relation) || relation?.role === 'is_member';
 // Read the new stored contract while older datasets remain visible until refresh.
 // These aliases are derived views, never copies persisted back to guids.json.
 export function roundView<T extends GuidRow>(

@@ -236,8 +236,12 @@ test("options do not write; signed creation resolves host club, validates select
     assert.equal(get("team", id).ext_competition, "TN");
     assert.equal(get("team", id).ext_team, "TN004");
     assert.equal(get("team", id).provider, undefined);
-    assert.equal(get("team", id).club_id, C);
-    assert.equal(get(id, A).state, "pending");
+    assert.equal(get("team", id).club_id, undefined);
+    assert.ok(get(id, C));
+    assert.ok(get(C, id));
+    assert.equal(get(id, A).state, undefined);
+    assert.equal(get(id, A).is_admin, true);
+    assert.equal(get(A, id).is_admin, true);
     assert.equal(get(id, A).role, undefined);
     assert.equal((await call("create", A, data)).status, 409);
     assert.equal(
@@ -262,7 +266,9 @@ test("only associated club admin activates; fetch failure leaves pending; approv
     failFetch = false;
     assert.equal((await call("activate", CLUBADMIN)).status, 200);
     assert.equal(get("team", T).state, "active");
-    assert.equal(get(T, A).role, "is_admin");
+    assert.equal(get(T, A).is_admin, true);
+    assert.equal(get(A, T).is_admin, true);
+    assert.equal(get(T, A).role, undefined);
     const r = [...rows.values()].find((r) => r.partitionKey === "round");
     assert.equal(get(r.rowKey, A).role, "pending");
     assert.equal(get(A, r.rowKey).role, "pending");
@@ -499,7 +505,9 @@ test("club approval can recover an interrupted activation before initial sync co
     seed("active");
     relation(T, A, { state: "pending" });
     assert.equal((await call("activate", CLUBADMIN)).status, 200);
-    assert.equal(get(T, A).role, "is_admin");
+    assert.equal(get(T, A).is_admin, true);
+    assert.equal(get(A, T).is_admin, true);
+    assert.equal(get(T, A).role, undefined);
     assert.ok(get("team", T).last_synced);
     mirrored();
 });
@@ -926,4 +934,117 @@ test("legacy directions migrate to the team-round relation even for omitted roun
     assert.equal(get(r.rowKey, U).role, "selected");
     assert.ok(get(r.rowKey, "message_home"));
     mirrored();
+});
+
+test("new team requests and approval use club/admin relations and leave only team attributes on the entity", async () => {
+    seed();
+    for (const [k, row] of [...rows])
+        if (row.rowKey === T || row.partitionKey === T) rows.delete(k);
+    const created = await call("create", A, {
+        association: "brta",
+        competition: "TN",
+        section: "TN001",
+        team: "TN004",
+    });
+    assert.equal(created.status, 201);
+    const id = created.jsonBody.subject;
+    const pending = get("team", id);
+    assert.equal(pending.state, "pending");
+    assert.equal(pending.club_id, undefined);
+    assert.equal(pending.requested_by, undefined);
+    assert.equal(pending.operation_until, undefined);
+    assert.equal(pending.operation_guard, 0);
+    assert.ok(pending.external_key);
+    assert.ok(get(id, C));
+    assert.ok(get(C, id));
+    assert.equal(get(id, A).is_admin, true);
+    assert.equal(get(A, id).is_admin, true);
+    assert.equal(get(id, A).role, undefined);
+    assert.equal((await call("activate", A, { team_id: id })).status, 403);
+    assert.equal(
+        (await call("activate", CLUBADMIN, { team_id: id })).status,
+        200,
+    );
+    assert.equal((await call("join", U, { team_id: id })).status, 200);
+    assert.equal(
+        (await call("accept", A, { team_id: id, user_id: U })).status,
+        200,
+    );
+    const round = [...rows.values()].find(
+        (row) => row.partitionKey === "round",
+    );
+    assert.equal((await role(U, U, "available", round.rowKey)).status, 200);
+    assert.equal((await role(A, U, "selected", round.rowKey)).status, 200);
+    const team = get("team", id);
+    for (const field of Object.keys(team).filter(
+        (k) => !["partitionKey", "rowKey", "etag"].includes(k),
+    ))
+        assert.ok(
+            [
+                "name",
+                "state",
+                "external_key",
+                "last_synced",
+                "operation_guard",
+            ].includes(field) || field.startsWith("ext_"),
+            field,
+        );
+    assert.equal(team.operation_guard, 0);
+    mirrored();
+});
+
+test("migration removes team foreign references, converts legacy admins and keeps guard expiry on the team", async () => {
+    seed();
+    get("team", T).operation_until = 0;
+    relation(T, U, { role: "is_member" });
+    await call("sync", A);
+    const team = get("team", T);
+    assert.equal(team.club_id, undefined);
+    assert.equal(team.requested_by, undefined);
+    assert.equal(team.operation_until, undefined);
+    assert.equal(team.operation_guard, 0);
+    assert.ok(team.external_key);
+    assert.equal(get(T, A).is_admin, true);
+    assert.equal(get(A, T).is_admin, true);
+    assert.equal(get(T, A).role, undefined);
+    assert.equal(get(T, U).role, "is_member");
+    assert.ok(get(T, C));
+    assert.ok(get(C, T));
+    team.operation_guard = Date.now() + 60000;
+    assert.equal((await call("sync", A)).status, 409);
+    team.operation_guard = 0;
+    assert.equal((await call("sync", A)).status, 200);
+    mirrored();
+});
+
+test("club/admin relations remain authoritative over stale club_id and requested_by attributes", async () => {
+    seed("pending");
+    const other = "club_other";
+    entity("club", other, { name: "Other" });
+    relation(other, OUT, { is_admin: true });
+    rows.delete(key(T, C));
+    rows.delete(key(C, T));
+    relation(T, other);
+    relation(T, B, { is_admin: true }); // authoritative prospective admin; stale requested_by remains A
+    assert.equal((await call("activate", CLUBADMIN)).status, 403);
+    assert.equal((await call("activate", OUT)).status, 200);
+    assert.equal(get(T, B).is_admin, true);
+    assert.equal(get(T, A).is_admin, undefined);
+    assert.equal(get("team", T).requested_by, undefined);
+    assert.equal(get("team", T).club_id, undefined);
+    assert.ok(get(T, other));
+    assert.equal(get(T, C), undefined);
+    assert.equal((await call("sync", A)).status, 403);
+    assert.equal((await call("sync", B)).status, 200);
+    mirrored();
+});
+
+test("an explicit admin revocation cannot be overridden by legacy role or requester attributes", async () => {
+    seed("pending");
+    relation(T, A, { is_admin: false, role: "is_admin" });
+    assert.equal((await call("activate", CLUBADMIN)).status, 409);
+    assert.equal(get("team", T).state, "pending");
+    assert.equal(get(T, A).is_admin, false);
+    get("team", T).state = "active";
+    assert.equal((await call("sync", A)).status, 403);
 });

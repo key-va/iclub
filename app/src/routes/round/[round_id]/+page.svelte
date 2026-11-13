@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { roundView } from '#lib/rounds.ts';
+	import { roundView, isTeamAdmin } from '#lib/rounds.ts';
 	import { local } from '#lib/stores/local.ts';
 	import {
 		guids,
@@ -53,7 +53,7 @@
 	const admin = $derived(
 		!!team &&
 			relatedEntities($guids.items, team.rk, 'user').some(
-				(u) => u.rk === $local.caller_id && u.relation.role === 'is_admin',
+				(u) => u.rk === $local.caller_id && isTeamAdmin(u.relation),
 			),
 	);
 	const messages = $derived(

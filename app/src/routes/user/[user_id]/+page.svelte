@@ -108,8 +108,8 @@
         {/if}
         {#each teams as team (team.rk)}
             <div class="group">
-                <RouteLink href={hrefOf(team.rk)} title={team.name} description={team.state === 'pending' ? 'pending club approval' : isTeamMember(team.relation.role) ? 'team' : 'membership requested'} image={imageOf(team.rk)} />
-                {#if isTeamMember(team.relation.role)}
+                <RouteLink href={hrefOf(team.rk)} title={team.name} description={team.state === 'pending' ? 'pending club approval' : isTeamMember(team.relation) ? 'team' : 'membership requested'} image={imageOf(team.rk)} />
+                {#if isTeamMember(team.relation)}
                     {#each upcomingTeamRounds($guids.items,user_id,team.rk,today) as round (round.rk)}
                         <RouteLink href={hrefOf(round.rk)} title={round.name} description={`${round.date} · ${round.relation.role}`}>
                             {#snippet detail()}<RoundRoleDot role={round.relation.role} />{/snippet}

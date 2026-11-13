@@ -76,8 +76,8 @@ test("role colours and result summaries match the contract, including zero score
         "0–10 points · 0–6 sets · 17–38 games",
     );
     assert.equal(rounds.officialResult({ status: "postponed" }), "postponed");
-    assert.equal(rounds.isTeamMember("pending"), false);
-    assert.equal(rounds.isTeamMember("is_admin"), true);
+    assert.equal(rounds.isTeamMember({ state: "pending" }), false);
+    assert.equal(rounds.isTeamMember({ is_admin: true }), true);
 });
 
 test("prefixed external values render through derived views and app lifecycle states drive upcoming rounds", () => {
@@ -230,4 +230,16 @@ test("home/away display reads is_home from the team relation, preserving false a
         ).is_home,
         false,
     );
+});
+
+test("team admin/member helpers use boolean admin relations and respect explicit false", () => {
+    assert.equal(rounds.isTeamAdmin({ is_admin: true }), true);
+    assert.equal(rounds.isTeamMember({ is_admin: true }), true);
+    assert.equal(rounds.isTeamMember({ role: "is_member" }), true);
+    assert.equal(rounds.isTeamAdmin({ role: "is_admin" }), true); // pre-migration data
+    assert.equal(
+        rounds.isTeamAdmin({ is_admin: false, role: "is_admin" }),
+        false,
+    );
+    assert.equal(rounds.isTeamMember({ state: "pending" }), false);
 });

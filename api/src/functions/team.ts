@@ -16,13 +16,22 @@ import { doAssetToPublic } from "../services/doAssetToPublic";
 import { doClubForOrigin } from "../services/doClubForOrigin";
 import { doSendPush } from "../services/doSendPush";
 import {
-    approvedTeamRole,
     doEnsureRoundUsers,
     doSyncTeam,
     teamMapping,
 } from "../services/doSyncTeam";
 import { providerFor } from "../services/trols";
-import { teamExternalFields } from "../services/competitionData";
+import {
+    teamExternalFields,
+    teamAttributes,
+    externalTeamKey,
+} from "../services/competitionData";
+import {
+    isTeamAdmin,
+    isTeamMember,
+    teamContext,
+    migrateTeamRelations,
+} from "../services/teamRelations";
 
 const client = new TableClient(
     `https://${resourceName(resourceSuffix.storageAccount)}.table.core.windows.net`,
@@ -76,7 +85,12 @@ async function push(
 // A crashed invocation's lease expires; no new storage row or entity type is introduced.
 async function locked<T>(teamId: string, action: () => Promise<T>): Promise<T> {
     const row = await client.getEntity("team", teamId);
-    if (Number(row.operation_until) > Date.now())
+    if (
+        Math.max(
+            Number(row.operation_guard) || 0,
+            Number(row.operation_until) || 0,
+        ) > Date.now()
+    )
         throw Object.assign(Error("Team update in progress; please retry"), {
             statusCode: 409,
         });
@@ -85,7 +99,7 @@ async function locked<T>(teamId: string, action: () => Promise<T>): Promise<T> {
             {
                 partitionKey: "team",
                 rowKey: teamId,
-                operation_until: Date.now() + 180000,
+                operation_guard: Date.now() + 180000,
             },
             "Merge",
             { etag: row.etag },
@@ -102,7 +116,7 @@ async function locked<T>(teamId: string, action: () => Promise<T>): Promise<T> {
         return await action();
     } finally {
         await client.updateEntity(
-            { partitionKey: "team", rowKey: teamId, operation_until: 0 },
+            { partitionKey: "team", rowKey: teamId, operation_guard: 0 },
             "Merge",
         );
     }
@@ -237,10 +251,13 @@ export async function teamAction(
                 // Include incomplete earlier creations too: a failed relation write must not
                 // allow another entity for the same external team on a retry.
                 for await (const old of client.listEntities({
-                    queryOptions: { filter: odata`PartitionKey eq ${"team"}` },
+                    queryOptions: {
+                        filter: odata`PartitionKey eq ${"team"}`,
+                    },
                 })) {
                     if (
-                        old.club_id === brand.clubId &&
+                        (await teamContext(old.rowKey)).clubId ===
+                            brand.clubId &&
                         [
                             "provider",
                             "association",
@@ -268,15 +285,15 @@ export async function teamAction(
                         await doAssetToPublic("icon-00.jpg", `${id}.jpg`);
                     else throw e;
                 }
+                await doUpsertRelation(id, brand.clubId);
+                await doUpsertRelation(id, caller_id, { is_admin: true });
                 await doUpsertEntity("team", id, {
                     ...teamExternalFields(mapping),
                     name: mapping.name,
                     state: "pending",
-                    requested_by: caller_id,
-                    club_id: brand.clubId,
+                    external_key: externalTeamKey(mapping),
+                    operation_guard: 0,
                 });
-                await doUpsertRelation(id, brand.clubId);
-                await doUpsertRelation(id, caller_id, { state: "pending" });
                 await doGuidsToPublic();
                 await push(
                     (await relations(brand.clubId))
@@ -313,10 +330,13 @@ export async function teamAction(
             return reply(400, "team_id is required");
         if (!(await get("team", teamId))) return reply(404, "Team not found");
         return await locked(teamId, async () => {
-            const team = await get("team", teamId);
+            const graph = await teamContext(teamId);
+            const team = graph.team;
             const mine = await get(teamId, caller_id);
             if (action === "activate") {
-                const clubAdmin = await get(String(team.club_id), caller_id);
+                const clubAdmin = graph.clubId
+                    ? await get(graph.clubId, caller_id)
+                    : undefined;
                 if (clubAdmin?.is_admin !== true)
                     return reply(
                         403,
@@ -327,6 +347,8 @@ export async function teamAction(
                     !(team.state === "active" && !team.last_synced)
                 )
                     return reply(409, "Only a pending team can be activated");
+                if (!graph.administrators.length)
+                    return reply(409, "Team request has no administrator");
                 // A failed external fetch leaves approval pending, with no imported records.
                 let snapshot;
                 try {
@@ -340,18 +362,14 @@ export async function teamAction(
                         "TROLS could not be loaded; the team is still pending. Retry approval.",
                     );
                 }
-                const { partitionKey, rowKey, timestamp, etag, ...attrs } =
-                    team;
+                await migrateTeamRelations(graph);
                 await doUpsertEntity("team", teamId, {
-                    ...attrs,
+                    ...teamAttributes(team),
                     state: "active",
-                });
-                await doUpsertRelation(teamId, String(team.requested_by), {
-                    role: "is_admin",
                 });
                 const summary = await doSyncTeam(teamId, snapshot);
                 await push(
-                    [String(team.requested_by)],
+                    graph.administrators,
                     String(team.name),
                     "Your team is approved and active",
                     `team/${teamId}`,
@@ -376,7 +394,7 @@ export async function teamAction(
                 await doGuidsToPublic();
                 await push(
                     (await relations(teamId))
-                        .filter((r) => r.role === "is_admin")
+                        .filter(isTeamAdmin)
                         .map((r) => r.rowKey),
                     String(team.name),
                     "A player has requested to join",
@@ -385,7 +403,7 @@ export async function teamAction(
                 );
                 return reply(200, "Membership requested");
             }
-            if (mine?.role !== "is_admin")
+            if (!isTeamAdmin(mine))
                 return reply(403, "Only a team administrator can do this");
             if (action === "accept") {
                 const user = data.user_id;
@@ -529,14 +547,14 @@ export async function roundRole(
             const membership = await get(teamId, user);
             const caller = await get(teamId, caller_id);
             const previous = await get(id, user);
-            if (!approvedTeamRole(membership?.role) || !previous)
+            if (!isTeamMember(membership) || !previous)
                 return reply(
                     403,
                     "Only approved team players have round roles",
                 );
             const old = previous.role;
             if (role === "selected") {
-                if (user === caller_id || caller?.role !== "is_admin")
+                if (user === caller_id || !isTeamAdmin(caller))
                     return reply(
                         403,
                         "Only an administrator can select another player",
@@ -546,7 +564,7 @@ export async function roundRole(
             } else if (
                 user !== caller_id &&
                 !(
-                    caller?.role === "is_admin" &&
+                    isTeamAdmin(caller) &&
                     old === "selected" &&
                     role === "available"
                 )
@@ -564,8 +582,7 @@ export async function roundRole(
                     (await relations(teamId))
                         .filter(
                             (r) =>
-                                r.rowKey.startsWith("user_") &&
-                                approvedTeamRole(r.role),
+                                r.rowKey.startsWith("user_") && isTeamMember(r),
                         )
                         .map((r) => r.rowKey),
                     `Player unavailable — ${team.name}`,
