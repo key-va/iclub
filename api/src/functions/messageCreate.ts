@@ -39,7 +39,7 @@ export async function messageCreate(request: HttpRequest, context: InvocationCon
         caller_id?: string;
         device_id?: string;
         signature?: string;
-        data?: { match_id?: unknown; round_id?: unknown; text?: unknown };
+        data?: { match_id?: unknown; round_id?: unknown; group_id?: unknown; text?: unknown };
     };
 
     try {
@@ -54,13 +54,14 @@ export async function messageCreate(request: HttpRequest, context: InvocationCon
         return { status: 400, jsonBody: { success: false, message: "caller_id and signature are required; user callers also require device_id" } };
     }
 
-    if (data?.match_id !== undefined && data?.round_id !== undefined) return { status: 400, jsonBody: { success: false, message: "Choose a match or a round" } };
-    const isRound = typeof data?.round_id === "string";
-    const matchId = isRound ? data.round_id as string : typeof data?.match_id === "string" ? data.match_id : "";
-
-    if (!matchId) {
-        return { status: 400, jsonBody: { success: false, message: "match_id or round_id is required" } };
+    const targets = [data?.match_id, data?.round_id, data?.group_id].filter(value => value !== undefined);
+    if (targets.length !== 1 || typeof targets[0] !== "string" || !targets[0]) {
+        return { status: 400, jsonBody: { success: false, message: "Choose exactly one match_id, round_id or group_id" } };
     }
+    const parentType = data?.group_id !== undefined ? "group" : data?.round_id !== undefined ? "round" : "match";
+    const isRound = parentType === "round";
+    const isGroup = parentType === "group";
+    const matchId = targets[0];
 
     const text = typeof data?.text === "string" ? data.text.trim().replace(/\s+/g, " ") : "";
 
@@ -86,11 +87,11 @@ export async function messageCreate(request: HttpRequest, context: InvocationCon
         return { status: 401, jsonBody: { success: false, message: err instanceof Error ? err.message : "Unauthorised" } };
     }
 
-    // 2. Any signed-in user can post on any existing match, whatever its state
-    const match = await getRow(isRound ? "round" : "match", matchId);
+    // 2. Any signed-in user can post on an existing match, round or group.
+    const match = await getRow(parentType, matchId);
 
     if (!match) {
-        return { status: 404, jsonBody: { success: false, message: "Match or round not found" } };
+        return { status: 404, jsonBody: { success: false, message: "Match, round or group not found" } };
     }
 
     const players: string[] = [];
@@ -100,7 +101,8 @@ export async function messageCreate(request: HttpRequest, context: InvocationCon
         queryOptions: { filter: odata`PartitionKey eq ${matchId}` }
     })) {
         if (isRound && relation.rowKey.startsWith("team_")) teams.push(relation.rowKey);
-        if (!isRound && (relation.role === "challenger" || relation.role === "defender")) players.push(...await doCompetitorUsers(guidsClient, relation.rowKey as string));
+        if (isGroup && relation.rowKey.startsWith("user_") && relation.is_participant === true) players.push(relation.rowKey);
+        if (!isRound && !isGroup && (relation.role === "challenger" || relation.role === "defender")) players.push(...await doCompetitorUsers(guidsClient, relation.rowKey as string));
     }
     if (isRound) {
         if (teams.length !== 1) {
@@ -113,20 +115,28 @@ export async function messageCreate(request: HttpRequest, context: InvocationCon
         }
     }
 
-    // 3. Store the message: the text is the entity name, related to its sender and to the match
+    // 3. Store the message with mirrored relations to its sender and parent entity.
     const sender = await getRow("user", caller_id);
+    if (isGroup && (!caller_id.startsWith("user_") || !sender)) {
+        return { status: 403, jsonBody: { success: false, message: "A user account is required" } };
+    }
     const messageId = await doPostMessage({ matchId, text, senderId: caller_id });
 
     await doGuidsToPublic();
 
-    await doSendPush({
-        userIds: players,
-        exceptUserId: caller_id,
-        heading: `${match.name}`,
-        content: `${sender?.name ?? "A player"}: ${text}`,
-        path: `${isRound ? "round" : "match"}/${matchId}`,
-        collapseId: matchId
-    }, context);
+    try {
+        await doSendPush({
+            userIds: players,
+            ...(isGroup ? {} : { exceptUserId: caller_id }),
+            heading: `${match.name}`,
+            content: `${sender?.name ?? "A player"}: ${text}`,
+            path: `${parentType}/${matchId}`,
+            collapseId: matchId
+        }, context);
+    } catch (error) {
+        if (!isGroup) throw error;
+        context.warn("Group message push delivery failed", error);
+    }
 
     context.log(`Message ${messageId} sent on match ${matchId} by ${caller_id}`);
 

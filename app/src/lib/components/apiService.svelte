@@ -53,7 +53,7 @@
 		originY = event.clientY;
 		shown = message;
 		isError = false;
-		triggerButton.dispatchEvent(new CustomEvent('api-action-state', { bubbles: true, detail: true }));
+		triggerButton?.dispatchEvent(new CustomEvent('api-action-state', { bubbles: true, detail: true }));
 
 		// without confirmation the button itself shows progress; the overlay only appears for an error
 		if (confirm) isExpanded = true;
@@ -64,7 +64,7 @@
 		isExpanded = false;
 		isBusy = false;
 		isError = false;
-		triggerButton.dispatchEvent(new CustomEvent('api-action-state', { bubbles: true, detail: false }));
+		triggerButton?.dispatchEvent(new CustomEvent('api-action-state', { bubbles: true, detail: false }));
 	}
 
 	function radiusFrom(x: number, y: number) {

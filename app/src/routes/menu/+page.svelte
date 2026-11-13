@@ -22,13 +22,13 @@
 
 	{#if caller_id && device_id}
 
-		<RouteLink href="/browse" title="Browse" description="ladders, events and teams" isWhite={true} />
+		<RouteLink href="/browse" title="Browse" description="ladders, teams and groups" isWhite={true} />
 		<RouteLink href="{hrefOf(caller_id)}/edit" title="Profile" description="edit your profile" isWhite={false} />
 
 	{:else}
 
 		<RouteLink href="/login" title="Login" description="login or create account" isWhite={true} />
-		<RouteLink href="/browse" title="Browse" description="ladders, events and teams" isWhite={false} />
+		<RouteLink href="/browse" title="Browse" description="ladders, teams and groups" isWhite={false} />
 
 	{/if}
 	

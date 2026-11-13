@@ -26,6 +26,8 @@
 		)
 	);
 
+    const groups = $derived(relatedEntities($guids.items, user_id, 'group'));
+    const pendingGroups = $derived(adminClubs.flatMap(club => relatedEntities($guids.items, club.rk, 'group').filter(group => group.state === 'pending')));
     const teams = $derived(relatedEntities($guids.items, user_id, 'team'));
     const pendingTeams = $derived(adminClubs.flatMap(club => relatedEntities($guids.items, club.rk, 'team').filter(team => team.state === 'pending')));
 
@@ -104,6 +106,7 @@
 
         {#if user_id === $local.caller_id}
             {#each pendingTeams as team}<RouteLink href={hrefOf(team.rk)} title={team.name} description="pending club approval" image={imageOf(team.rk)} />{/each}
+            {#each pendingGroups as group (group.rk)}<RouteLink href={hrefOf(group.rk)} title={group.name} description="pending club approval" image={imageOf(group.rk)} isWhite={true} />{/each}
         {/if}
 
 		{#each ladders as ladder (ladder.rk)}
@@ -180,6 +183,17 @@
             </div>
         {/each}
 		
+        {#each groups as group (group.rk)}
+            {#if group.relation.is_participant === true || group.relation.state === 'pending'}
+                <div class="group">
+                    <RouteLink href={hrefOf(group.rk)} title={group.name} description={group.state === 'pending' ? 'pending club approval' : group.relation.is_participant === true ? 'group' : 'pending'} image={imageOf(group.rk)} />
+                    {#if group.state === 'active' && group.relation.state === 'pending' && relatedEntities($guids.items, group.rk, 'user').some(user => user.rk === caller_id && user.relation.is_admin === true)}
+                        <ApiService name="accept" message={`Accept ${user_entity.name ?? 'this player'} into this group?`} endpoint={`group/${group.rk}/accept`} data={{user_id}} />
+                    {/if}
+                </div>
+            {/if}
+        {/each}
+
 		<HiddenOptions title="Match History">
 		{#each history as match (match.rk)}
 			<RouteLink href={hrefOf(match.rk)} title={match.name ?? 'no name'} description={matchSummary($guids.items, match.rk)} />
