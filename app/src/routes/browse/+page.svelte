@@ -69,14 +69,14 @@
 	{/each}
 
     {#each filtered.filter(entity => entity.pk === 'group') as entity (entity.rk)}
-        <RouteLink href={hrefOf(entity.rk)} title={entity.name ?? 'no name'} description="group" image={imageOf(entity.rk)} isWhite={true} />
+        <RouteLink href={hrefOf(entity.rk)} title={entity.name ?? 'no name'} description="group" image={imageOf(entity.rk)} />
     {/each}
 
 	{#if caller_id && device_id && filter.trim() && filtered.length === 0}
 		<RouteLink
-			href={`/ladder/create?name=${encodeURIComponent(filter.trim())}`} title="New Ladder" description="create a new ladder" isWhite={true}/>
+			href={`/ladder/create?name=${encodeURIComponent(filter.trim())}`} title="New Ladder" description="create a new ladder"/>
         <RouteLink href="/team/create" title="New Team" description="create a new team"/>
-        <RouteLink href={`/group/create?name=${encodeURIComponent(filter.trim())}`} title="New Group" description="create a new group" isWhite={true} />
+        <RouteLink href={`/group/create?name=${encodeURIComponent(filter.trim())}`} title="New Group" description="create a new group" />
 	{/if}    
 </div>
 

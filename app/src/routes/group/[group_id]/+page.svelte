@@ -110,7 +110,7 @@
 					{:else}<RouteLink href="/login" title="Log in to join" />{/if}
 				{/if}
 			{/if}
-			<HiddenOptions title="Participants" badge={participants.length}>
+			<HiddenOptions title="Participants">
 				{#each participants as user (user.rk)}
 					<RouteLink
 						href={hrefOf(user.rk)}

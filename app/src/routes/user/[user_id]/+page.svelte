@@ -151,18 +151,13 @@
 				{/each}
 			</div>
 		{:else}
-		{#if user_id === caller_id}
+		{#if user_id === caller_id && ladders.length === 0 && teams.length === 0 && groups.length === 0}
 			<div class="group">
 				<RouteLink
 					href="/browse"
-					title="No Ladders"
-					description="find and join a ladder"
+					title="Browse"
+					description="ladders, teams and groups"
 				/>
-			</div>
-		{:else}
-			<div class="group">
-				<HiddenOptions title="No Ladders" badge="0">
-				</HiddenOptions>
 			</div>
 		{/if}
 		{/each}
@@ -185,12 +180,10 @@
 		
         {#each groups as group (group.rk)}
             {#if group.relation.is_participant === true || group.relation.state === 'pending'}
-                <div class="group">
                     <RouteLink href={hrefOf(group.rk)} title={group.name} description={group.state === 'pending' ? 'pending club approval' : group.relation.is_participant === true ? 'group' : 'pending'} image={imageOf(group.rk)} />
                     {#if group.state === 'active' && group.relation.state === 'pending' && relatedEntities($guids.items, group.rk, 'user').some(user => user.rk === caller_id && user.relation.is_admin === true)}
                         <ApiService name="accept" message={`Accept ${user_entity.name ?? 'this player'} into this group?`} endpoint={`group/${group.rk}/accept`} data={{user_id}} />
                     {/if}
-                </div>
             {/if}
         {/each}
 
