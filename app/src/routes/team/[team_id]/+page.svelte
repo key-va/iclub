@@ -134,13 +134,65 @@
 				{:else if !mine}
 					<ApiService
 						name="join"
-						message={`Ask to join ${team.name}?`}
+						message={`Request to join ${team.name}?`}
 						endpoint="team/join"
 						data={{ team_id: id }}
 						disabled={!$local.caller_id}
 					/>
 				{/if}
-				<HiddenOptions title="Members" badge={members.length} />
+
+				{#if standings.length}	
+					<HiddenOptions title="Leaderboard" badge={standings.length}/>
+						{#each standings as standing (String(standing.name))}
+							<HiddenOptions
+								title={String(standing.name)}
+								description={`${standing.wins} wins`}
+								badge={String(standing.rank)}
+							>
+								{#snippet detail()}
+									<span class="dot" aria-hidden="true"></span>{standing.points} points
+								{/snippet}
+							</HiddenOptions>
+						{/each}
+						<ApiService
+							name="refresh data"
+							message="Refresh the official fixtures, results and standings?"
+							endpoint="team/sync"
+							data={{ team_id: id }}
+							onsuccess={(result) => {
+								syncMessage = result.message;
+							}}
+						/>
+						{#if syncMessage}<div class="row right">
+							<p role="status">{syncMessage}</p>
+						</div>
+					{/if}
+				{/if}
+			</div>
+
+			<div class="group">
+			<HiddenOptions title="Future Rounds">
+				{#each rounds.filter(r => !r.result) as round (round.rk)}
+					<RouteLink
+						href={hrefOf(round.rk)}
+						title={round.name}
+						description={(round.is_home ? 'home' : 'away') + ' ' + round.ext_date + ''}
+					/>
+				{/each}
+			</HiddenOptions>
+			</div>
+
+			<HiddenOptions title="Past Rounds">
+				{#each rounds.filter(r => r.result) as round (round.rk)}
+					<RouteLink
+						href={hrefOf(round.rk)}
+						title={round.name}
+						description={(round.result) + ' ' + (round.ext_points_for ? ` ${round.ext_points_for}` : '0') + ' - ' +(round.ext_points_against ? ` ${round.ext_points_against} ` : '0') + ' points'}
+					/>
+				{/each}
+			</HiddenOptions>
+
+			<HiddenOptions title="Members">
 				{#each members as user (user.rk)}
 					<RouteLink
 						href={hrefOf(user.rk)}
@@ -151,48 +203,12 @@
 						image={imageOf(user.rk)}
 					/>
 				{/each}
-				<ApiService
-					name="refresh TROLS"
-					message="Refresh the official fixtures, results and standings?"
-					endpoint="team/sync"
-					data={{ team_id: id }}
-					onsuccess={(result) => {
-						syncMessage = result.message;
-					}}
-				/>
-				{#if syncMessage}<div class="row right">
-						<p role="status">{syncMessage}</p>
-					</div>
-				{/if}
-			</div>
-
-			{#if standings.length}
-				<div class="group">
-					{#each standings as standing (String(standing.name))}
-						<HiddenOptions
-							title={String(standing.name)}
-							description={`${standing.wins} wins`}
-							badge={String(standing.rank)}
-						>
-							{#snippet detail()}
-								<span class="dot" aria-hidden="true"></span>{standing.points} points
-							{/snippet}
-						</HiddenOptions>
-					{/each}
-				</div>
-			{/if}
-
-			<HiddenOptions title="Rounds">
-				{#each rounds as round (round.rk)}
-					<RouteLink
-						href={hrefOf(round.rk)}
-						title={`Round ${round.number} ${round.date}`}
-						description={roundSummary(round)}
-					/>
-				{/each}
 			</HiddenOptions>
+
+			
 		{/if}
-	{:else}<div class="row right">
+	{:else}
+		<div class="row right">
 			<p>{$guids.loaded ? 'Team not found' : 'Loading…'}</p>
 		</div>{/if}
 </div>

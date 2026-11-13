@@ -95,7 +95,7 @@
 					<RouteLink
 						href={hrefOf(ladder.rk)}
 						title={ladder.name ?? 'no name'}
-						description="pending approval"
+						description="pending club approval"
 						isWhite={false}
 						image={imageOf(ladder.rk)}
 					/>
@@ -104,20 +104,8 @@
 		{/if}
 
         {#if user_id === $local.caller_id}
-            {#each pendingTeams as team}<RouteLink href={hrefOf(team.rk)} title={team.name} description="team pending club approval" image={imageOf(team.rk)} />{/each}
+            {#each pendingTeams as team}<RouteLink href={hrefOf(team.rk)} title={team.name} description="pending club approval" image={imageOf(team.rk)} />{/each}
         {/if}
-        {#each teams as team (team.rk)}
-            <div class="group">
-                <RouteLink href={hrefOf(team.rk)} title={team.name} description={team.state === 'pending' ? 'pending club approval' : isTeamMember(team.relation) ? 'team' : 'membership requested'} image={imageOf(team.rk)} />
-                {#if isTeamMember(team.relation)}
-                    {#each upcomingTeamRounds($guids.items,user_id,team.rk,today) as round (round.rk)}
-                        <RouteLink href={hrefOf(round.rk)} title={round.name} description={`${round.date} · ${round.relation.role}`}>
-                            {#snippet detail()}<RoundRoleDot role={round.relation.role} />{/snippet}
-                        </RouteLink>
-                    {:else}<HiddenOptions title="No upcoming rounds" />{/each}
-                {/if}
-            </div>
-        {/each}
 
 		{#each ladders as ladder (ladder.rk)}
 			<div class="group">
@@ -176,6 +164,19 @@
 			</div>
 		{/if}
 		{/each}
+
+		{#each teams as team (team.rk)}
+            <div class="group">
+				<RouteLink href={hrefOf(team.rk)} title={team.name} description={team.state === 'pending' ? 'pending club approval' : isTeamMember(team.relation) ? String(team.ext_section_name).toLowerCase() + ' rank ' + team.ext_rank : 'membership requested'} image={imageOf(team.rk)} />
+                {#if isTeamMember(team.relation)}
+                    {#each upcomingTeamRounds($guids.items,user_id,team.rk,today) as round (round.rk)}
+                        <RouteLink href={hrefOf(round.rk)} title={round.name} description={`${round.relation.role}`}>
+                            {#snippet detail()}<RoundRoleDot role={round.relation.role} />{round.date}{/snippet}
+                        </RouteLink>
+                    {:else}<HiddenOptions title="No upcoming rounds" />{/each}
+                {/if}
+            </div>
+        {/each}
 		
 		<HiddenOptions title="Match History">
 		{#each history as match (match.rk)}
