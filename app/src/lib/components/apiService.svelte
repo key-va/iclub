@@ -41,6 +41,7 @@
 	let isBusy = $state(false);
 	let isError = $state(false);
 	let shown = $state('');
+	let triggerButton: HTMLButtonElement;
 	// a no-confirmation action in flight: shown as a timer icon in the button
 	const quiet = $derived(!confirm && isBusy && !isExpanded);
 
@@ -52,6 +53,7 @@
 		originY = event.clientY;
 		shown = message;
 		isError = false;
+		triggerButton.dispatchEvent(new CustomEvent('api-action-state', { bubbles: true, detail: true }));
 
 		// without confirmation the button itself shows progress; the overlay only appears for an error
 		if (confirm) isExpanded = true;
@@ -62,6 +64,7 @@
 		isExpanded = false;
 		isBusy = false;
 		isError = false;
+		triggerButton.dispatchEvent(new CustomEvent('api-action-state', { bubbles: true, detail: false }));
 	}
 
 	function radiusFrom(x: number, y: number) {
@@ -144,7 +147,7 @@
 </script>
 
 {#snippet trigger()}
-	<button class={disabled ? 'grey' : arrow ? 'blue' : 'pink'} aria-label={name} aria-busy={quiet} disabled={disabled || quiet} onclick={start}>
+	<button bind:this={triggerButton} class={disabled ? 'grey' : arrow ? 'blue' : 'pink'} aria-label={name} aria-busy={quiet} disabled={disabled || quiet} onclick={start}>
 		{#if !arrow}<p>{name}</p>{/if}
 		{#if quiet}
 			<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="working">

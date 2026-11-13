@@ -23,13 +23,6 @@
 	{#if caller_id && device_id}
 
 		<RouteLink href="/browse" title="Browse" description="ladders, events and teams" isWhite={true} />
-        <div class="group">
-            {#each relatedEntities($guids.items, caller_id, 'team') as team (team.rk)}
-                <RouteLink href={hrefOf(team.rk)} title={team.name} description="team" image={imageOf(team.rk)} />
-            {/each}
-            <RouteLink href="/ladder/create" title="New Ladder" description="create a new ladder" />
-            <RouteLink href="/team/create" title="New Team" description="create a new team" />
-        </div>
 		<RouteLink href="{hrefOf(caller_id)}/edit" title="Profile" description="edit your profile" isWhite={false} />
 
 	{:else}

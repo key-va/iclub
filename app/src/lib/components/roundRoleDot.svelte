@@ -7,7 +7,7 @@
 	class="dot"
 	style:background={roundRoleColour[String(role)] ?? 'grey'}
 	role="img"
-	aria-label={String(role ?? 'pending')}
+	aria-label={String(role ?? 'no status')}
 ></span>
 
 <style>

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { isTeamAdmin, isTeamMember, upcomingTeamRounds } from '#lib/rounds.ts';
+	import { isTeamAdmin, isTeamMember, outstandingTeamRounds } from '#lib/rounds.ts';
 	import RoundRoleDot from '#lib/components/roundRoleDot.svelte';
 	import InstallApp from '#lib/components/installApp.svelte';
 	import { page } from '$app/state';
@@ -28,7 +28,6 @@
 
     const teams = $derived(relatedEntities($guids.items, user_id, 'team'));
     const pendingTeams = $derived(adminClubs.flatMap(club => relatedEntities($guids.items, club.rk, 'team').filter(team => team.state === 'pending')));
-    const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Australia/Sydney', year:'numeric',month:'2-digit',day:'2-digit' }).format(new Date());
 
 	// Ladders this user is associated with, carrying their rank (if any) from the relation
 	const ladders = $derived(
@@ -172,11 +171,11 @@
                     <ApiService name="accept" message={`accept ${user_entity.name ?? 'this player'} into this team?`} endpoint="team/accept" data={{ team_id: team.rk, user_id }} />
                 {/if}
                 {#if isTeamMember(team.relation)}
-                    {#each upcomingTeamRounds($guids.items,user_id,team.rk,today) as round (round.rk)}
+                    {#each outstandingTeamRounds($guids.items,user_id,team.rk) as round (round.rk)}
                         <RouteLink href={hrefOf(round.rk)} title={round.name} description={`${round.relation.role}`}>
                             {#snippet detail()}<RoundRoleDot role={round.relation.role} />{round.date}{/snippet}
                         </RouteLink>
-                    {:else}<HiddenOptions title="No upcoming rounds" />{/each}
+                    {:else}<HiddenOptions title="No pending or selected rounds" />{/each}
                 {/if}
             </div>
         {/each}

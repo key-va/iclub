@@ -11,7 +11,7 @@
 	let filter = $state('');
 	function clearFilter() { filter = ''; }
 
-	const browsable = $derived($entities.filter((e) => e.pk === 'user' || e.pk === 'ladder' || e.pk === 'team'));
+	const browsable = $derived($entities.filter((e) => e.pk === 'ladder' || e.pk === 'team'));
 
 	const filtered = $derived.by(() => {
 		const q = filter.trim().toLowerCase();
@@ -48,25 +48,30 @@
         </div>
     </div>
 
-
-	{#each filtered as entity (entity.rk)}
+	{#each filtered.filter((e) => e.pk === 'ladder') as entity (entity.rk)}
 		<RouteLink
 			href={hrefOf(entity.rk)}
 			title={entity.name??'no name'}
 			description={entity.pk}
-			isWhite={entity.rk === caller_id}
+			isWhite={true}
+			image={imageOf(entity.rk)}
+		/>
+	{/each}
+
+
+	{#each filtered.filter((e) => e.pk === 'team') as entity (entity.rk)}
+		<RouteLink
+			href={hrefOf(entity.rk)}
+			title={entity.name??'no name'}
+			description={entity.pk}
 			image={imageOf(entity.rk)}
 		/>
 	{/each}
 
 	{#if caller_id && device_id && filter.trim() && filtered.length === 0}
 		<RouteLink
-			href={`/ladder/create?name=${encodeURIComponent(filter.trim())}`}
-			title="New Ladder"
-			description={`create a new ladder ${filter.trim()}`}
-			isWhite={false}
-		/>
-        <RouteLink href="/team/create" title="New Team" description="create a new team" isWhite={false} />
+			href={`/ladder/create?name=${encodeURIComponent(filter.trim())}`} title="New Ladder" description="create a new ladder" isWhite={true}/>
+        <RouteLink href="/team/create" title="New Team" description="create a new team"/>
 	{/if}    
 </div>
 

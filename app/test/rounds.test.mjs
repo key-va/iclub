@@ -14,7 +14,7 @@ before(async () => {
 after(async () => {
     await server?.close();
 });
-test("upcoming rounds use inverse roles and remain grouped by team, omitting old rounds, byes and official finishes", () => {
+test("outstanding rounds include overdue pending and selected roles, grouped by team without completed rounds", () => {
     const items = [];
     for (const [id, team, date, status, role] of [
         ["round_a", "team_one", "2026-11-17", "scheduled", "selected"],
@@ -24,6 +24,8 @@ test("upcoming rounds use inverse roles and remain grouped by team, omitting old
         ["round_e", "team_one", "2026-11-19", "completed", "available"],
         ["round_f", "team_one", "2026-11-20", "postponed", "available"],
         ["round_g", "team_one", "2026-11-21", "scheduled", "pending"],
+        ["round_h", "team_one", "2026-10-02", "scheduled", "selected"],
+        ["round_i", "team_one", "2026-10-03", "scheduled", "unavailable"],
     ]) {
         items.push(
             { pk: "round", rk: id, date, status },
@@ -34,25 +36,26 @@ test("upcoming rounds use inverse roles and remain grouped by team, omitting old
     }
     assert.deepEqual(
         rounds
-            .upcomingTeamRounds(items, "user_a", "team_one", "2026-11-12")
+            .outstandingTeamRounds(items, "user_a", "team_one")
             .map((r) => [r.rk, r.relation.role]),
         [
+            ["round_c", "pending"],
+            ["round_h", "selected"],
             ["round_a", "selected"],
             ["round_g", "pending"],
         ],
     );
     assert.deepEqual(
         rounds
-            .upcomingTeamRounds(items, "user_a", "team_two", "2026-11-12")
+            .outstandingTeamRounds(items, "user_a", "team_two")
             .map((r) => r.rk),
         [],
     );
     assert.deepEqual(
-        rounds.upcomingTeamRounds(
+        rounds.outstandingTeamRounds(
             items,
             "user_other",
             "team_one",
-            "2026-11-12",
         ),
         [],
     );
@@ -62,7 +65,7 @@ test("role colours and result summaries match the contract, including zero score
         selected: "green",
         available: "blue",
         unavailable: "red",
-        pending: "grey",
+        pending: "orange",
     });
     assert.equal(
         rounds.officialResult({
@@ -81,7 +84,7 @@ test("role colours and result summaries match the contract, including zero score
     assert.equal(rounds.isTeamMember({ is_admin: true }), true);
 });
 
-test("prefixed external values render through derived views and app lifecycle states drive upcoming rounds", () => {
+test("prefixed external values render through derived views and app lifecycle states drive outstanding rounds", () => {
     const items = [
         {
             pk: "round",
@@ -116,11 +119,10 @@ test("prefixed external values render through derived views and app lifecycle st
         { pk: "user_a", rk: "round_done", role: "selected" },
         { pk: "user_a", rk: "round_bye", role: "pending" },
     ];
-    const upcoming = rounds.upcomingTeamRounds(
+    const upcoming = rounds.outstandingTeamRounds(
         items,
         "user_a",
         "team_a",
-        "2026-11-12",
     );
     assert.equal(upcoming.length, 1);
     assert.equal(upcoming[0].date, "2026-11-17");

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
+	import { trackActions } from './actionActivity.ts';
 
 	interface Props {
 		href?: string;
@@ -32,13 +33,14 @@
 	let open = $state(false);
 	// bumped on any interaction so the countdown restarts while the options are in use
 	let activity = $state(0);
+	let pendingActions = $state(0);
 	let holdTimer: ReturnType<typeof setTimeout> | undefined;
 	// the click that follows a long press must not navigate
 	let held = false;
 	let openedAt = 0;
 
 	$effect(() => {
-		if (!open) return;
+		if (!open || pendingActions) return;
 
 		activity;
 
@@ -88,8 +90,13 @@
 
 	function close() {
 		// ignore the release of the press that opened the options
-		if (Date.now() - openedAt < 400) return;
+		if (pendingActions || Date.now() - openedAt < 400) return;
 		open = false;
+	}
+
+	function onActionActivity(count: number) {
+		pendingActions = count;
+		activity++;
 	}
 </script>
 
@@ -108,12 +115,13 @@
 				class="options"
 				role="group"
 				aria-label={`${title} options`}
+				use:trackActions={onActionActivity}
 				onpointerdown={() => activity++}
 				onfocusin={() => activity++}
 			>
 				{@render children?.()}
 			</div>
-			<button class="blue icon-button" aria-label={`close ${title} options`} style="background-image: url('{image}');" onclick={close}>
+			<button class="blue icon-button" aria-label={`close ${title} options`} disabled={pendingActions > 0} style="background-image: url('{image}');" onclick={close}>
 				{@render glyph()}
 			</button>
 		</div>

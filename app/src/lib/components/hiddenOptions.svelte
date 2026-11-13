@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
+	import { trackActions } from './actionActivity.ts';
 
 	interface Props {
 		title?: string;
@@ -31,9 +32,10 @@
 	let open = $state(false);
 	// bumped on any interaction so the countdown restarts while the content is in use
 	let activity = $state(0);
+	let pendingActions = $state(0);
 
 	$effect(() => {
-		if (!open || !timeout) return;
+		if (!open || !timeout || pendingActions) return;
 
 		activity;
 
@@ -41,6 +43,11 @@
 
 		return () => clearTimeout(timer);
 	});
+
+	function onActionActivity(count: number) {
+		pendingActions = count;
+		activity++;
+	}
 </script>
 
 {#snippet glyph()}
@@ -61,7 +68,7 @@
 <div class={isWhite ? 'group' : ''}>
 	<div class="row right">
 		{#if open && inline}
-			<div class="content inline" role="group" aria-label={`${title} options`} onpointerdown={() => activity++} onfocusin={() => activity++}>
+			<div class="content inline" role="group" aria-label={`${title} options`} use:trackActions={onActionActivity} onpointerdown={() => activity++} onfocusin={() => activity++}>
 				{@render children?.()}
 			</div>
 		{:else}
@@ -69,7 +76,7 @@
 		{/if}
 
 		{#if children}
-			<button class="blue" aria-label={title} aria-expanded={open} onclick={() => (open = !open)}>
+			<button class="blue" aria-label={title} aria-expanded={open} disabled={pendingActions > 0} onclick={() => (open = !open)}>
 				{@render glyph()}
 			</button>
 		{:else}
@@ -80,7 +87,7 @@
 	</div>
 
 	{#if open && !inline}
-		<div class="content details" role="group" aria-label={title} onpointerdown={() => activity++} onfocusin={() => activity++}>
+		<div class="content details" role="group" aria-label={title} use:trackActions={onActionActivity} onpointerdown={() => activity++} onfocusin={() => activity++}>
 			{@render children?.()}
 		</div>
 	{/if}

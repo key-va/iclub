@@ -5,6 +5,7 @@
 		guids,
 		entityOf,
 		relatedEntities,
+		relationsOf,
 		hrefOf,
 		imageOf,
 		type GuidRow,
@@ -21,12 +22,19 @@
 	import ApiService from '#lib/components/apiService.svelte';
 	import RouteLink from '#lib/components/routeLink.svelte';
 	import HiddenOptions from '#lib/components/hiddenOptions.svelte';
+	import RoundRoleDot from '#lib/components/roundRoleDot.svelte';
 	import InstallApp from '#lib/components/installApp.svelte';
 	const id = $derived(page.params.team_id ?? '');
 	const teamEntity = $derived(entityOf($guids.items, id));
 	const team = $derived(teamEntity ? teamView(teamEntity) : undefined);
 	const users = $derived(relatedEntities($guids.items, id, 'user'));
 	const mine = $derived(users.find((u) => u.rk === $local.caller_id)?.relation);
+	const myRoundRelations = $derived(
+		new Map(
+			($local.caller_id ? relationsOf($guids.items, $local.caller_id) : [])
+				.map((relation) => [relation.rk, relation]),
+		),
+	);
 	const admin = $derived(isTeamAdmin(mine));
 	const club = $derived(relatedEntities($guids.items, id, 'club')[0]);
 	const clubAdmin = $derived(
@@ -116,6 +124,7 @@
 								message={`Accept ${user.name} onto the team?`}
 								endpoint="team/accept"
 								data={{ team_id: id, user_id: user.rk }}
+								confirm={false}
 							/>
 						</RouteLink>
 					{/each}
@@ -133,64 +142,79 @@
 					/>
 				{:else if !mine}
 					<ApiService
-						name="join"
+						name="join request"
 						message={`Request to join ${team.name}?`}
 						endpoint="team/join"
 						data={{ team_id: id }}
 						disabled={!$local.caller_id}
 					/>
 				{/if}
-
-				{#if standings.length}	
-					<HiddenOptions title="Leaderboard" badge={standings.length}/>
-						{#each standings as standing (String(standing.name))}
-							<HiddenOptions
-								title={String(standing.name)}
-								description={`${standing.wins} wins`}
-								badge={String(standing.rank)}
-							>
-								{#snippet detail()}
-									<span class="dot" aria-hidden="true"></span>{standing.points} points
-								{/snippet}
-							</HiddenOptions>
+				<HiddenOptions title="Future Rounds" badge={rounds.filter(r => !r.result).length}></HiddenOptions>
+				{#each rounds.filter(r => !r.result) as round (round.rk)}
+					{@const role = myRoundRelations.get(round.rk)?.role}
+					{#snippet availabilityActions()}
+						{#each ['unavailable', 'available'] as nextRole}
+							<ApiService
+								inline
+								name={nextRole}
+								message={`Mark yourself ${nextRole}?`}
+								endpoint="round/role"
+								data={{ round_id: round.rk, role: nextRole }}
+								disabled={role === nextRole}
+								confirm={false}
+							/>
 						{/each}
-						<ApiService
-							name="refresh data"
-							message="Refresh the official fixtures, results and standings?"
-							endpoint="team/sync"
-							data={{ team_id: id }}
-							onsuccess={(result) => {
-								syncMessage = result.message;
-							}}
-						/>
-						{#if syncMessage}<div class="row right">
-							<p role="status">{syncMessage}</p>
-						</div>
-					{/if}
+					{/snippet}
+					<RouteLink
+						href={hrefOf(round.rk)}
+						title={round.name}
+						description={role == null ? 'no status' : String(role)}
+						children={isTeamMember(mine) && myRoundRelations.has(round.rk) && round.state !== 'complete'
+							? availabilityActions
+							: undefined}
+					>
+						{#snippet detail()}<RoundRoleDot {role} />{round.is_home ? 'home' : 'away'} {round.date}{/snippet}
+					</RouteLink>
+				{/each}
+
+				{#if isTeamMember(mine)}
+					<ApiService
+						name="refresh data"
+						message="Refresh the official fixtures, results and standings?"
+						endpoint="team/sync"
+						data={{ team_id: id }}
+						onsuccess={(result) => {
+							syncMessage = result.message;
+						}}
+					/>
 				{/if}
+				{#if syncMessage}
+				<div class="row right">
+					<p role="status">{syncMessage}</p>
+				</div>
+				{/if}
+				
 			</div>
 
 			<div class="group">
-			<HiddenOptions title="Future Rounds">
-				{#each rounds.filter(r => !r.result) as round (round.rk)}
-					<RouteLink
-						href={hrefOf(round.rk)}
-						title={round.name}
-						description={(round.is_home ? 'home' : 'away') + ' ' + round.ext_date + ''}
-					/>
-				{/each}
-			</HiddenOptions>
+			{#if standings.length}	
+					<HiddenOptions title="Leaderboard">
+						{#each standings as standing (String(standing.name))}
+							<HiddenOptions
+								title={String(standing.name)}
+								description={`${standing.points} points ${standing.wins} wins`}
+								badge={String(standing.rank)}
+							>
+							</HiddenOptions>
+						{/each}
+						
+					</HiddenOptions>
+				{/if}
+			
+			
 			</div>
 
-			<HiddenOptions title="Past Rounds">
-				{#each rounds.filter(r => r.result) as round (round.rk)}
-					<RouteLink
-						href={hrefOf(round.rk)}
-						title={round.name}
-						description={(round.result) + ' ' + (round.ext_points_for ? ` ${round.ext_points_for}` : '0') + ' - ' +(round.ext_points_against ? ` ${round.ext_points_against} ` : '0') + ' points'}
-					/>
-				{/each}
-			</HiddenOptions>
+			
 
 			<HiddenOptions title="Members">
 				{#each members as user (user.rk)}
@@ -201,6 +225,16 @@
 							? 'administrator'
 							: 'member'}
 						image={imageOf(user.rk)}
+					/>
+				{/each}
+			</HiddenOptions>
+
+			<HiddenOptions title="Past Rounds">
+				{#each rounds.filter(r => r.result) as round (round.rk)}
+					<RouteLink
+						href={hrefOf(round.rk)}
+						title={round.name}
+						description={(round.result) + ' ' + (round.ext_points_for ? ` ${round.ext_points_for}` : '0') + ' - ' +(round.ext_points_against ? ` ${round.ext_points_against} ` : '0') + ' points'}
 					/>
 				{/each}
 			</HiddenOptions>

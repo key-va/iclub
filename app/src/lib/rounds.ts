@@ -7,7 +7,7 @@ export const roundRoleColour: Record<string, string> = {
 	selected: 'green',
 	available: 'blue',
 	unavailable: 'red',
-	pending: 'grey',
+	pending: 'orange',
 };
 export function isTeamAdmin(relation?: Record<string, unknown>): boolean {
 	return typeof relation?.is_admin === 'boolean'
@@ -101,11 +101,10 @@ export function roundLabel(round: GuidRow): string {
 		return 'postponed';
 	return String(round.state ?? 'pending');
 }
-export function upcomingTeamRounds(
+export function outstandingTeamRounds(
 	items: GuidRow[],
 	userId: string,
 	teamId: string,
-	today: string,
 ) {
 	const teamRounds = new Map(
 		relationsOf(items, teamId)
@@ -118,7 +117,6 @@ export function upcomingTeamRounds(
 			(round) =>
 				teamRounds.has(round.rk) &&
 				['pending', 'selected'].includes(String(round.relation.role)) &&
-				String(round.date) >= today &&
 				round.state !== 'complete',
 		)
 		.sort(

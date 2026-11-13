@@ -401,8 +401,13 @@ export async function teamAction(
                 );
                 return reply(200, "Membership requested");
             }
-            if (!isTeamAdmin(mine))
-                return reply(403, "Only a team administrator can do this");
+            if (action === "sync" ? !isTeamMember(mine) : !isTeamAdmin(mine))
+                return reply(
+                    403,
+                    action === "sync"
+                        ? "Only approved team members can refresh data"
+                        : "Only a team administrator can do this",
+                );
             if (action === "accept") {
                 const user = data.user_id;
                 if (typeof user !== "string" || !user.startsWith("user_"))

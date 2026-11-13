@@ -389,6 +389,25 @@ test("concurrent selected-to-unavailable requests emit one notification; entity 
     get("team", T).operation_until = Date.now() + 60000;
     assert.equal((await call("sync", A)).status, 409);
 });
+test("only approved team members and team admins can sync", async () => {
+    seed();
+    relation(T, U, { role: "is_member" });
+    relation(T, B, { state: "pending" });
+    failFetch = true;
+    for (const caller of [OUT, B, CLUBADMIN])
+        assert.equal((await call("sync", caller)).status, 403);
+    assert.equal(exportCount, 0);
+    assert.equal((await call("accept", U, { user_id: B })).status, 403);
+    failFetch = false;
+    assert.equal((await call("sync", U)).status, 200);
+    assert.equal((await call("sync", A)).status, 200);
+    relation(T, A, { is_admin: true });
+    assert.equal((await call("sync", A)).status, 200);
+    relation(T, B, { is_admin: false, role: "is_admin" });
+    assert.equal((await call("sync", B)).status, 403);
+    rejectSignature = true;
+    assert.equal((await call("sync", U)).status, 401);
+});
 test("manual sync preserves round IDs, postponement identity, memberships, roles, messages and old valid results", async () => {
     seed();
     relation(T, U, { role: "is_member" });

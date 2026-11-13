@@ -6,13 +6,15 @@ A club administrator sees pending teams on their home/user page, opens a team an
 
 Authenticated users can request membership from an active team page. Team administrators accept them there. Accepted players start pending for each existing round; new rounds also give all approved members a pending role. Team administrators count as approved members.
 
-Open a round from the team page or your home page to set your own availability. The coloured dots mean selected (green), available (blue), unavailable (red) and pending (grey). Team administrators can select other available players and deselect them to available. Administrators cannot select themselves. Anyone signed in can post round messages, including visitors who do not belong to the team.
+The user page lists unresolved team rounds where that user is pending or selected, including rounds whose scheduled dates have passed.
+
+Open a round from the team page or your home page to set your own availability. On the team page, long-press a future round to change your availability immediately; the availability buttons on the round page ask for confirmation. Team administrators can select or deselect other players immediately from their long-press options on the round page. The coloured dots mean selected (green), available (blue), unavailable (red), pending (orange), and no known status (grey). Administrators cannot select themselves. Anyone signed in can post round messages without confirmation, including visitors who do not belong to the team.
 
 If a selected player marks themselves unavailable, the existing Web Push service sends all approved team members a replacement-player notification linking to that round. Repeating the same request does not send another notification. Direct Web Push installation/permission requirements remain those documented in [web-push.md](web-push.md); no OneSignal configuration is needed.
 
 ## Refreshing TROLS
 
-The team administrator can choose **refresh TROLS**. This refreshes official schedules, results and standings, returning created/updated counts. Round names are `Round <number> vs <opponent>`, regardless of home/away. Ownership uses mirrored team-round relation rows rather than a `team_id` attribute on the round. Refreshing an existing team updates names and removes that legacy attribute in place. Dates may change without changing internal round IDs. Memberships, player responses/selections and messages are retained. A past date alone never marks a round completed. A missing result does not erase an existing official result. Byes are numbered rounds; no-play/finals dates without known encounters appear as competition calendar information.
+Approved team members and team administrators can choose **refresh data**. This refreshes official schedules, results and standings, returning created/updated counts. Round names are `Round <number> vs <opponent>`, regardless of home/away. Ownership uses mirrored team-round relation rows rather than a `team_id` attribute on the round. Refreshing an existing team updates names and removes that legacy attribute in place. Dates may change without changing internal round IDs. Memberships, player responses/selections and messages are retained. A past date alone never marks a round completed. A missing result does not erase an existing official result. Byes are numbered rounds; no-play/finals dates without known encounters appear as competition calendar information.
 
 Only current BRTA competitions exposed by TROLS are discoverable. The stored season is checked on every sync. If TROLS rolls a competition code to a new season, the old team is retained and sync fails safely: request a separate team for the new season. No background/hourly sync was introduced.
 
@@ -46,7 +48,7 @@ The existing signed envelope (`caller_id`, `device_id`, `signature`, `data`) and
 | `team/activate` | `team_id` | Associated club administrator |
 | `team/join` | `team_id` | Authenticated user |
 | `team/accept` | `team_id`, `user_id` | Team administrator |
-| `team/sync` | `team_id` | Active team's administrator |
+| `team/sync` | `team_id` | Active team's approved members and administrators |
 | `round/role` | `round_id`, `role`, optional `user_id` (defaults to caller) | Player/self or team administrator as above |
 | `message/create` | `round_id`, `text` | Any authenticated user |
 

@@ -95,26 +95,26 @@
 					{round.date}{round.venue ? ` at ${round.venue}` : ''}
 				</p>
 			{/if}
-		</div>
-		{#if !complete && mine}
-			<HiddenOptions
-				inline
-				title="More Options"
-				description={`you are ${mine.relation.role}`}
-			>
-				{#each ['unavailable', 'available'] as role}
+			{#if !complete && mine}
+				<ApiService
+					name="available"
+					message="Mark yourself available?"
+					endpoint="round/role"
+					data={{ round_id: id, role: 'available' }}
+					disabled={mine.relation.role === 'available'}
+				>
 					<ApiService
 						inline
-						name={role}
-						message={`Mark yourself ${role}?`}
+						name="unavailable"
+						message="Mark yourself unavailable?"
 						endpoint="round/role"
-						data={{ round_id: id, role }}
-						disabled={mine.relation.role === role}
-						confirm={false}
+						data={{ round_id: id, role: 'unavailable' }}
+						disabled={mine.relation.role === 'unavailable'}
 					/>
-				{/each}
-			</HiddenOptions>
-		{/if}
+				</ApiService>
+			{/if}
+		</div>
+		
 		<div class="group">
 			<RouteLink
 				href={hrefOf(team.rk)}
@@ -134,6 +134,7 @@
 							role:
 								player.relation.role === 'selected' ? 'available' : 'selected',
 						}}
+						confirm={false}
 					/>
 				{/snippet}
 				<RouteLink
