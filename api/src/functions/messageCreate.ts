@@ -6,6 +6,7 @@ import { doSignatureVerification } from "../services/doSignatureVerification";
 import { doPostMessage } from "../services/doPostMessage";
 import { doGuidsToPublic } from "../services/doGuidsToPublic";
 import { doSendPush } from "../services/doSendPush";
+import { isTeamMember } from "../services/teamRelations";
 
 import { resourceName, resourceSuffix } from "../stores/resourceNames";
 
@@ -93,12 +94,23 @@ export async function messageCreate(request: HttpRequest, context: InvocationCon
     }
 
     const players: string[] = [];
+    const teams: string[] = [];
 
     for await (const relation of guidsClient.listEntities({
         queryOptions: { filter: odata`PartitionKey eq ${matchId}` }
     })) {
-        if (isRound && ["pending", "available", "unavailable", "selected"].includes(String(relation.role)) && relation.rowKey.startsWith("user_")) players.push(relation.rowKey);
+        if (isRound && relation.rowKey.startsWith("team_")) teams.push(relation.rowKey);
         if (!isRound && (relation.role === "challenger" || relation.role === "defender")) players.push(...await doCompetitorUsers(guidsClient, relation.rowKey as string));
+    }
+    if (isRound) {
+        if (teams.length !== 1) {
+            return { status: 409, jsonBody: { success: false, message: "Round must belong to exactly one team" } };
+        }
+        for await (const relation of guidsClient.listEntities({
+            queryOptions: { filter: odata`PartitionKey eq ${teams[0]}` }
+        })) {
+            if (relation.rowKey.startsWith("user_") && isTeamMember(relation)) players.push(relation.rowKey);
+        }
     }
 
     // 3. Store the message: the text is the entity name, related to its sender and to the match

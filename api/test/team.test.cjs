@@ -244,6 +244,8 @@ test("options do not write; signed creation resolves host club, validates select
     assert.equal(get(id, A).state, undefined);
     assert.equal(get(id, A).is_admin, true);
     assert.equal(get(A, id).is_admin, true);
+    assert.equal(get(id, A).is_member, true);
+    assert.equal(get(A, id).is_member, true);
     assert.equal(get(id, A).role, undefined);
     assert.equal((await call("create", A, data)).status, 409);
     assert.equal(
@@ -270,6 +272,8 @@ test("only associated club admin activates; fetch failure leaves pending; approv
     assert.equal(get("team", T).state, "active");
     assert.equal(get(T, A).is_admin, true);
     assert.equal(get(A, T).is_admin, true);
+    assert.equal(get(T, A).is_member, true);
+    assert.equal(get(A, T).is_member, true);
     assert.equal(get(T, A).role, undefined);
     const r = [...rows.values()].find((r) => r.partitionKey === "round");
     assert.equal(get(r.rowKey, A).role, "pending");
@@ -307,26 +311,31 @@ test("membership requests require active team; only team admin accepts and all e
     assert.equal(get(U, "round_r").role, "pending");
     mirrored();
 });
-test("all own availability transitions work and exact selected-to-unavailable notification targets all approved members", async () => {
+test("own availability transitions allow revisions but selected players can only become unavailable", async () => {
     seed();
     round();
+    relation(T, B, { is_admin: true, is_member: true });
     relation(T, OUT, { state: "pending" });
     for (const old of ["pending", "available", "unavailable", "selected"])
         for (const next of ["pending", "available", "unavailable"]) {
             relation("round_r", U, { role: old });
             pushes.length = 0;
             const response = await role(U, U, next);
-            assert.equal(response.status, 200, `${old} -> ${next}`);
-            assert.equal(get("round_r", U).role, next);
-            assert.equal(get(U, "round_r").role, next);
+            const allowed = old === next ||
+                (next !== "pending" && (old !== "selected" || next === "unavailable"));
+            const denied = old === "selected" && next === "available" ? 403 : 409;
+            assert.equal(response.status, allowed ? 200 : denied, `${old} -> ${next}`);
+            assert.equal(get("round_r", U).role, allowed ? next : old);
+            assert.equal(get(U, "round_r").role, allowed ? next : old);
             assert.equal(
                 pushes.length,
                 old === "selected" && next === "unavailable" ? 1 : 0,
             );
             if (pushes.length) {
                 const p = pushes[0];
-                assert.deepEqual(new Set(p.userIds), new Set([A, U, B]));
+                assert.deepEqual(new Set(p.userIds), new Set([A, B]));
                 assert.match(p.heading, /Lobs/);
+                assert.match(p.content, /user_u is now unavailable/);
                 assert.match(p.content, /Round 14.*replacement/i);
                 assert.equal(p.path, "round/round_r");
                 assert.equal(p.exceptUserId, undefined);
@@ -339,7 +348,7 @@ test("all own availability transitions work and exact selected-to-unavailable no
     assert.equal(pushes.length, 1);
     mirrored();
 });
-test("selection authority and transitions reject outsiders, self selection, unavailable/pending selections and arbitrary admin availability edits", async () => {
+test("selection authority allows admin self-selection while rejecting outsiders, non-admins and unavailable players", async () => {
     seed();
     round();
     for (const old of ["pending", "unavailable"]) {
@@ -350,13 +359,29 @@ test("selection authority and transitions reject outsiders, self selection, unav
     assert.equal((await role(U, U, "selected")).status, 403);
     assert.equal((await role(B, U, "selected")).status, 403);
     assert.equal((await role(CLUBADMIN, U, "selected")).status, 403);
-    assert.equal((await role(A, A, "selected")).status, 403);
+    assert.equal((await role(A, A, "selected")).status, 409);
+    assert.equal((await role(A, A, "available")).status, 200);
+    assert.equal((await role(A, A, "selected")).status, 200);
+    assert.equal(get("round_r", A).role, "selected");
+    assert.equal(get(A, "round_r").role, "selected");
+    assert.equal((await role(A, A, "available")).status, 200);
     assert.equal((await role(OUT, U, "unavailable")).status, 403);
     assert.equal((await role(A, U, "pending")).status, 403);
+    relation(T, U, { is_member: true });
+    pushes.length = 0;
     assert.equal((await role(A, U, "selected")).status, 200);
+    assert.deepEqual(pushes[0].userIds, [U]);
+    assert.match(pushes[0].content, /selected.*Round 14/);
+    assert.equal(pushes[0].path, "round/round_r");
     assert.equal((await role(A, U, "selected")).status, 200);
+    assert.equal(pushes.length, 1);
     assert.equal((await role(A, U, "available")).status, 200);
-    assert.equal(get(U, "round_r").role, "available");
+    assert.equal(pushes.length, 1);
+    assert.equal((await role(A, U, "selected")).status, 200);
+    assert.equal((await role(A, U, "unavailable")).status, 403);
+    assert.equal((await role(U, U, "unavailable")).status, 200);
+    assert.deepEqual(pushes[2].userIds, [A]);
+    assert.equal(get(U, "round_r").role, "unavailable");
     assert.equal((await role(A, OUT, "selected")).status, 403);
     assert.equal((await role(U, U, "anything")).status, 400);
     rejectSignature = true;
@@ -375,6 +400,15 @@ test("push failures never undo persisted role; ordinary updates and noops do not
     assert.equal((await role(U, U, "unavailable")).status, 200);
     assert.equal(pushes.length, 1);
     assert.ok(exportCount > 0);
+});
+test("completed rounds cannot change availability or selection", async () => {
+    seed();
+    round();
+    get("round", "round_r").state = "complete";
+    assert.equal((await role(U, U, "available")).status, 409);
+    assert.equal((await role(A, U, "selected")).status, 409);
+    assert.equal(get("round_r", U).role, "pending");
+    assert.equal(pushes.length, 0);
 });
 test("concurrent selected-to-unavailable requests emit one notification; entity leases reject overlapping mutations", async () => {
     seed();
@@ -479,6 +513,9 @@ test("signed non-members may post round messages; sync preserves them and signat
     seed();
     await doSyncTeam(T);
     const r = [...rows.values()].find((r) => r.partitionKey === "round");
+    relation(T, U, { role: "is_member" });
+    relation(T, B, { is_member: true });
+    relation(T, CLUBADMIN, { state: "pending" });
     const response = await messageCreate(
         request(OUT, { round_id: r.rowKey, text: "Good luck!" }),
         context,
@@ -487,6 +524,12 @@ test("signed non-members may post round messages; sync preserves them and signat
     const id = response.jsonBody.data.message_id;
     assert.ok(get(r.rowKey, id));
     assert.equal(get(id, OUT).role, "sender");
+    assert.deepEqual(new Set(pushes.at(-1).userIds), new Set([A, U, B]));
+    assert.equal(pushes.at(-1).exceptUserId, OUT);
+    assert.equal(pushes.at(-1).path, `round/${r.rowKey}`);
+    assert.equal((await messageCreate(request(U, { round_id: r.rowKey, text: "Hello" }), context)).status, 201);
+    assert.deepEqual(new Set(pushes.at(-1).userIds), new Set([A, U, B]));
+    assert.equal(pushes.at(-1).exceptUserId, U);
     await doSyncTeam(T);
     assert.ok(get(r.rowKey, id));
     rejectSignature = true;
@@ -500,6 +543,17 @@ test("signed non-members may post round messages; sync preserves them and signat
         401,
     );
     mirrored();
+});
+
+test("round messages require a single owning team before writing", async () => {
+    seed();
+    entity("round", "round_r", { name: "Round" });
+    assert.equal((await messageCreate(request(OUT, { round_id: "round_r", text: "Hello" }), context)).status, 409);
+    relation("round_r", T);
+    relation("round_r", "team_other");
+    assert.equal((await messageCreate(request(OUT, { round_id: "round_r", text: "Hello" }), context)).status, 409);
+    assert.equal([...rows.values()].filter((row) => row.partitionKey === "message").length, 0);
+    assert.equal(pushes.length, 0);
 });
 
 test("retry after interrupted ownership/membership mirrors repairs links while preserving round ID and response", async () => {
@@ -982,6 +1036,8 @@ test("new team requests and approval use club/admin relations and leave only tea
     assert.ok(get(C, id));
     assert.equal(get(id, A).is_admin, true);
     assert.equal(get(A, id).is_admin, true);
+    assert.equal(get(id, A).is_member, true);
+    assert.equal(get(A, id).is_member, true);
     assert.equal(get(id, A).role, undefined);
     assert.equal((await call("activate", A, { team_id: id })).status, 403);
     assert.equal(
@@ -996,6 +1052,10 @@ test("new team requests and approval use club/admin relations and leave only tea
     const round = [...rows.values()].find(
         (row) => row.partitionKey === "round",
     );
+    assert.equal((await role(A, A, "available", round.rowKey)).status, 200);
+    assert.equal((await role(A, A, "selected", round.rowKey)).status, 200);
+    assert.equal(get(round.rowKey, A).role, "selected");
+    assert.equal(get(A, round.rowKey).role, "selected");
     assert.equal((await role(U, U, "available", round.rowKey)).status, 200);
     assert.equal((await role(A, U, "selected", round.rowKey)).status, 200);
     const team = get("team", id);
@@ -1029,6 +1089,8 @@ test("migration removes team foreign references, converts legacy admins and keep
     assert.ok(team.external_key);
     assert.equal(get(T, A).is_admin, true);
     assert.equal(get(A, T).is_admin, true);
+    assert.equal(get(T, A).is_member, true);
+    assert.equal(get(A, T).is_member, true);
     assert.equal(get(T, A).role, undefined);
     assert.equal(get(T, U).role, "is_member");
     assert.ok(get(T, C));
@@ -1037,6 +1099,21 @@ test("migration removes team foreign references, converts legacy admins and keep
     assert.equal((await call("sync", A)).status, 409);
     team.operation_guard = 0;
     assert.equal((await call("sync", A)).status, 200);
+    mirrored();
+});
+
+test("sync adds membership to existing admins and preserves their relationship attributes", async () => {
+    seed();
+    relation(T, A, { is_admin: true, is_member: false, note: "retained" });
+    assert.equal((await call("sync", A)).status, 200);
+    for (const [a, b] of [[T, A], [A, T]]) {
+        assert.equal(get(a, b).is_admin, true);
+        assert.equal(get(a, b).is_member, true);
+        assert.equal(get(a, b).note, "retained");
+    }
+    const round = [...rows.values()].find((row) => row.partitionKey === "round");
+    assert.equal(get(round.rowKey, A).role, "pending");
+    assert.equal(get(A, round.rowKey).role, "pending");
     mirrored();
 });
 

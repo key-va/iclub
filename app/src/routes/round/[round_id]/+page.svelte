@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { roundView, isTeamAdmin } from '#lib/rounds.ts';
+	import { roundView, isTeamAdmin, availabilityOptions } from '#lib/rounds.ts';
 	import { local } from '#lib/stores/local.ts';
 	import {
 		guids,
@@ -50,6 +50,7 @@
 	});
 	const players = $derived(relatedEntities($guids.items, id, 'user'));
 	const mine = $derived(players.find((p) => p.rk === $local.caller_id));
+	const myAvailabilityOptions = $derived(availabilityOptions(mine?.relation.role));
 	const admin = $derived(
 		!!team &&
 			relatedEntities($guids.items, team.rk, 'user').some(
@@ -95,23 +96,30 @@
 					{round.date}{round.venue ? ` at ${round.venue}` : ''}
 				</p>
 			{/if}
-			{#if !complete && mine}
+			{#if !complete && myAvailabilityOptions.includes('available')}
 				<ApiService
 					name="available"
 					message="Mark yourself available?"
 					endpoint="round/role"
 					data={{ round_id: id, role: 'available' }}
-					disabled={mine.relation.role === 'available'}
 				>
-					<ApiService
-						inline
-						name="unavailable"
-						message="Mark yourself unavailable?"
-						endpoint="round/role"
-						data={{ round_id: id, role: 'unavailable' }}
-						disabled={mine.relation.role === 'unavailable'}
-					/>
+					{#if myAvailabilityOptions.includes('unavailable')}
+						<ApiService
+							inline
+							name="unavailable"
+							message="Mark yourself unavailable?"
+							endpoint="round/role"
+							data={{ round_id: id, role: 'unavailable' }}
+						/>
+					{/if}
 				</ApiService>
+			{:else if !complete && myAvailabilityOptions.includes('unavailable')}
+				<ApiService
+					name="unavailable"
+					message="Mark yourself unavailable?"
+					endpoint="round/role"
+					data={{ round_id: id, role: 'unavailable' }}
+				/>
 			{/if}
 		</div>
 		
@@ -125,8 +133,8 @@
 				{#snippet selectionAction()}
 					<ApiService
 						inline
-						name={player.relation.role === 'selected' ? 'deselect' : 'select'}
-						message={`${player.relation.role === 'selected' ? 'Deselect' : 'Select'} ${player.name}?`}
+						name={player.relation.role === 'selected' ? 'available' : 'select'}
+						message={player.relation.role === 'selected' ? `Mark ${player.name} available?` : `Select ${player.name}?`}
 						endpoint="round/role"
 						data={{
 							round_id: id,
@@ -144,7 +152,6 @@
 					image={imageOf(player.rk)}
 					children={!complete &&
 					admin &&
-					player.rk !== $local.caller_id &&
 					(player.relation.role === 'available' ||
 						player.relation.role === 'selected')
 						? selectionAction

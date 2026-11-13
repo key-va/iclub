@@ -82,6 +82,8 @@ test("role colours and result summaries match the contract, including zero score
     assert.equal(rounds.officialResult({ status: "postponed" }), "postponed");
     assert.equal(rounds.isTeamMember({ state: "pending" }), false);
     assert.equal(rounds.isTeamMember({ is_admin: true }), true);
+    assert.equal(rounds.isTeamMember({ is_member: true }), true);
+    assert.equal(rounds.isTeamMember({ is_member: false }), false);
 });
 
 test("prefixed external values render through derived views and app lifecycle states drive outstanding rounds", () => {
@@ -245,4 +247,12 @@ test("team admin/member helpers use boolean admin relations and respect explicit
         false,
     );
     assert.equal(rounds.isTeamMember({ state: "pending" }), false);
+});
+
+test("availability controls offer only valid choices for each round role", () => {
+    assert.deepEqual(rounds.availabilityOptions("pending"), ["unavailable", "available"]);
+    assert.deepEqual(rounds.availabilityOptions("available"), ["unavailable"]);
+    assert.deepEqual(rounds.availabilityOptions("unavailable"), ["available"]);
+    assert.deepEqual(rounds.availabilityOptions("selected"), ["unavailable"]);
+    assert.deepEqual(rounds.availabilityOptions(undefined), []);
 });

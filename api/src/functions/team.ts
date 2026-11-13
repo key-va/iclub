@@ -285,7 +285,10 @@ export async function teamAction(
                     else throw e;
                 }
                 await doUpsertRelation(id, brand.clubId);
-                await doUpsertRelation(id, caller_id, { is_admin: true });
+                await doUpsertRelation(id, caller_id, {
+                    is_admin: true,
+                    is_member: true,
+                });
                 await doUpsertEntity("team", id, {
                     ...teamExternalFields(mapping),
                     name: mapping.name,
@@ -547,6 +550,14 @@ export async function roundRole(
             const team = await get("team", teamId);
             if (team?.state !== "active" || !(await get(teamId, id)))
                 return reply(409, "Round must belong to an active team");
+            const currentRound = await get("round", id);
+            if (!currentRound) return reply(404, "Round not found");
+            if (
+                currentRound.state === "complete" ||
+                (currentRound.state === undefined &&
+                    ["completed", "bye", "washout"].includes(String(currentRound.status)))
+            )
+                return reply(409, "A completed round cannot be changed");
             const membership = await get(teamId, user);
             const caller = await get(teamId, caller_id);
             const previous = await get(id, user);
@@ -557,43 +568,59 @@ export async function roundRole(
                 );
             const old = previous.role;
             if (role === "selected") {
-                if (user === caller_id || !isTeamAdmin(caller))
+                if (!isTeamAdmin(caller))
                     return reply(
                         403,
-                        "Only an administrator can select another player",
+                        "Only an administrator can select a player",
                     );
                 if (old !== "available" && old !== "selected")
                     return reply(409, "Only available players can be selected");
-            } else if (
-                user !== caller_id &&
-                !(
-                    isTeamAdmin(caller) &&
-                    old === "selected" &&
-                    role === "available"
-                )
-            )
+            } else if (old === "selected" && role === "available") {
+                if (!isTeamAdmin(caller))
+                    return reply(403, "Only an administrator can return a selected player to available");
+            } else if (user !== caller_id)
                 return reply(403, "You may only update your own availability");
             if (old === role) {
                 await doUpsertRelation(id, user, { role });
                 await doGuidsToPublic();
                 return reply(200, "Role unchanged");
             }
+            if (
+                role !== "selected" &&
+                (!["available", "unavailable"].includes(role) ||
+                    !["pending", "available", "unavailable", "selected"].includes(
+                        String(old),
+                    ) ||
+                    (old === "selected" && role !== "unavailable" && role !== "available"))
+            )
+                return reply(409, "This round role transition is not allowed");
+            const unavailablePlayer =
+                old === "selected" && role === "unavailable"
+                    ? await get("user", user)
+                    : undefined;
             await doUpsertRelation(id, user, { role });
-            // Persist both directions before notifying, and target every approved member, including the actor.
+            await doGuidsToPublic();
             if (old === "selected" && role === "unavailable")
                 await push(
                     (await relations(teamId))
                         .filter(
                             (r) =>
-                                r.rowKey.startsWith("user_") && isTeamMember(r),
+                                r.rowKey.startsWith("user_") && isTeamAdmin(r),
                         )
                         .map((r) => r.rowKey),
                     `Player unavailable — ${team.name}`,
-                    `A selected player is now unavailable for Round ${round.ext_number ?? round.number}. A replacement player is needed.`,
+                    `${unavailablePlayer?.name || "A player"} is now unavailable for Round ${currentRound.ext_number ?? currentRound.number}. A replacement player is needed.`,
                     `round/${id}`,
                     context,
                 );
-            await doGuidsToPublic();
+            else if (role === "selected")
+                await push(
+                    [user],
+                    String(team.name),
+                    `You have been selected for Round ${currentRound.ext_number ?? currentRound.number}.`,
+                    `round/${id}`,
+                    context,
+                );
             return reply(200, "Round role updated");
         });
     } catch (error: any) {

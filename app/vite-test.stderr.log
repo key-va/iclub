@@ -1,0 +1,18 @@
+404 GET /favicon.ico
+[2m10:42:59 pm[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [2m[console.warn] [22m[sveltekit] goto_replace_state_deprecated
+The `goto(..., { replaceState: true })` option has been deprecated in favour of `replace`
+https://svelte.dev/e/kit/goto_replace_state_deprecated
+404 POST /mock-api/system/about
+[2m10:42:59 pm[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[about] could not load API version Error: request failed
+    at callApi (http://127.0.0.1:17936/src/lib/stores/remote.ts:23:9)
+[2m10:43:00 pm[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22m[guids] initial load failed TypeError: Failed to fetch
+    at window.fetch (http://127.0.0.1:17936/node_modules/@sveltejs/kit/src/runtime/client/fetcher.js?v=b006d023:65:10)
+    at fetchGuids (http://127.0.0.1:17936/src/lib/stores/guids.ts:52:27)
+    at Object.load (http://127.0.0.1:17936/src/lib/stores/guids.ts:100:18)
+    at http://127.0.0.1:17936/src/routes/+layout.svelte:141:9
+    at untrack (http://127.0.0.1:17936/node_modules/.vite/deps/runtime-BOFXI46e.js?v=b006d023:4443:10)
+    at $effect (http://127.0.0.1:17936/node_modules/.vite/deps/index-client-28NjkazA.js?v=b006d023:4374:19)
+    at update_reaction (http://127.0.0.1:17936/node_modules/.vite/deps/runtime-BOFXI46e.js?v=b006d023:4167:16)
+    at update_effect (http://127.0.0.1:17936/node_modules/.vite/deps/runtime-BOFXI46e.js?v=b006d023:4277:18)
+    at flush_queued_effects (http://127.0.0.1:17936/node_modules/.vite/deps/runtime-BOFXI46e.js?v=b006d023:2476:4)
+    at #process (http://127.0.0.1:17936/node_modules/.vite/deps/runtime-BOFXI46e.js?v=b006d023:2088:3)

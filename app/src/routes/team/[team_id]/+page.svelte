@@ -13,6 +13,7 @@
 	import {
 		isTeamMember,
 		isTeamAdmin,
+		availabilityOptions,
 		jsonArray,
 		officialResult,
 		roundView,
@@ -153,14 +154,13 @@
 				{#each rounds.filter(r => !r.result) as round (round.rk)}
 					{@const role = myRoundRelations.get(round.rk)?.role}
 					{#snippet availabilityActions()}
-						{#each ['unavailable', 'available'] as nextRole}
+						{#each availabilityOptions(role) as nextRole}
 							<ApiService
 								inline
 								name={nextRole}
 								message={`Mark yourself ${nextRole}?`}
 								endpoint="round/role"
 								data={{ round_id: round.rk, role: nextRole }}
-								disabled={role === nextRole}
 								confirm={false}
 							/>
 						{/each}
@@ -169,7 +169,7 @@
 						href={hrefOf(round.rk)}
 						title={round.name}
 						description={role == null ? 'no status' : String(role)}
-						children={isTeamMember(mine) && myRoundRelations.has(round.rk) && round.state !== 'complete'
+						children={isTeamMember(mine) && round.state !== 'complete' && availabilityOptions(role).length > 0
 							? availabilityActions
 							: undefined}
 					>

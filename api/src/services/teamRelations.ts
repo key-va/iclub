@@ -18,7 +18,11 @@ export function isTeamAdmin(
 export function isTeamMember(
     relation: Record<string, any> | undefined,
 ): boolean {
-    return isTeamAdmin(relation) || relation?.role === "is_member";
+    return (
+        isTeamAdmin(relation) ||
+        relation?.is_member === true ||
+        relation?.role === "is_member"
+    );
 }
 export async function teamContext(teamId: string) {
     const team = await client.getEntity("team", teamId);
@@ -97,6 +101,7 @@ export async function migrateTeamRelations(
             ...(role && role !== "is_admin" ? { role } : {}),
             ...(state && state !== "pending" ? { state } : {}),
             is_admin: true,
+            is_member: true,
         });
     }
 }
