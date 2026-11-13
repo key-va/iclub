@@ -1,9 +1,7 @@
 <script lang="ts">
 	import { branding } from '#lib/stores/branding.ts';
 	import InstallApp from '#lib/components/installApp.svelte';
-	import { page } from '$app/state';
-	import { PUBLIC_URL } from '#lib/config.ts';
-	import { guids, entityOf, hrefOf } from '#lib/stores/guids.ts';
+	import { guids, relatedEntities, hrefOf, imageOf } from '#lib/stores/guids.ts';
 	import { local } from '#lib/stores/local.ts';
 
 	import RouteLink from '#lib/components/routeLink.svelte';
@@ -25,7 +23,13 @@
 	{#if caller_id && device_id}
 
 		<RouteLink href="/browse" title="Browse" description="ladders, events and teams" isWhite={true} />
-		<RouteLink href="/team/create" title="Request a Team" description="join a BRTA competition" />
+        <div class="group">
+            {#each relatedEntities($guids.items, caller_id, 'team') as team (team.rk)}
+                <RouteLink href={hrefOf(team.rk)} title={team.name} description="team" image={imageOf(team.rk)} />
+            {/each}
+            <RouteLink href="/ladder/create" title="New Ladder" description="create a new ladder" />
+            <RouteLink href="/team/create" title="New Team" description="create a new team" />
+        </div>
 		<RouteLink href="{hrefOf(caller_id)}/edit" title="Profile" description="edit your profile" isWhite={false} />
 
 	{:else}

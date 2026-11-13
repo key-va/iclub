@@ -117,6 +117,7 @@ export function upcomingTeamRounds(
 		.filter(
 			(round) =>
 				teamRounds.has(round.rk) &&
+				['pending', 'selected'].includes(String(round.relation.role)) &&
 				String(round.date) >= today &&
 				round.state !== 'complete',
 		)

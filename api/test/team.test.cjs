@@ -228,8 +228,10 @@ test("options do not write; signed creation resolves host club, validates select
         team: "TN004",
         club_id: "club_wrong",
     };
+    get("user", A).name = "Alice Admin";
     const result = await call("create", A, data);
     assert.equal(result.status, 201);
+    assert.equal(pushes.at(-1).content, "Alice Admin has requested to create this team");
     const id = result.jsonBody.subject;
     assert.equal(get("team", id).state, "pending");
     assert.equal(get("team", id).ext_provider, "trols");
@@ -286,7 +288,9 @@ test("membership requests require active team; only team admin accepts and all e
     rows.delete(key(U, T));
     rows.delete(key("round_r", U));
     rows.delete(key(U, "round_r"));
+    get("user", U).name = "Alice Player";
     assert.equal((await call("join", U)).status, 200);
+    assert.equal(pushes.at(-1).content, "Alice Player has requested to join");
     assert.equal(get(T, U).state, "pending");
     assert.equal((await call("join", U)).status, 409);
     assert.equal((await call("accept", CLUBADMIN, { user_id: U })).status, 403);

@@ -48,7 +48,6 @@
         </div>
     </div>
 
-    {#if caller_id && device_id}<RouteLink href="/team/create" title="Request a Team" description="BRTA competitions" />{/if}
 
 	{#each filtered as entity (entity.rk)}
 		<RouteLink
@@ -67,6 +66,7 @@
 			description={`create a new ladder ${filter.trim()}`}
 			isWhite={false}
 		/>
+        <RouteLink href="/team/create" title="New Team" description="create a new team" isWhite={false} />
 	{/if}    
 </div>
 

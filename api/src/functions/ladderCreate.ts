@@ -154,11 +154,16 @@ export async function ladderCreate(request: HttpRequest, context: InvocationCont
     context.log(`Club ${clubId} admins to notify: ${clubAdmins.length}`);
 
     if (clubAdmins.length > 0) {
+        let playerName = "A player";
+        try {
+            const user = await guidsClient.getEntity("user", caller_id);
+            if (typeof user.name === "string" && user.name) playerName = user.name;
+        } catch { /* Notification delivery must not undo ladder creation. */ }
         const sent = await doSendPush({
             userIds: clubAdmins,
             exceptUserId: caller_id,
             heading: name,
-            content: "New ladder pending approval",
+            content: `${playerName} has requested to create this ladder`,
             path: `ladder/${ladderId}`,
             collapseId: ladderId
         }, context);

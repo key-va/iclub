@@ -1,7 +1,7 @@
 process.env.RESOURCE_GROUP_PREFIX='test';
 const {test,beforeEach,after}=require('node:test');const assert=require('node:assert/strict');const fs=require('node:fs');const path=require('node:path');
 const Module=require('node:module');const original=Module._load;
-const rows=new Map(),blobs=new Map(),downloads=[];let exported=false;
+const rows=new Map(),blobs=new Map(),downloads=[],pushes=[];let exported=false;
 const key=(pk,rk)=>`${pk}|${rk}`;
 function seed(pk,rk,properties={}){rows.set(key(pk,rk),{partitionKey:pk,rowKey:rk,...properties});}
 class TableClient{
@@ -25,13 +25,13 @@ Module._load=function(id){
  if(id==='@azure/storage-blob')return {BlobServiceClient};
  if(id.endsWith('/doSignatureVerification'))return {doSignatureVerification:async()=>{}};
  if(id.endsWith('/doGuidsToPublic'))return {doGuidsToPublic:async()=>exported=true};
- if(id.endsWith('/doSendPush'))return {doSendPush:async()=>false};
+ if(id.endsWith('/doSendPush'))return {doSendPush:async p=>{pushes.push(p);return true;}};
  return original.apply(this,arguments);
 };
 const {ladderCreate}=require('../dist/src/functions/ladderCreate');
 const context={log(){},warn(){}};
 const icon=Buffer.from('origin club JPEG bytes');
-beforeEach(()=>{rows.clear();blobs.clear();downloads.length=0;exported=false;seed('club','club_intra',{url:'app.intra.club'});seed('club','club_next',{url:'next.intra.club'});blobs.set('club_next.jpg',icon);});
+beforeEach(()=>{rows.clear();blobs.clear();pushes.length=0;downloads.length=0;exported=false;seed('club','club_intra',{url:'app.intra.club'});seed('club','club_next',{url:'next.intra.club'});blobs.set('club_next.jpg',icon);});
 after(()=>Module._load=original);
 async function create(origin='https://next.intra.club',extra={}){
  return ladderCreate({url:'https://api.example/api/ladder/create',headers:new Headers(origin?{origin}:{}),json:async()=>({caller_id:'user_admin',device_id:'device_test',signature:'test',data:{name:'Ladder',club_id:'club_intra',...extra}})},context);
@@ -49,4 +49,11 @@ test('unknown/missing origins cannot choose a club; missing known club image fal
  for(const origin of ['', 'https://unknown.example']){const r=await create(origin);assert.equal(r.status,400);}
  const fallback=fs.readFileSync(path.join(__dirname,'../src/assets/icon-00.jpg'));
  blobs.delete('club_next.jpg');const r=await create();assert.equal(r.status,201);assert.deepEqual(blobs.get(`${r.jsonBody.subject}.jpg`),fallback);
+});
+
+test('ladder creation notification names the requesting player and links to the ladder',async()=>{
+ seed('user','user_admin',{name:'Alice Player'});seed('club_next','user_reviewer',{is_admin:true});
+ const r=await create();assert.equal(r.status,201);assert.equal(pushes.length,1);
+ assert.equal(pushes[0].content,'Alice Player has requested to create this ladder');
+ assert.deepEqual(pushes[0].userIds,['user_reviewer']);assert.equal(pushes[0].path,`ladder/${r.jsonBody.subject}`);
 });

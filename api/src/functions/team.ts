@@ -180,11 +180,10 @@ export async function teamAction(
             }
         }
         if (action === "create") {
-            if (
-                !caller_id.startsWith("user_") ||
-                !(await get("user", caller_id))
-            )
-                return reply(403, "A user account is required");
+            const requester = caller_id.startsWith("user_")
+                ? await get("user", caller_id)
+                : undefined;
+            if (!requester) return reply(403, "A user account is required");
             if (
                 ["association", "competition", "section", "team"].some(
                     (k) => typeof data[k] !== "string" || !data[k],
@@ -304,7 +303,7 @@ export async function teamAction(
                         )
                         .map((r) => r.rowKey),
                     mapping.name,
-                    "New team pending approval",
+                    `${requester.name || "A player"} has requested to create this team`,
                     `team/${id}`,
                     context,
                 );
@@ -380,11 +379,10 @@ export async function teamAction(
             if (team.state !== "active")
                 return reply(409, "The team must be active");
             if (action === "join") {
-                if (
-                    !caller_id.startsWith("user_") ||
-                    !(await get("user", caller_id))
-                )
-                    return reply(403, "A user account is required");
+                const requester = caller_id.startsWith("user_")
+                    ? await get("user", caller_id)
+                    : undefined;
+                if (!requester) return reply(403, "A user account is required");
                 if (mine)
                     return reply(
                         409,
@@ -397,7 +395,7 @@ export async function teamAction(
                         .filter(isTeamAdmin)
                         .map((r) => r.rowKey),
                     String(team.name),
-                    "A player has requested to join",
+                    `${requester.name || "A player"} has requested to join`,
                     `team/${teamId}`,
                     context,
                 );

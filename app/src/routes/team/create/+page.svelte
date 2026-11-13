@@ -126,6 +126,38 @@
 					>BRTA</option
 				></select
 			>
+			<button
+				class="blue"
+				aria-label="image"
+				onclick={() => fileInput?.click()}
+			>
+				<svg
+					viewBox="0 0 24 24"
+					width="1rem"
+					height="1rem"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="3"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					role="img"
+					aria-label="Camera"
+				>
+					<path d="M2.5 7h4l1.5-3h8l1.5 3h4v13h-19z" /><circle
+						cx="12"
+						cy="13.5"
+						r="4"
+					/>
+				</svg>
+			</button>
+			<input
+				hidden
+				type="file"
+				accept="image/*"
+				aria-label="Team image"
+				bind:this={fileInput}
+				onchange={pickImage}
+			/>
 		</div>
 		{#if association}<div class="row right">
 				<select
@@ -171,18 +203,6 @@
 						)}>Retry</button
 				>
 			</div>{/if}
-		<div class="row right">
-			<button class="blue" onclick={() => fileInput?.click()}
-				>Custom icon</button
-			><input
-				hidden
-				type="file"
-				accept="image/*"
-				aria-label="Team image"
-				bind:this={fileInput}
-				onchange={pickImage}
-			/>
-		</div>
 		{#if imageError}<p role="alert">{imageError}</p>{/if}
 	</div>
 	<ApiService

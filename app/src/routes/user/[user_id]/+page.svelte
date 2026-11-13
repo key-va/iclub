@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { isTeamMember, upcomingTeamRounds } from '#lib/rounds.ts';
+	import { isTeamAdmin, isTeamMember, upcomingTeamRounds } from '#lib/rounds.ts';
 	import RoundRoleDot from '#lib/components/roundRoleDot.svelte';
 	import InstallApp from '#lib/components/installApp.svelte';
 	import { page } from '$app/state';
@@ -167,7 +167,10 @@
 
 		{#each teams as team (team.rk)}
             <div class="group">
-				<RouteLink href={hrefOf(team.rk)} title={team.name} description={team.state === 'pending' ? 'pending club approval' : isTeamMember(team.relation) ? String(team.ext_section_name).toLowerCase() + ' rank ' + team.ext_rank : 'membership requested'} image={imageOf(team.rk)} />
+				<RouteLink href={hrefOf(team.rk)} title={team.name} description={team.state === 'pending' ? 'pending club approval' : isTeamMember(team.relation) ? String(team.ext_section_name).toLowerCase() + ' rank ' + team.ext_rank : 'pending'} image={imageOf(team.rk)} />
+                {#if team.state === 'active' && team.relation.state === 'pending' && relatedEntities($guids.items, team.rk, 'user').some(user => user.rk === caller_id && isTeamAdmin(user.relation))}
+                    <ApiService name="accept" message={`accept ${user_entity.name ?? 'this player'} into this team?`} endpoint="team/accept" data={{ team_id: team.rk, user_id }} />
+                {/if}
                 {#if isTeamMember(team.relation)}
                     {#each upcomingTeamRounds($guids.items,user_id,team.rk,today) as round (round.rk)}
                         <RouteLink href={hrefOf(round.rk)} title={round.name} description={`${round.relation.role}`}>

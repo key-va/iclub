@@ -23,6 +23,7 @@ test("upcoming rounds use inverse roles and remain grouped by team, omitting old
         ["round_d", "team_one", "2026-11-18", "bye", "pending"],
         ["round_e", "team_one", "2026-11-19", "completed", "available"],
         ["round_f", "team_one", "2026-11-20", "postponed", "available"],
+        ["round_g", "team_one", "2026-11-21", "scheduled", "pending"],
     ]) {
         items.push(
             { pk: "round", rk: id, date, status },
@@ -37,14 +38,14 @@ test("upcoming rounds use inverse roles and remain grouped by team, omitting old
             .map((r) => [r.rk, r.relation.role]),
         [
             ["round_a", "selected"],
-            ["round_f", "available"],
+            ["round_g", "pending"],
         ],
     );
     assert.deepEqual(
         rounds
             .upcomingTeamRounds(items, "user_a", "team_two", "2026-11-12")
             .map((r) => r.rk),
-        ["round_b"],
+        [],
     );
     assert.deepEqual(
         rounds.upcomingTeamRounds(
@@ -111,7 +112,7 @@ test("prefixed external values render through derived views and app lifecycle st
         { pk: "team_a", rk: "round_new" },
         { pk: "team_a", rk: "round_done", result: "winner" },
         { pk: "team_a", rk: "round_bye", result: "bye" },
-        { pk: "user_a", rk: "round_new", role: "available" },
+        { pk: "user_a", rk: "round_new", role: "pending" },
         { pk: "user_a", rk: "round_done", role: "selected" },
         { pk: "user_a", rk: "round_bye", role: "pending" },
     ];
@@ -125,7 +126,7 @@ test("prefixed external values render through derived views and app lifecycle st
     assert.equal(upcoming[0].date, "2026-11-17");
     assert.equal(upcoming[0].opponent, "Royals");
     assert.equal(upcoming[0].state, "pending");
-    assert.equal(upcoming[0].relation.role, "available");
+    assert.equal(upcoming[0].relation.role, "pending");
     assert.equal(rounds.officialResult(items[1], items[4]), "7–3 points");
     assert.equal(rounds.officialResult(items[2], items[5]), "bye");
     assert.equal(
