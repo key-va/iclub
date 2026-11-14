@@ -28,7 +28,7 @@ async function getRow(pk: string, rk: string): Promise<Record<string, unknown> |
     }
 }
 
-const firstName = (name: unknown) => String(name ?? "").trim().split(/\s+/)[0] || "Player";
+const playerName = (name: unknown) => String(name ?? "").trim() || "Player";
 
 export async function matchCreate(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
 
@@ -150,7 +150,7 @@ export async function matchCreate(request: HttpRequest, context: InvocationConte
     // 5. Create the match and mark both players busy
     const challengerUser = await getRow(competitorType, challengerId);
     const defenderUser = await getRow(competitorType, defenderId);
-    const label = (row: Record<string, unknown> | undefined) => competitorType === "pair" ? String(row?.name ?? "Pair") : firstName(row?.name);
+    const label = (row: Record<string, unknown> | undefined) => competitorType === "pair" ? String(row?.name ?? "Pair") : playerName(row?.name);
     const name = `${label(challengerUser)} vs ${label(defenderUser)}`;
 
     const matchId = doNewGuid("match");

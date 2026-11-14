@@ -39,7 +39,7 @@
 					pair.relation.is_participant === true && relatedEntities($guids.items, pair.rk, 'user').some(member => member.rk === user_id))
 				: undefined;
 			const relation = pair?.relation ?? ladder.relation;
-			return { ...ladder, format: ladder.format, relation, rank: Number(relation.rank) };
+			return { ...ladder, format: ladder.format, userRelation: ladder.relation, relation, rank: Number(relation.rank) };
 		})
 	);
 	// Matches still in play 	(pending or active) that this user is part of
@@ -56,11 +56,11 @@
 
 	const stateColours: Record<string, string> = { away: 'red', busy: 'gold', cooling: 'blue', active: 'green' };
 	const dotColour = (ladder: { relation: Record<string, unknown> }) => stateColours[String(ladder.relation?.state)] ?? 'grey';
-	function stateText(ladder: { relation: Record<string, unknown> }) {
+	function stateText(ladder: { relation: Record<string, unknown>; userRelation: Record<string, unknown> }) {
 		const state = String(ladder.relation?.state);
 		if (state === 'active') return 'available';
 		if (state === 'busy') return 'in a match';
-		if (state === 'undefined') return 'pending';
+		if (state === 'undefined') return ladder.userRelation.is_admin === true ? 'administrator' : '';
 		return state;
 	}
 
@@ -139,14 +139,20 @@
 							disabled={!canChallenge(ladder, ladder.rk)}
 						/>
 					{/if}
-					{#if stateText(ladder) === 'pending' && isLadderAdmin(ladder.rk)}
-						<ApiService
-							name="accept"
-							message={`accept ${user_entity.name ?? 'this player'} into this ladder?`}
-							endpoint={`ladder/${ladder.rk}/accept`} 
-							data={{ user_id: user_id }}
-							disabled={!isLadderAdmin(ladder.rk)}
-						/>
+					{#if ladder.userRelation.state === 'pending' && ladder.userRelation.is_participant !== true && isLadderAdmin(ladder.rk)}
+						{#if ladder.format === 'doubles'}
+							<div class="row right">
+								<button class="grey" disabled><p>waiting to join</p></button>
+							</div>
+						{:else}
+							<ApiService
+								name="accept"
+								message={`accept ${user_entity.name ?? 'this player'} into this ladder?`}
+								endpoint={`ladder/${ladder.rk}/accept`}
+								data={{ user_id: user_id }}
+								disabled={!isLadderAdmin(ladder.rk)}
+							/>
+						{/if}
 					{/if}
 				{/each}
 			</div>

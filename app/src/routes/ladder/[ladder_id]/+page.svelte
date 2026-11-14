@@ -52,12 +52,16 @@
 	));
 	const myCompetitiveRelation = $derived(ladder?.format === 'doubles' ? myPair?.relation : myRelation);
 
+	const ongoingMatches = $derived(
+		relatedEntities($guids.items, ladderId, 'match').filter(
+			(match) => match.state === 'pending' || match.state === 'active'
+		)
+	);
+
 	// The caller's matches on this ladder that are still pending or active
 	const yourMatches = $derived(
-		relatedEntities($guids.items, ladderId, 'match').filter(
-			(match) =>
-				(match.state === 'pending' || match.state === 'active') &&
-				relatedEntities($guids.items, match.rk, 'user').some((user) => user.rk === caller_id)
+		ongoingMatches.filter(
+			(match) => relatedEntities($guids.items, match.rk, 'user').some((user) => user.rk === caller_id)
 		)
 	);
 
@@ -175,7 +179,13 @@
 		{/each}
 		</div>
         
-        <HiddenOptions title="Match History">
+		<HiddenOptions title="Ongoing Matches">
+			{#each ongoingMatches as match (match.rk)}
+				<RouteLink href={hrefOf(match.rk)} title={match.name ?? 'no name'} description={String(match.state) + ' match'} />
+			{/each}
+		</HiddenOptions>
+
+        <HiddenOptions title="Competed Matches">
 			{#each history as match (match.rk)}
 				<RouteLink href={hrefOf(match.rk)} title={match.name ?? 'no name'} description={matchSummary($guids.items, match.rk)} />
 			{/each}

@@ -90,7 +90,7 @@ Current endpoints in `api/src/functions/`:
   - a participant sets their own ladder `state` to `away`
 - `match/create` ([matchCreate.ts](./api/src/functions/matchCreate.ts))
   - body `data`: `ladder_id`, `challenger_id`, `defender_id`; caller is the challenger or a ladder admin
-  - validates states, rank and reach, creates a `pending` match named "challenger vs defender" (first names) with mirrored relations to the ladder and both players (`role`), sets both players `busy`, pushes the defender
+  - validates states, rank and reach, creates a `pending` match named "challenger vs defender" (full player names for singles; pair names for doubles) with mirrored relations to the ladder and both competitors (`role`), sets both competitors `busy`, pushes the defender
 - `match/{match_id}/accept` ([matchAccept.ts](./api/src/functions/matchAccept.ts))
   - the defender (or a ladder admin) moves a `pending` match to `active` and pushes the challenger; the acceptance deadline is not enforced yet
 - `ladder/{ladder_id}/accept` ([ladderAccept.ts](./api/src/functions/ladderAccept.ts))

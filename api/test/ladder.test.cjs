@@ -78,11 +78,28 @@ test('individual requests stay pending; only admin can pair two distinct pending
 test('either partner can challenge and either defending partner can accept; only the defending side/admin accepts',async()=>{
     for (const challenger of [C,D]) for (const defender of [A,B]) {
         rows.clear();doubles();const id=await challenge(challenger);
+        assert.equal(get('match',id).name,'user_c and user_d vs user_a and user_b');
         assert.equal((await call(matchAccept,C,undefined,{match_id:id})).status,403);
         assert.equal((await call(matchAccept,defender,undefined,{match_id:id})).status,200);
         assert.deepEqual(new Set(pushes.at(-1).userIds),new Set([C,D]));
         assert.equal(get(L,'pair_top').state,'busy');assert.equal(get(id,A).competitor_id,'pair_top');mirrored();
     }
+});
+
+test('singles match names use full player names and retain the missing-name fallback',async()=>{
+    seed('singles');
+    relation(L,A,{is_participant:true,rank:1,points:1,state:'active'});
+    relation(L,C,{is_participant:true,rank:2,points:2,state:'active'});
+    get('user',C).name='  Andre Agassi  ';get('user',A).name='Pete Sampras';
+    const data={ladder_id:L,challenger_id:C,defender_id:A};
+    const r=await call(create,C,data);assert.equal(r.status,201);
+    assert.equal(get('match',r.jsonBody.subject).name,'Andre Agassi vs Pete Sampras');
+    assert.equal(pushes.at(-1).heading,'Andre Agassi vs Pete Sampras');
+    assert.equal(r.jsonBody.message,'Okay, match Andre Agassi vs Pete Sampras created');
+    get(L,A).state='active';get(L,C).state='active';
+    get('user',C).name='  ';delete get('user',A).name;
+    const fallback=await call(create,C,data);assert.equal(fallback.status,201);
+    assert.equal(get('match',fallback.jsonBody.subject).name,'Player vs Player');
 });
 
 test('all four participants may submit results; ranks, points, cooling and user history are pair-aware',async()=>{
