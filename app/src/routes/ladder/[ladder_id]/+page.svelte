@@ -185,7 +185,7 @@
 			{/each}
 		</HiddenOptions>
 
-        <HiddenOptions title="Competed Matches">
+        <HiddenOptions title="Completed Matches">
 			{#each history as match (match.rk)}
 				<RouteLink href={hrefOf(match.rk)} title={match.name ?? 'no name'} description={matchSummary($guids.items, match.rk)} />
 			{/each}

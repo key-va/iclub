@@ -63,7 +63,8 @@ test('ongoing section includes all pending and active ladder matches, but not ot
         assert.match(ongoing, /href="\/match\/match_pending"[\s\S]*?Pending players[\s\S]*?pending match/);
         assert.match(ongoing, /href="\/match\/match_active"[\s\S]*?Other players[\s\S]*?active match/);
         assert.doesNotMatch(ongoing, /Finished players|Another ladder/);
-        assert.ok(html.indexOf('Ongoing Matches') < html.indexOf('Match History'));
+        assert.match(html, /<section aria-label="Completed Matches">/);
+        assert.ok(html.indexOf('Ongoing Matches') < html.indexOf('Completed Matches'));
         assert.match(html.slice(0, html.indexOf('Ongoing Matches')), /Pending players/);
     }
 });
