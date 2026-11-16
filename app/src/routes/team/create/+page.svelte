@@ -5,7 +5,7 @@
 	import { branding } from '#lib/stores/branding.ts';
 	import { callApi } from '#lib/stores/remote.ts';
 	import ApiService from '#lib/components/apiService.svelte';
-	import InstallApp from '#lib/components/installApp.svelte';
+	import EntityHeader from '#lib/components/EntityHeader.svelte';
 	type Option = { id: string; name: string };
 	let association = $state('');
 	let competition = $state('');
@@ -102,17 +102,7 @@
 </script>
 
 <div class="page">
-	<div class="row right">
-		<p><strong>Request a Team</strong><br />{$branding.name}</p>
-		<div class="blank-icon-small"></div>
-	</div>
-	<div class="row center">
-		<div
-			class="round-icon-big"
-			style:background-image={`url('${image || $branding.icon}')`}
-		></div>
-	</div>
-	<InstallApp />
+	<EntityHeader title="Request a Team" subtitle={$branding.name} image={image || $branding.icon} truncate={false} />
 	{#if !$branding.clubId}<div class="row right">
 			<p>Open your club website to request a team.</p>
 		</div>{/if}

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import InstallApp from '#lib/components/installApp.svelte';
+	import EntityHeader from '#lib/components/EntityHeader.svelte';
 	import { page } from '$app/state';
 	import { local } from '#lib/stores/local.ts';
 	import { ladderSettings } from '#lib/strings.ts';
@@ -117,17 +117,7 @@
 
 <div class="page">
 	{#if match}
-		<div class="row right">
-			<p class="truncate"><strong>{match.name}</strong><br />{match.state}</p>
-			<div class="blank-icon-small"></div>
-		</div>
-
-		{#if ladder}
-			<div class="row center">
-				<div class="round-icon-big" style="background-image: url('{imageOf(ladder.rk)}');"></div>
-			</div>
-			<InstallApp />
-		{/if}
+		<EntityHeader entity={match} subtitle={match.state} image={ladder ? imageOf(ladder.rk) : null} />
 
 		{#if challenger && defender}
 			<div class="group">

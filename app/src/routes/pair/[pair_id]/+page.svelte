@@ -1,5 +1,5 @@
 <script lang="ts">
-	import InstallApp from '#lib/components/installApp.svelte';
+	import EntityHeader from '#lib/components/EntityHeader.svelte';
     import { page } from '$app/state';
     import { canChallenge as sharedCanChallenge } from '#lib/challenge.ts';
     import { local } from '#lib/stores/local.ts';
@@ -28,15 +28,9 @@
 </script>
 <div class="page">
     {#if pair}
-        <div class="row right">
-            <p class="truncate"><strong>{pair.name ?? 'Pair'}</strong><br />pair</p>
-            <div class="blank-icon-small"></div>
-        </div>
+        <EntityHeader entity={pair} title={pair.name ?? 'Pair'} image={ladder ? imageOf(ladder.rk) : null} />
+
         {#if ladder}
-            <div class="row center">
-                <div class="round-icon-big" style:background-image={`url('${imageOf(ladder.rk)}')`}></div>
-            </div>
-            <InstallApp />
             <div class="group">
                 {#each members as member (member.rk)}
                     <RouteLink href={hrefOf(member.rk)} title={member.name ?? 'Player'} description="member" image={imageOf(member.rk)} isWhite={false} />

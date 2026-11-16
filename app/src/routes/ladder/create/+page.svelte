@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { branding } from '#lib/stores/branding.ts';
-	import InstallApp from '#lib/components/installApp.svelte';
+	import EntityHeader from '#lib/components/EntityHeader.svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { onMount } from 'svelte';
@@ -77,18 +77,7 @@
 </script>
 
 <div class="page">
-	<div class="row right">
-		<p class="truncate"><strong>Ladder</strong><br />create</p>
-		<div class="blank-icon-small"></div>
-	</div>
-
-	<div class="row center">
-		<div
-			class="round-icon-big"
-			style="background-image: url('{image || $branding.icon}');"
-		></div>
-	</div>
-	<InstallApp />
+	<EntityHeader title="Ladder" subtitle="create" image={image || $branding.icon} />
 
 	<div class="group">
 		<div class="row right">

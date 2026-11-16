@@ -24,7 +24,7 @@
 	import RouteLink from '#lib/components/routeLink.svelte';
 	import HiddenOptions from '#lib/components/hiddenOptions.svelte';
 	import RoundRoleDot from '#lib/components/roundRoleDot.svelte';
-	import InstallApp from '#lib/components/installApp.svelte';
+	import EntityHeader from '#lib/components/EntityHeader.svelte';
 	const id = $derived(page.params.team_id ?? '');
 	const teamEntity = $derived(entityOf($guids.items, id));
 	const team = $derived(teamEntity ? teamView(teamEntity) : undefined);
@@ -81,17 +81,7 @@
 
 <div class="page">
 	{#if team}
-		<div class="row right">
-			<p class="truncate"><strong>{team.name}</strong><br />{team.pk}</p>
-			<div class="blank-icon-small"></div>
-		</div>
-		<div class="row center">
-			<div
-				class="round-icon-big"
-				style:background-image={`url('${imageOf(id)}')`}
-			></div>
-		</div>
-		<InstallApp />
+		<EntityHeader entity={team} />
 		{#if team.state === 'pending'}
 			<div class="group">
 				<HiddenOptions

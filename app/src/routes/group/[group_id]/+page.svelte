@@ -11,7 +11,7 @@
 	import ApiService from '#lib/components/apiService.svelte';
 	import RouteLink from '#lib/components/routeLink.svelte';
 	import HiddenOptions from '#lib/components/hiddenOptions.svelte';
-	import InstallApp from '#lib/components/installApp.svelte';
+	import EntityHeader from '#lib/components/EntityHeader.svelte';
 	const id = $derived(page.params.group_id ?? '');
 	const group = $derived(entityOf($guids.items, id));
 	const users = $derived(relatedEntities($guids.items, id, 'user'));
@@ -48,17 +48,7 @@
 
 <div class="page">
 	{#if group}
-		<div class="row right">
-			<p class="truncate"><strong>{group.name}</strong><br />{group.pk}</p>
-			<div class="blank-icon-small"></div>
-		</div>
-		<div class="row center">
-			<div
-				class="round-icon-big"
-				style:background-image={`url('${imageOf(id)}')`}
-			></div>
-		</div>
-		<InstallApp />
+		<EntityHeader entity={group} />
 		<div class="group">
 			{#if group.state === 'pending'}
 				{#if clubAdmin}

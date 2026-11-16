@@ -1,10 +1,9 @@
 <script lang="ts">
-	import InstallApp from '#lib/components/installApp.svelte';
+	import EntityHeader from '#lib/components/EntityHeader.svelte';
 	import { disconnectPush } from '#lib/stores/push.ts';
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
-	import { PUBLIC_URL } from '#lib/config.ts';
-	import { guids, entityOf } from '#lib/stores/guids.ts';
+	import { guids, entityOf, imageOf } from '#lib/stores/guids.ts';
 	import { local, clear_local_data } from '#lib/stores/local.ts';
 	import ApiService from '#lib/components/apiService.svelte';
 	import HiddenOptions from '#lib/components/hiddenOptions.svelte';
@@ -105,18 +104,7 @@
 
 <div class="page">
 	{#if user}
-		<div class="row right">
-			<p class="truncate"><strong>{user.name}</strong><br />edit</p>
-			<div class="blank-icon-small"></div>
-		</div>
-
-		<div class="row center">
-			<div
-				class="round-icon-big"
-				style="background-image: url('{image || `${PUBLIC_URL}/${user.rk}.jpg`}');"
-			></div>
-		</div>
-		<InstallApp />
+		<EntityHeader entity={user} subtitle="edit" image={image || imageOf(user.rk)} />
 
 		<div class="group">
 			<div class="row right">

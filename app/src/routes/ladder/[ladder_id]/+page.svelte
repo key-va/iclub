@@ -1,7 +1,6 @@
 <script lang="ts">
-	import InstallApp from '#lib/components/installApp.svelte';
+	import EntityHeader from '#lib/components/EntityHeader.svelte';
 	import { page } from '$app/state';
-	import { PUBLIC_URL } from '#lib/config.ts';
 	import { local } from '#lib/stores/local.ts';
 	import { guids, nameOf, entityOf, relatedEntities, relationsOf, hrefOf, imageOf } from '#lib/stores/guids.ts';
 	import { ladderSettings } from '#lib/strings.ts';
@@ -91,15 +90,7 @@
 <div class="page">
 	{#if ladder}
 		
-		<div class="row right">
-			<p class="truncate"><strong>{ladder.name}</strong><br />{ladder.pk}</p>
-			<div class="blank-icon-small"></div>
-		</div>
-
-		<div class="row center">
-			<div class="round-icon-big" style="background-image: url('{PUBLIC_URL}/{ladder.rk}.jpg');"></div>
-		</div>
-		<InstallApp />
+		<EntityHeader entity={ladder} />
 
 		{#if ladder.state === 'pending'}
 			<div class="group">

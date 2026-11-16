@@ -1,10 +1,9 @@
 <script lang="ts">
-	import InstallApp from '#lib/components/installApp.svelte';
+	import EntityHeader from '#lib/components/EntityHeader.svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { onMount } from 'svelte';
-	import { PUBLIC_URL } from '#lib/config.ts';
-	import { guids, entityOf } from '#lib/stores/guids.ts';
+	import { guids, entityOf, imageOf } from '#lib/stores/guids.ts';
 	import { local } from '#lib/stores/local.ts';
 	import ApiService from '#lib/components/apiService.svelte';
 	import HiddenOptions from '#lib/components/hiddenOptions.svelte';
@@ -77,18 +76,7 @@
 
 <div class="page">
 	{#if ladder}
-		<div class="row right">
-			<p class="truncate"><strong>{ladder.name}</strong><br />edit</p>
-			<div class="blank-icon-small"></div>
-		</div>
-
-		<div class="row center">
-			<div
-				class="round-icon-big"
-				style="background-image: url('{image || `${PUBLIC_URL}/${ladder.rk}.jpg`}');"
-			></div>
-		</div>
-		<InstallApp />
+		<EntityHeader entity={ladder} subtitle="edit" image={image || imageOf(ladder.rk)} />
 
 		<div class="row right">
 			<input type="text" placeholder="ladder name" autocomplete="off" bind:value={name} />

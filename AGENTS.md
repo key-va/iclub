@@ -157,6 +157,11 @@ Do not introduce new storage abstractions unless a real gap is proven.
 
 ### Reusable components (`app/src/lib/components/`)
 
+- [EntityHeader.svelte](./app/src/lib/components/EntityHeader.svelte)
+  - shared page title/subtitle, large image and install guidance; pages retain their outer container and entity-existence checks
+  - accepts an entity (defaults to its name, type and `imageOf(rk)`), with title/subtitle/image overrides for branded pages, forms and related-entity images
+  - `image={null}` omits the image and install guidance; form previews remain reactive through the image prop
+
 - [apiService.svelte](./app/src/lib/components/apiService.svelte)
   - consistent action button + confirmation/execute UX
   - mutation actions confirm by default; long-press options and message posting opt out

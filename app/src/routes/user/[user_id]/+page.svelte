@@ -1,9 +1,8 @@
 <script lang="ts">
 	import { isTeamAdmin, isTeamMember, outstandingTeamRounds } from '#lib/rounds.ts';
 	import RoundRoleDot from '#lib/components/roundRoleDot.svelte';
-	import InstallApp from '#lib/components/installApp.svelte';
+	import EntityHeader from '#lib/components/EntityHeader.svelte';
 	import { page } from '$app/state';
-	import { PUBLIC_URL } from '#lib/config.ts';
 	import { local } from '#lib/stores/local.ts';
 	import { guids, entityOf, relatedEntities, hrefOf, imageOf } from '#lib/stores/guids.ts';
 
@@ -80,15 +79,7 @@
 
 <div class="page">
 	{#if user_entity}
-		<div class="row right">
-			<p class="truncate"><strong>{user_entity.name}</strong><br />{user_entity.pk}</p>
-			<div class="blank-icon-small"></div>
-		</div>
-
-		<div class="row center">
-			<div class="round-icon-big" style="background-image: url('{PUBLIC_URL}/{user_entity.rk}.jpg');"></div>
-		</div>
-		<InstallApp />
+		<EntityHeader entity={user_entity} />
 
 		{#if user_id === caller_id && adminClubs.length > 0}
 			<div class="group">

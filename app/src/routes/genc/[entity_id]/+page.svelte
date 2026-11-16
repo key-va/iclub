@@ -1,7 +1,6 @@
 <script lang="ts">
-	import InstallApp from '#lib/components/installApp.svelte';
+	import EntityHeader from '#lib/components/EntityHeader.svelte';
 	import { page } from '$app/state';
-	import { PUBLIC_URL } from '#lib/config.ts';
 	import { local } from '#lib/stores/local.ts';
 	import { guids, entityOf, relatedEntities, hrefOf, imageOf } from '#lib/stores/guids.ts';
 
@@ -16,15 +15,7 @@
 
 <div class="page">
 	{#if entity}
-		<div class="row right">
-			<p class="truncate"><strong>{entity.name}</strong><br />entity</p>
-			<div class="blank-icon-small"></div>
-		</div>
-
-		<div class="row center">
-			<div class="round-icon-big" style="background-image: url('{PUBLIC_URL}/{entity.rk}.jpg');"></div>
-		</div>
-		<InstallApp />
+		<EntityHeader {entity} subtitle="entity" />
 	{:else}
 		<div class="row right">
 			<p class="truncate"><strong>{$guids.loaded ? 'Not found' : 'Loading'}</strong><br />entity</p>

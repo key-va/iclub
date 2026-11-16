@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { branding } from '#lib/stores/branding.ts';
-	import InstallApp from '#lib/components/installApp.svelte';
+	import EntityHeader from '#lib/components/EntityHeader.svelte';
 	import { guids, relatedEntities, hrefOf, imageOf } from '#lib/stores/guids.ts';
 	import { local } from '#lib/stores/local.ts';
 
@@ -10,15 +10,7 @@
 </script>
 
 <div class="page">
-	<div class="row right">
-		<p class="truncate"><strong>{$branding.name}</strong><br />menu</p>
-		<div class="blank-icon-small"></div>
-	</div>
-
-	<div class="row center">
-		<div class="round-icon-big" style="background-image: url('{$branding.icon}');"></div>
-	</div>
-	<InstallApp />
+	<EntityHeader title={$branding.name} subtitle="menu" image={$branding.icon} />
 
 	{#if caller_id && device_id}
 

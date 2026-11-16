@@ -13,7 +13,7 @@
 	import RouteLink from '#lib/components/routeLink.svelte';
 	import HiddenOptions from '#lib/components/hiddenOptions.svelte';
 	import RoundRoleDot from '#lib/components/roundRoleDot.svelte';
-	import InstallApp from '#lib/components/installApp.svelte';
+	import EntityHeader from '#lib/components/EntityHeader.svelte';
 	const id = $derived(page.params.round_id ?? '');
 	const roundEntity = $derived(entityOf($guids.items, id));
 	const team = $derived(relatedEntities($guids.items, id, 'team')[0]);
@@ -72,17 +72,7 @@
 
 <div class="page">
 	{#if round && team}
-		<div class="row right">
-			<p class="truncate"><strong>{round.name}</strong><br />{round.pk}</p>
-			<div class="blank-icon-small"></div>
-		</div>
-		<div class="row center">
-			<div
-				class="round-icon-big"
-				style:background-image={`url('${imageOf(team.rk)}')`}
-			></div>
-		</div>
-		<InstallApp />
+		<EntityHeader entity={round} image={imageOf(team.rk)} />
 		<div class="group">
 			<p class="info center"><strong>{fixtureName}</strong></p>
 			{#if complete}
