@@ -177,10 +177,21 @@
 					</RouteLink>
 				{/each}
 
+				{#if standings.length}	
+					<HiddenOptions title="Leaderboard" badge={standings.length} />
+						{#each standings as standing (String(standing.name))}
+							<HiddenOptions
+								title={String(standing.name)}
+								description={`${standing.points} points ${standing.wins} wins`}
+								badge={String(standing.rank)}
+							>
+							</HiddenOptions>
+						{/each}
+				{/if}
 				{#if isTeamMember(mine)}
 					<ApiService
 						name="refresh data"
-						message="Refresh the official fixtures, results and standings?"
+						message="Refresh fixtures, results and standings?"
 						endpoint="team/sync"
 						data={{ team_id: id }}
 						onsuccess={(result) => {
@@ -194,27 +205,7 @@
 				</div>
 				{/if}
 				
-			</div>
-
-			<div class="group">
-			{#if standings.length}	
-					<HiddenOptions title="Leaderboard">
-						{#each standings as standing (String(standing.name))}
-							<HiddenOptions
-								title={String(standing.name)}
-								description={`${standing.points} points ${standing.wins} wins`}
-								badge={String(standing.rank)}
-							>
-							</HiddenOptions>
-						{/each}
-						
-					</HiddenOptions>
-				{/if}
-			
-			
-			</div>
-
-			
+			</div>	
 
 			<HiddenOptions title="Members">
 				{#each members as user (user.rk)}
