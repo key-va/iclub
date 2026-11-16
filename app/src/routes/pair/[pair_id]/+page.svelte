@@ -1,7 +1,7 @@
 <script lang="ts">
 	import EntityHeader from '#lib/components/EntityHeader.svelte';
     import { page } from '$app/state';
-    import { canChallenge as sharedCanChallenge } from '#lib/challenge.ts';
+    import { canChallenge as sharedCanChallenge, ladderMembership } from '#lib/components/ladders/ladderRules.ts';
     import { local } from '#lib/stores/local.ts';
     import { guids, entityOf, relatedEntities, relationsOf, hrefOf, imageOf } from '#lib/stores/guids.ts';
     import { matchSummary, pastMatches } from '#lib/matchSummary.ts';
@@ -17,9 +17,7 @@
     const matches = $derived(relatedEntities($guids.items, pairId, 'match').sort((a,b) => b.rk.localeCompare(a.rk)));
     const liveMatches = $derived(matches.filter(match => match.state === 'pending' || match.state === 'active'));
     const history = $derived(pastMatches(matches));
-    const myPair = $derived(ladder ? relatedEntities($guids.items, ladder.rk, 'pair').find(candidate =>
-        candidate.relation.is_participant === true && relatedEntities($guids.items, candidate.rk, 'user').some(member => member.rk === $local.caller_id)
-    ) : undefined);
+    const myPair = $derived(ladder ? ladderMembership($guids.items, ladder, $local.caller_id).pair : undefined);
     const canChallenge = $derived(sharedCanChallenge(ladder, myPair?.relation, myPair?.rk ?? null, {
         rk: pairId, rank: Number(ladder?.relation.rank), relation: ladder?.relation ?? {}
     }));

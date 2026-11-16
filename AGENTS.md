@@ -157,6 +157,15 @@ Do not introduce new storage abstractions unless a real gap is proven.
 
 ### Reusable components (`app/src/lib/components/`)
 
+- Ladder components live together under `ladders/`:
+  - `LadderUser.svelte` and `LadderPair.svelte` present singles/doubles standings and challenge controls. The ladder page gathers/sorts participants and chooses by ladder format.
+  - `UserLadder.svelte` owns a user's ladder section, including relevant live matches, standing, and challenge/accept controls.
+  - `LadderRequests.svelte` owns pending applicants and doubles partner selection/reset after acceptance or graph refresh.
+  - `ladderRules.ts` replaces the former root-level `challenge.ts`. It shares challenge eligibility/reach, ladder state colours, and `ladderMembership(items, ladder, userId)`. Membership/admin flags remain on user-ladder relations; doubles competitive state/rank comes from the active pair-ladder relation. The pair page also uses this resolver.
+  - Contextual names put the page entity first and displayed entity second. Pass entities as props; components do not read route parameters. Local calculations/state stay inside components; shared ladder calculations stay alongside them.
+  - Auth remains in the existing local store; all mutations still use `ApiService` and the existing endpoints. No backend permission or storage changes.
+- Frontend test files run serially (`--test-concurrency=1`) because their Vite SSR servers share the dependency cache; concurrent pre-bundling caused `ERR_OUTDATED_OPTIMIZED_DEP` in CI.
+
 - [EntityHeader.svelte](./app/src/lib/components/EntityHeader.svelte)
   - shared page title/subtitle, large image and install guidance; pages retain their outer container and entity-existence checks
   - accepts an entity (defaults to its name, type and `imageOf(rk)`), with title/subtitle/image overrides for branded pages, forms and related-entity images

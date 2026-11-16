@@ -3,24 +3,24 @@
 	import { page } from '$app/state';
 	import { local } from '#lib/stores/local.ts';
 	import { guids, nameOf, entityOf, relatedEntities, relationsOf, hrefOf, imageOf } from '#lib/stores/guids.ts';
-	import { ladderSettings } from '#lib/strings.ts';
-	import { canChallenge as sharedCanChallenge, type ChallengeTarget } from '#lib/challenge.ts';
+	import LadderUser from '#lib/components/ladders/LadderUser.svelte';
+	import LadderPair from '#lib/components/ladders/LadderPair.svelte';
+	import LadderRequests from '#lib/components/ladders/LadderRequests.svelte';
 	import { matchSummary, pastMatches } from '#lib/matchSummary.ts';
 
 	import ApiService from '#lib/components/apiService.svelte';
 	import RouteLink from '#lib/components/routeLink.svelte';
 	import HiddenOptions from '#lib/components/hiddenOptions.svelte';
 
-	const { caller_id } = $local;
+	const caller_id = $derived($local.caller_id);
 
 	const ladderId = $derived(page.params.ladder_id ?? '');
 	const ladder = $derived(entityOf($guids.items, ladderId));
-	// Participants are the users flagged is_participant on their ladder relation, best (lowest) rank first
+	// Singles list users; doubles list pairs. Competitive rank belongs to the ladder relation.
 	const leaderboard = $derived(
 		relatedEntities($guids.items, ladderId, ladder?.format === 'doubles' ? 'pair' : 'user')
 			.filter((user) => user.relation.is_participant === true)
-			.map((user) => ({ ...user, rank: Number(user.relation.rank) }))
-			.sort((a, b) => a.rank - b.rank)
+			.sort((a, b) => Number(a.relation.rank) - Number(b.relation.rank))
 	);
 
 	const clubId = $derived(relatedEntities($guids.items, ladderId, 'club')[0]?.rk ?? '');
@@ -36,21 +36,6 @@
 		relatedEntities($guids.items, ladderId, 'user').filter((user) => user.relation.state === 'pending')
 	);
 	const isPending = $derived(pending.some((user) => user.rk === caller_id));
-	const isLadderAdmin = $derived(
-		relationsOf($guids.items, ladderId).some((relation) => relation.rk === caller_id && relation.is_admin === true)
-	);
-
-	let showRules = $state(false);
-	let selectedPairUserId = $state<string | null>(null);
-	const selectedPairUser = $derived(pending.find(player => player.rk === selectedPairUserId));
-	$effect(() => {
-		if (!selectedPairUser) selectedPairUserId = null;
-	});
-	const myPair = $derived(relatedEntities($guids.items, ladderId, 'pair').filter((pair) => pair.relation.is_participant === true).find((pair) =>
-		relatedEntities($guids.items, pair.rk, 'user').some((member) => member.rk === caller_id)
-	));
-	const myCompetitiveRelation = $derived(ladder?.format === 'doubles' ? myPair?.relation : myRelation);
-
 	const ongoingMatches = $derived(
 		relatedEntities($guids.items, ladderId, 'match').filter(
 			(match) => match.state === 'pending' || match.state === 'active'
@@ -64,27 +49,11 @@
 		)
 	);
 
-	const canChallenge = (target: ChallengeTarget) => sharedCanChallenge(ladder, myCompetitiveRelation, ladder?.format === 'doubles' ? myPair?.rk ?? null : caller_id, target);
-
 	// Finished matches on this ladder, newest first (IDs embed their creation time)
 	const history = $derived(
 		pastMatches(relatedEntities($guids.items, ladderId, 'match')).sort((a, b) => b.rk.localeCompare(a.rk))
 	);
 
-	function challengeText(target: { rk: string; rank: number; relation: Record<string, unknown> }) {
-		const state = String(target.relation.state);
-		if (target.rk === (ladder?.format === 'doubles' ? myPair?.rk : caller_id)) return state === 'active' ? 'available' : `${state}`;
-		if (state === 'away') return 'away';
-		if (state === 'busy') return 'in a match';
-		return canChallenge(target) ? 'long tap to challenge' : 'cannot challenge';
-	}
-
-	const stateColours: Record<string, string> = { away: 'red', busy: 'gold', cooling: 'blue', active: 'green' };
-
-	// The dot always reflects the listed player's own state
-	function dotColour(target: { relation: Record<string, unknown> }) {
-		return stateColours[String(target.relation.state)] ?? 'grey';
-	}
 </script>
 
 <div class="page">
@@ -106,27 +75,7 @@
 			</div>
 		{/if}
 
-		<div class="group">
-
-		{#if isLadderAdmin && pending.length > 0}
-			
-				{#each pending as player (player.rk)}
-					<RouteLink href={hrefOf(player.rk)} title={player.name ?? 'no name'} description="waiting to join" image={imageOf(player.rk)}>
-						{#if ladder.format === 'doubles'}
-							{#if selectedPairUser && selectedPairUser.rk !== player.rk}
-								<ApiService inline name={`pair with ${selectedPairUser.name ?? 'this player'}`} message={`pair ${player.name ?? 'this player'} with ${selectedPairUser.name ?? 'this player'}?`} endpoint={`ladder/${ladderId}/accept`} data={{ user_ids: [selectedPairUser.rk, player.rk] }} confirm={false} onsuccess={() => { selectedPairUserId = null; }} />
-							{:else}
-								<button class="blue" aria-label={selectedPairUserId === player.rk ? 'deselect player' : 'select player'} onclick={() => selectedPairUserId = selectedPairUserId === player.rk ? null : player.rk}><p>{selectedPairUserId === player.rk ? 'selected' : 'select'}</p></button>
-							{/if}
-						{:else}
-							<ApiService inline name="accept" message={`accept ${player.name ?? 'this player'} onto the ladder?`} endpoint={`ladder/${ladderId}/accept`} data={{ user_id: player.rk }} confirm={false} />
-						{/if}
-					</RouteLink>
-				{/each}
-			
-		{/if}
-
-		</div>
+		<LadderRequests {ladder} />
 
 		<div class="group">
 
@@ -148,25 +97,11 @@
 		</HiddenOptions>
 		
 		{#each leaderboard as player (player.rk)}
-			<RouteLink
-				href={hrefOf(player.rk)}
-				title={player.name ?? 'no name'}
-				description={`${challengeText(player)}`}
-				image={imageOf(ladder.format === 'doubles' ? ladderId : player.rk)}>
-				{#snippet detail()}
-					<span class="dot" style="background: {dotColour(player)}" role="img" aria-label={String(player.relation?.state)}></span>{player.rank}
-				{/snippet}
-
-				<ApiService
-					inline
-					name="challenge"
-					message={`challenge ${player.name ?? 'this player'}?`}
-					endpoint="match/create"
-					data={{ ladder_id: ladderId, challenger_id: ladder?.format === 'doubles' ? myPair?.rk : caller_id, defender_id: player.rk }}
-					disabled={!canChallenge(player)}
-					confirm={false}
-				/>				
-			</RouteLink>
+			{#if ladder.format === 'doubles'}
+				<LadderPair {ladder} pair={player} />
+			{:else}
+				<LadderUser {ladder} user={player} />
+			{/if}
 		{/each}
 		</div>
         
@@ -193,14 +128,5 @@
 <style>
 	.page {
 		width: 100%;
-	}
-	.dot {
-		display: inline-block;
-		width: 0.7em;
-		height: 0.7em;
-		margin: 0 0.25em;
-		border: 2px solid white;
-		border-radius: 50%;
-		vertical-align: baseline;
 	}
 </style>
