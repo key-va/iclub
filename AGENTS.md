@@ -374,3 +374,11 @@ Keep shared infrastructure composable while implementing feature rules in their 
 - `message/create` accepts exactly one `match_id`, `round_id` or `group_id`. Any signed-in user may post to a group. Group notifications go to every participant, including the sender, excluding pending applicants and admin-only relations. Existing match/round recipients are unchanged. Group notification failures do not undo persisted mutations/messages.
 - Group pages follow entity headers/icons, expandable participants, pending approval/join/accept and shared message UI. Participant groups appear below teams on user pages; pending memberships remain visible for acceptance, and club admins see pending group approvals. Browse lists groups and offers New Group on an unmatched filter. Group create/edit pages accept only name/image.
 - `api/test/group.test.cjs` covers club ownership, approvals, membership, permissions, images, editing and messaging recipients using in-memory storage. Run the existing API/frontend checks for verification.
+
+## Ladder setting definitions
+
+- Keep frontend labels/help/options in `app/src/lib/components/ladders/ladderSettings.ts` and API validation in `api/src/functions/ladderCreate.ts`; definitions remain separate by design and must be kept in step.
+- Creation supports `win_points`, `half_rank`, `ten_percent_sliding`, `static_1`; do not offer `open` or any `static_range_*` option. No backwards compatibility for the removed setting keys is required.
+- `ten_percent_sliding` allows higher-ranked targets down to `floor(callerRank * 0.9)` (rank 20 can challenge ranks 18–19). Apply the same boundary to user and pair competitors, in both frontend eligibility and API enforcement. Existing half-rank behaviour is unchanged.
+- Cool period defaults to 3 days with allowed creation range 1–9. Missing-setting deadline/cooling/notification fallbacks use 3 days; explicit settings on existing ladders remain in effect.
+- Enum options contain separate display `label` and `description`; stored keys remain unchanged. `ladderStates` was unused and removed. Keep settings fields in the creation page for now.

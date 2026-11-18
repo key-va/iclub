@@ -24,7 +24,7 @@ export interface DueMatch {
 }
 
 const periodSetting = {
-    pending: { key: "cool_period", defaultDays: 2 },
+    pending: { key: "cool_period", defaultDays: 3 },
     active: { key: "play_period", defaultDays: 9 }
 } as const;
 

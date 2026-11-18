@@ -89,7 +89,7 @@
 			ladder?.match_format ?? ladderSettings.match_format.default
 		);
 		const setting = ladderSettings.match_format;
-		const rules = setting.type === 'enum' ? setting.values[format] : '';
+		const rules = setting.type === 'enum' ? setting.values[format]?.description : '';
 		return rules ? `Match format: ${rules}.` : '';
 	});
 	const isComplete = $derived(match?.state === 'complete');

@@ -1,12 +1,12 @@
-// Labels, descriptions and options for the app. The API validates the same rules inline in api/src/functions/ladderCreate.ts.
+// Ladder labels, descriptions and options. The API validates the same rules inline in api/src/functions/ladderCreate.ts.
 
-export type LadderSetting =
+type LadderSetting =
 	| {
 			type: 'enum';
 			label: string;
 			default: string;
 			description: string;
-			values: Record<string, string>;
+			values: Record<string, { label: string; description: string }>;
 	  }
 	| {
 			type: 'number';
@@ -24,8 +24,8 @@ export const ladderSettings: Record<string, LadderSetting> = {
 		default: 'singles',
 		description: 'whether players compete alone or in pairs',
 		values: {
-			singles: 'one player per side',
-			doubles: 'two players per side'
+			singles: { label: 'Singles', description: 'one player per side' },
+			doubles: { label: 'Doubles', description: 'two players per side' }
 		}
 	},
 	match_format: {
@@ -34,12 +34,21 @@ export const ladderSettings: Record<string, LadderSetting> = {
 		default: 'super_set',
 		description: 'how a challenge match is played',
 		values: {
-			super_set:
-				'a single long set played to 8 with a tiebreak at 7 games each',
-			best_of_three:
-				'first to win two full sets to 6, with super tiebreak to 10 at 1 set each',
-			fast_four:
-				'first to win two short sets to 4, with tiebreak at 3 games each and one fault per service game'
+			super_set: {
+				label: 'Super set',
+				description:
+					'a single long set played to 8 with a tiebreak at 7 games each'
+			},
+			best_of_three: {
+				label: 'Best of three',
+				description:
+					'first to win two full sets to 6, with super tiebreak to 10 at 1 set each'
+			},
+			fast_four: {
+				label: 'Fast four',
+				description:
+					'first to win two short sets to 4, with tiebreak at 3 games each and one fault per service game'
+			}
 		}
 	},
 	ladder_system: {
@@ -48,13 +57,25 @@ export const ladderSettings: Record<string, LadderSetting> = {
 		default: 'win_points',
 		description: 'how results move players up and down the ladder',
 		values: {
-			win_points:
-				'players earn points with match wins and trade points to challenge up the ladder.',
-			half_rank:
-				'players can challenge up to half their own rank up the ladder',
-			static_range_1: 'players may challenge up to 1 rank above them.',
-			static_range_6: 'players may challenge up to 6 ranks above them.',
-			open: 'players may challenge any rank up the ladder.'
+			win_points: {
+				label: 'Win points',
+				description:
+					'players earn points with match wins and trade points to challenge up the ladder.'
+			},
+			half_rank: {
+				label: 'Half rank',
+				description:
+					'players can challenge up to half their own rank up the ladder'
+			},
+			ten_percent_sliding: {
+				label: 'Ten percent sliding',
+				description:
+					'players may challenge up to the rank found by multiplying their own rank by 0.9 and rounding down; for example, rank 20 may challenge ranks 18 and 19.'
+			},
+			static_1: {
+				label: 'Up to 1 rank',
+				description: 'players may challenge up to 1 rank above them.'
+			}
 		}
 	},
 	cool_period: {
@@ -83,9 +104,3 @@ export const ladderSettingDefaults: Record<string, string | number> =
 			setting.default
 		])
 	);
-
-export const ladderStates: Record<string, string> = {
-	pending: 'waiting for the club admin to approve the ladder',
-	active: 'approved and open for play',
-	complete: 'finished and closed'
-};

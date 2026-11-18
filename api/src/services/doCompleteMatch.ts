@@ -174,7 +174,7 @@ export async function doCompleteMatch(input: CompleteMatchInput, context: Invoca
 
     // The loser cools off until the hourly job (functions/batchHourly.ts) frees them; the winner is free to play
     winner.state = "active";
-    loser.state = Number(ladder.cool_period ?? 0) > 0 ? "cooling" : "active";
+    loser.state = Number(ladder.cool_period ?? 3) > 0 ? "cooling" : "active";
 
     for (const userId of changed) {
         await doUpsertRelation(ladderId, userId, participants.get(userId));

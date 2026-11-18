@@ -30,9 +30,10 @@ export function inReach(
 		ladder?.ladder_system ?? ladderSettingDefaults.ladder_system
 	);
 	if (system === 'win_points') return Number(me.points) >= steps;
+	if (system === 'ten_percent_sliding')
+		return target.rank >= Math.floor(myRank * 0.9);
 	if (system === 'half_rank') return steps <= Math.floor(myRank / 2);
-	const range = Number(system.match(/^static_range_(\d+)$/)?.[1]);
-	return steps <= range;
+	return system === 'static_1' && steps <= 1;
 }
 
 // Whether the caller may issue a challenge to the target right now (match state is checked separately)

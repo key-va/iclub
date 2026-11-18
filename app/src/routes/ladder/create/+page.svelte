@@ -130,8 +130,8 @@
 			<div class="row right">
 				{#if setting.type === 'enum'}
 					<select aria-label={setting.label} bind:value={values[key]}>
-						{#each Object.keys(setting.values) as option (option)}
-							<option value={option}>{option}</option>
+						{#each Object.entries(setting.values) as [option, details] (option)}
+							<option value={option}>{details.label}</option>
 						{/each}
 					</select>
 				{:else}
@@ -152,8 +152,8 @@
 					<p>
 						<strong>{setting.label}</strong>: {setting.description}<br />
 						{#if setting.type === 'enum'}
-							{#each Object.entries(setting.values) as [option, description], i (option)}
-								{#if i > 0}<br />{/if}<strong>{option}</strong>: {description}
+							{#each Object.entries(setting.values) as [option, details], i (option)}
+								{#if i > 0}<br />{/if}<strong>{details.label}</strong>: {details.description}
 							{/each}
 						{:else}
 							from {setting.min} to {setting.max}, default {setting.default}

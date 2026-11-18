@@ -57,3 +57,16 @@ test('ladder creation notification names the requesting player and links to the 
  assert.equal(pushes[0].content,'Alice Player has requested to create this ladder');
  assert.deepEqual(pushes[0].userIds,['user_reviewer']);assert.equal(pushes[0].path,`ladder/${r.jsonBody.subject}`);
 });
+
+
+test('ladder defaults use three cooling days and only supported systems can be created',async()=>{
+ const defaults=await create();assert.equal(defaults.status,201);
+ assert.equal(rows.get(key('ladder',defaults.jsonBody.subject)).cool_period,3);
+ for(const system of ['win_points','half_rank','ten_percent_sliding','static_1']){
+  const r=await create('https://next.intra.club',{ladder_system:system,cool_period:1});
+  assert.equal(r.status,201);assert.equal(rows.get(key('ladder',r.jsonBody.subject)).ladder_system,system);
+ }
+ for(const invalid of [{ladder_system:'open'},{ladder_system:'static_range_3'},{ladder_system:'static_range_1'},{ladder_system:'static_range_6'},{cool_period:0},{cool_period:10},{cool_period:1.5}]){
+  const before=rows.size;const r=await create('https://next.intra.club',invalid);assert.equal(r.status,400);assert.equal(rows.size,before);
+ }
+});

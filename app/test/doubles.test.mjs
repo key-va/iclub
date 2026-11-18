@@ -44,8 +44,8 @@ test('challenge controls work for pair and user competitors across rank, reach a
         const target={rk:`${prefix}_other`,rank:2,relation:{is_participant:true,state:'cooling'}};
         assert.equal(challenge.canChallenge({ladder_system:'win_points'},me,`${prefix}_me`,target),true);
         assert.equal(challenge.canChallenge({ladder_system:'half_rank'},me,`${prefix}_me`,target),true);
-        assert.equal(challenge.canChallenge({ladder_system:'static_range_1'},me,`${prefix}_me`,target),false);
-        assert.equal(challenge.canChallenge({ladder_system:'static_range_3'},me,`${prefix}_me`,target),true);
+        assert.equal(challenge.canChallenge({ladder_system:'static_1'},me,`${prefix}_me`,{...target,rank:3}),true);
+        assert.equal(challenge.canChallenge({ladder_system:'static_1'},me,`${prefix}_me`,target),false);
         assert.equal(challenge.canChallenge({ladder_system:'win_points'},{...me,state:'busy'},`${prefix}_me`,target),false);
         assert.equal(challenge.canChallenge({ladder_system:'win_points'},me,target.rk,target),false);
     }
@@ -64,4 +64,22 @@ test('hostname selects branding without user/club relations, with safe fallback 
  rows[1].foreground='url(https://bad.example)';rows[1].foreground_text='red';
  const invalid=branding.brandingForHost(rows,'next.intra.club');
  assert.equal(invalid.foreground,'#FF1493');assert.equal(invalid.foregroundText,'#FFFFFF');
+});
+
+
+test('ten percent sliding uses a rounded target rank for user and pair challenges',()=>{
+ for(const prefix of ['user','pair']) for(const [rank,target,expected] of [[20,18,true],[20,17,false],[11,9,true],[11,8,false],[2,1,true],[20,20,false],[20,21,false]]){
+  const me={is_participant:true,rank,state:'active'};
+  const opponent={rk:`${prefix}_other`,rank:target,relation:{is_participant:true,state:'active'}};
+  assert.equal(challenge.canChallenge({ladder_system:'ten_percent_sliding'},me,`${prefix}_me`,opponent),expected);
+ }
+});
+
+test('ladder settings offer readable option labels and the supported cooldown limits',async()=>{
+ const {ladderSettings,ladderSettingDefaults}=await server.ssrLoadModule('/src/lib/components/ladders/ladderSettings.ts');
+ assert.deepEqual(Object.keys(ladderSettings.ladder_system.values),['win_points','half_rank','ten_percent_sliding','static_1']);
+ assert.equal(ladderSettingDefaults.cool_period,3);assert.equal(ladderSettings.cool_period.min,1);
+ for(const setting of Object.values(ladderSettings)) if(setting.type==='enum') for(const option of Object.values(setting.values)){
+  assert.ok(option.label);assert.equal(option.label.includes('_'),false);assert.ok(option.description);
+ }
 });

@@ -106,7 +106,7 @@ async function releaseCoolingPlayers(context: InvocationContext): Promise<boolea
         queryOptions: { filter: odata`PartitionKey eq ${"ladder"}` }
     })) {
         const ladderId = ladder.rowKey as string;
-        const coolMs = Number(ladder.cool_period ?? 2) * DAY_MS;
+        const coolMs = Number(ladder.cool_period ?? 3) * DAY_MS;
 
         for await (const relation of guidsClient.listEntities({
             queryOptions: { filter: odata`PartitionKey eq ${ladderId}` }

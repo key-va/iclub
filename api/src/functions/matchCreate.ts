@@ -136,10 +136,12 @@ export async function matchCreate(request: HttpRequest, context: InvocationConte
 
         if (system === "win_points") {
             inReach = Number(challenger.points) >= steps;
+        } else if (system === "ten_percent_sliding") {
+            inReach = Number(defender.rank) >= Math.floor(challengerRank * 0.9);
         } else if (system === "half_rank") {
             inReach = steps <= Math.floor(challengerRank / 2);
         } else {
-            inReach = steps <= Number(system.match(/^static_range_(\d+)$/)?.[1]);
+            inReach = system === "static_1" && steps <= 1;
         }
 
         if (!inReach) {
@@ -178,7 +180,7 @@ export async function matchCreate(request: HttpRequest, context: InvocationConte
         userIds: defenderUsers,
         exceptUserId: caller_id,
         heading: name,
-        content: `You have been challenged to a match, accept within ${Number(ladder.cool_period ?? 2)} days or forfeit your rank`,
+        content: `You have been challenged to a match, accept within ${Number(ladder.cool_period ?? 3)} days or forfeit your rank`,
         path: `match/${matchId}`,
         collapseId: matchId
     }, context);

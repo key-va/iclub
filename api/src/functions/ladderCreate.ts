@@ -14,7 +14,7 @@ import { resourceName, resourceSuffix } from "../stores/resourceNames";
 
 const maxImageBytes = 1024 * 1024;
 
-// Rules for the ladder settings. Keep in step with app/src/lib/strings.ts, which holds the labels and descriptions.
+// Rules for the ladder settings. Keep in step with app/src/lib/components/ladders/ladderSettings.ts, which holds the labels and descriptions.
 type SettingRule =
     | { default: string; values: string[] }
     | { default: number; min: number; max: number };
@@ -24,9 +24,9 @@ const settingRules: Record<string, SettingRule> = {
     match_format: { default: "super_set", values: ["super_set", "best_of_three", "fast_four"] },
     ladder_system: {
         default: "win_points",
-        values: ["win_points", "half_rank", "static_range_1", "static_range_3", "static_range_6"]
+        values: ["win_points", "half_rank", "ten_percent_sliding", "static_1"]
     },
-    cool_period: { default: 2, min: 0, max: 9 },
+    cool_period: { default: 3, min: 1, max: 9 },
     play_period: { default: 9, min: 1, max: 28 }
 };
 

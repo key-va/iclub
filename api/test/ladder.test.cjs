@@ -189,8 +189,8 @@ test('singles joining, acceptance, challenges, scoring, messaging and forfeit re
     assert.equal((await call(forfeit,A,undefined,{match_id:again.jsonBody.subject})).status,200);mirrored();
 });
 
-test('doubles completion uses the existing half-rank and static-range rules, including rank shifts',async()=>{
-    for(const system of ['half_rank','static_range_1','static_range_3','static_range_6']){
+test('doubles completion uses the supported rank-based rules, including rank shifts',async()=>{
+    for(const system of ['half_rank','ten_percent_sliding','static_1']){
         rows.clear();doubles(system);const id=await challenge();await call(matchAccept,A,undefined,{match_id:id});
         await call(complete,D,{challenger_score:6,defender_score:0},{match_id:id});
         assert.equal(get(L,'pair_bottom').rank,1);assert.equal(get(L,'pair_bottom').points,2);assert.equal(get(L,'pair_top').rank,2);
@@ -243,4 +243,47 @@ test('singles deadline processing and away still work; doubles away is excluded'
     get('match',id).timestamp=new Date(Date.now()-3*86400000);await batch({},context);assert.equal(get('match',id).state,'complete');
     assert.equal((await call(away,A,undefined,{ladder_id:L})).status,200);
     rows.clear();doubles();assert.equal((await call(away,A,undefined,{ladder_id:L})).status,409);assert.equal(get(L,'pair_top').state,'active');
+});
+
+
+test('ten percent sliding enforces the rounded target-rank boundary for singles and doubles',async()=>{
+ for(const format of ['singles','doubles']) for(const [rank,target,expected] of [[20,18,201],[20,17,409],[11,9,201],[11,8,409],[2,1,201],[20,20,409],[20,21,409]]){
+  rows.clear();seed(format,'ten_percent_sliding');
+  const challenger=format==='doubles'?'pair_bottom':C,defender=format==='doubles'?'pair_top':A;
+  if(format==='doubles'){pair(challenger,[C,D],rank);pair(defender,[A,B],target);}
+  else {relation(L,challenger,{is_participant:true,rank,state:'active'});relation(L,defender,{is_participant:true,rank:target,state:'active'});}
+  const response=await call(create,C,{ladder_id:L,challenger_id:challenger,defender_id:defender});
+  assert.equal(response.status,expected,`${format}: rank ${rank} targeting ${target}`);
+ }
+});
+
+test('missing cooldown settings use three days for pending deadlines and notifications',async()=>{
+ doubles();delete get('ladder',L).cool_period;
+ const id=await challenge();assert.match(pushes[0].content,/within 3 days/);
+ get('match',id).timestamp=new Date(Date.now()-2.5*86400000);
+ assert.deepEqual(await doFindDueMatches('pending'),[]);
+ get('match',id).timestamp=new Date(Date.now()-3.5*86400000);
+ assert.equal((await doFindDueMatches('pending'))[0].matchId,id);
+});
+
+
+test('static_1 allows a challenge one place up and rejects more distant targets',async()=>{
+ for(const format of ['singles','doubles']) for(const [target,expected] of [[3,201],[2,409]]){
+  rows.clear();seed(format,'static_1');
+  const challenger=format==='doubles'?'pair_bottom':C,defender=format==='doubles'?'pair_top':A;
+  if(format==='doubles'){pair(challenger,[C,D],4);pair(defender,[A,B],target);}
+  else {relation(L,challenger,{is_participant:true,rank:4,state:'active'});relation(L,defender,{is_participant:true,rank:target,state:'active'});}
+  assert.equal((await call(create,C,{ladder_id:L,challenger_id:challenger,defender_id:defender})).status,expected);
+ }
+});
+
+test('missing cooldown settings cool a losing competitor for three days',async()=>{
+ doubles();delete get('ladder',L).cool_period;
+ const id=await challenge();await call(matchAccept,A,undefined,{match_id:id});
+ assert.equal((await call(complete,C,{challenger_score:6,defender_score:0},{match_id:id})).status,200);
+ assert.equal(get(L,'pair_top').state,'cooling');
+ get(L,'pair_top').timestamp=new Date(Date.now()-2.5*86400000);
+ await batch({},context);assert.equal(get(L,'pair_top').state,'cooling');
+ get(L,'pair_top').timestamp=new Date(Date.now()-3.5*86400000);
+ await batch({},context);assert.equal(get(L,'pair_top').state,'active');
 });

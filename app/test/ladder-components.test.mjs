@@ -61,7 +61,7 @@ after(async () => { globalThis.fetch = originalFetch; await server?.close(); });
 
 function fixture(format = 'singles') {
     const items = [
-        { pk: 'ladder', rk: 'ladder_test', name: 'Test ladder', format, state: 'active', ladder_system: 'static_range_3' },
+        { pk: 'ladder', rk: 'ladder_test', name: 'Test ladder', format, state: 'active', ladder_system: 'half_rank' },
         ...['me', 'other', 'partner', 'admin'].map(id => ({ pk: 'user', rk: `user_${id}`, name: id }))
     ];
     const link = (a, b, attrs) => items.push({ pk: a, rk: b, ...attrs }, { pk: b, rk: a, ...attrs });
