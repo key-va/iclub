@@ -2,7 +2,7 @@
 	import { hrefOf, imageOf, type GuidRow, relationsOf, typeOf, nameOf, entityOf } from '#lib/stores/guids.ts';
 	import { local } from '#lib/stores/local.ts';
 	import { ladderMembership } from './ladderRules.ts';
-	import RouteLink from '../routeLink.svelte';
+	import RouteLinkHiddenAction from '#lib/components/RouteLinkHiddenAction.svelte';
 	import ActionQuick from '../ActionQuick.svelte';
 	import { acceptLadderMember, acceptLadderPair } from '#lib/stores/remote.ts';
 
@@ -20,7 +20,7 @@
 <div class="group">
 	{#if isLadderAdmin && pending.length > 0}
 		{#each pending as player (player.rk)}
-			<RouteLink href={hrefOf(player.rk)} title={nameOf(player.rk)} description="waiting to join" image={imageOf(player.rk)}>
+			<RouteLinkHiddenAction href={hrefOf(player.rk)} title={nameOf(player.rk)} description="waiting to join" image={imageOf(player.rk)} colour={selectedPairUserId === player.rk ? 'green' : 'orange'}>
 				{#if ladder.format === 'doubles'}
 					{#if selectedPairUser && selectedPairUser.rk !== player.rk}
 						<ActionQuick inline name={`accept with ${selectedFirstName}`}
@@ -36,7 +36,7 @@
 					<ActionQuick inline name="accept"
 						action={() => acceptLadderMember(ladder.rk, player.rk)} />
 				{/if}
-			</RouteLink>
+			</RouteLinkHiddenAction>
 		{/each}
 	{/if}
 </div>

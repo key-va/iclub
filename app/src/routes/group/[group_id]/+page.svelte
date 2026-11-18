@@ -2,8 +2,11 @@
 	import { page } from '$app/state';
 	import { local } from '#lib/stores/local.ts';
 	import { guids, entityOf, hrefOf, imageOf, relationsOf, typeOf, nameOf } from '#lib/stores/guids.ts';
+	import ActionQuick from '#lib/components/ActionQuick.svelte';
+	import { acceptGroupMember } from '#lib/stores/remote.ts';
 	import ApiService from '#lib/components/apiService.svelte';
 	import RouteLink from '#lib/components/routeLink.svelte';
+	import RouteLinkHiddenAction from '#lib/components/RouteLinkHiddenAction.svelte';
 	import HiddenOptions from '#lib/components/hiddenOptions.svelte';
 	import EntityHeader from '#lib/components/EntityHeader.svelte';
 	const id = $derived(page.params.group_id ?? '');
@@ -65,21 +68,14 @@
 			{:else if group.state === 'active'}
 				{#if admin}
 					{#each pending as user (user.rk)}
-						<RouteLink
+						<RouteLinkHiddenAction
 							href={hrefOf(user.rk)}
 							title={nameOf(user.rk)}
 							description="waiting to join"
 							image={imageOf(user.rk)}
-						>
-							<ApiService
-								inline
-								name="accept"
-								message={`Accept ${nameOf(user.rk)} into the group?`}
-								endpoint={`group/${id}/accept`}
-								data={{ user_id: user.rk }}
-								confirm={false}
-							/>
-						</RouteLink>
+						 colour="orange">
+							<ActionQuick inline name="accept" action={() => acceptGroupMember(id, user.rk)} />
+						</RouteLinkHiddenAction>
 					{/each}
 				{/if}
 				{#if mine?.state === 'pending'}

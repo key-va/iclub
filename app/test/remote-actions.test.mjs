@@ -20,6 +20,10 @@ test('named ladder actions sign the right endpoint and payload, then refresh the
         [() => remote.joinLadder('ladder_test'), '/api/ladder/ladder_test/join', {}],
         [() => remote.acceptLadderMember('ladder_test', 'user_one'), '/api/ladder/ladder_test/accept', { user_id: 'user_one' }],
         [() => remote.acceptLadderPair('ladder_test', ['user_one', 'user_two']), '/api/ladder/ladder_test/accept', { user_ids: ['user_one', 'user_two'] }],
+        [() => remote.acceptTeamMember('team_test', 'user_one'), '/api/team/accept', { team_id: 'team_test', user_id: 'user_one' }],
+        [() => remote.acceptGroupMember('group_test', 'user_one'), '/api/group/group_test/accept', { user_id: 'user_one' }],
+        [() => remote.setRoundRole('round_test', 'available'), '/api/round/role', { round_id: 'round_test', role: 'available' }],
+        [() => remote.setRoundRole('round_test', 'selected', 'user_one'), '/api/round/role', { round_id: 'round_test', role: 'selected', user_id: 'user_one' }],
         [() => remote.createMatch('ladder_test', 'pair_one', 'pair_two'), '/api/match/create',
             { ladder_id: 'ladder_test', challenger_id: 'pair_one', defender_id: 'pair_two' }]
     ];
@@ -72,4 +76,18 @@ test('rejected mutations do not refresh the graph', async () => {
     };
     await assert.rejects(remote.joinLadder('ladder_test'), /Not allowed/);
     assert.equal(calls, 1);
+});
+
+
+test('quick actions support API responses without a navigation subject', async () => {
+    let refreshes = 0;
+    globalThis.fetch = async (_url, options) => {
+        if (options.method === 'POST') return Response.json({ success: true, message: 'updated' });
+        refreshes++;
+        return Response.json([]);
+    };
+    const result = await remote.setRoundRole('round_test', 'unavailable');
+    assert.equal(result.success, true);
+    assert.equal(result.subject, undefined);
+    assert.equal(refreshes, 1);
 });

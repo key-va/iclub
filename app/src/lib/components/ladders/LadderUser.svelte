@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { hrefOf, imageOf, type GuidRow, nameOf } from '#lib/stores/guids.ts';
 	import { local } from '#lib/stores/local.ts';
-	import RouteLink from '../routeLink.svelte';
+	import RouteLinkHiddenAction from '#lib/components/RouteLinkHiddenAction.svelte';
 	import ActionQuick from '../ActionQuick.svelte';
 	import { createMatch } from '#lib/stores/remote.ts';
 	import { canChallenge, challengeDescription, ladderMembership, ladderStateColours } from './ladderRules.ts';
@@ -15,23 +15,9 @@
 	const description = $derived(challengeDescription(user, membership.competitorId, eligible));
 </script>
 
-<RouteLink href={hrefOf(user.rk)} title={nameOf(user.rk)} {description} image={imageOf(user.rk)}>
-	{#snippet detail()}
-		<span class="dot" style:background={ladderStateColours[String(user.state)] ?? 'grey'} role="img" aria-label={String(user.state)}></span>{rank}
-	{/snippet}
+<RouteLinkHiddenAction href={hrefOf(user.rk)} title={nameOf(user.rk)} {description} image={imageOf(user.rk)} colour={ladderStateColours[String(user.state)] ?? 'grey'}>
+	{#snippet detail()}{rank}{/snippet}
 	<ActionQuick inline name="challenge"
 		action={() => createMatch(ladder.rk, membership.competitorId!, user.rk)}
 		disabled={!eligible} />
-</RouteLink>
-
-<style>
-	.dot {
-		display: inline-block;
-		width: 0.7em;
-		height: 0.7em;
-		margin: 0 0.25em;
-		border: 2px solid white;
-		border-radius: 50%;
-		vertical-align: baseline;
-	}
-</style>
+</RouteLinkHiddenAction>

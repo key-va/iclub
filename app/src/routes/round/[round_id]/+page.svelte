@@ -1,12 +1,14 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { roundView, isTeamAdmin, availabilityOptions } from '#lib/rounds.ts';
+	import { roundRoleColour, roundView, isTeamAdmin, availabilityOptions } from '#lib/rounds.ts';
 	import { local } from '#lib/stores/local.ts';
 	import { guids, entityOf, hrefOf, imageOf, relationsOf, typeOf, nameOf } from '#lib/stores/guids.ts';
+	import ActionQuick from '#lib/components/ActionQuick.svelte';
+	import { setRoundRole } from '#lib/stores/remote.ts';
 	import ApiService from '#lib/components/apiService.svelte';
 	import RouteLink from '#lib/components/routeLink.svelte';
+	import RouteLinkHiddenAction from '#lib/components/RouteLinkHiddenAction.svelte';
 	import HiddenOptions from '#lib/components/hiddenOptions.svelte';
-	import RoundRoleDot from '#lib/components/roundRoleDot.svelte';
 	import EntityHeader from '#lib/components/EntityHeader.svelte';
 	const id = $derived(page.params.round_id ?? '');
 	const roundEntity = $derived(entityOf(id));
@@ -115,21 +117,10 @@
 			/>
 			{#each players as player (player.rk)}
 				{#snippet selectionAction()}
-					<ApiService
-						inline
-						name={player.role === 'selected' ? 'available' : 'select'}
-						message={player.role === 'selected' ? `Mark ${nameOf(player.rk)} available?` : `Select ${nameOf(player.rk)}?`}
-						endpoint="round/role"
-						data={{
-							round_id: id,
-							user_id: player.rk,
-							role:
-								player.role === 'selected' ? 'available' : 'selected',
-						}}
-						confirm={false}
-					/>
+					<ActionQuick inline name={player.role === 'selected' ? 'available' : 'select'}
+						action={() => setRoundRole(id, player.role === 'selected' ? 'available' : 'selected', player.rk)} />
 				{/snippet}
-				<RouteLink
+				<RouteLinkHiddenAction
 					href={hrefOf(player.rk)}
 					title={nameOf(player.rk)}
 					description={String(player.role)}
@@ -140,11 +131,8 @@
 						player.role === 'selected')
 						? selectionAction
 						: undefined}
-				>
-					{#snippet detail()}<RoundRoleDot
-							role={player.role}
-						/>{/snippet}
-				</RouteLink>
+					colour={roundRoleColour[String(player.role)] ?? 'grey'}>
+				</RouteLinkHiddenAction>
 			{/each}
 		</div>
 

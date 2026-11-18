@@ -64,17 +64,16 @@ export async function generateKeyPair(): Promise<{ privateKey: string; publicKey
 export type NavigationResponse<T = unknown> = ApiResponse<T> & { subject: string };
 
 export class ActionRefreshError extends Error {
-	constructor(message: string, public readonly retry: () => Promise<NavigationResponse>) {
+	constructor(message: string, public readonly retry: () => Promise<ApiResponse>) {
 		super(message);
 		this.name = 'ActionRefreshError';
 	}
 }
 
-async function mutate(endpoint: string, data: Record<string, unknown> = {}): Promise<NavigationResponse> {
+async function mutate(endpoint: string, data: Record<string, unknown> = {}): Promise<ApiResponse> {
 	const result = await callApi(endpoint, data);
-	if (!result.subject) throw new Error('The action response did not include a navigation subject.');
-	const response: NavigationResponse = { ...result, subject: result.subject };
-	const refresh = async (): Promise<NavigationResponse> => {
+	const response = result;
+	const refresh = async (): Promise<ApiResponse> => {
 		try {
 			await guids.refresh();
 			return response;
@@ -88,11 +87,24 @@ async function mutate(endpoint: string, data: Record<string, unknown> = {}): Pro
 	return refresh();
 }
 
-export const activateLadder = (ladderId: string) => mutate(`ladder/${ladderId}/activate`);
-export const joinLadder = (ladderId: string) => mutate(`ladder/${ladderId}/join`);
+async function mutateWithSubject(endpoint: string): Promise<NavigationResponse> {
+	const result = await mutate(endpoint);
+	if (!result.subject) throw new Error('The action response did not include a navigation subject.');
+	return { ...result, subject: result.subject };
+}
+
+export const activateLadder = (ladderId: string) => mutateWithSubject(`ladder/${ladderId}/activate`);
+export const joinLadder = (ladderId: string) => mutateWithSubject(`ladder/${ladderId}/join`);
 export const acceptLadderMember = (ladderId: string, userId: string) =>
 	mutate(`ladder/${ladderId}/accept`, { user_id: userId });
 export const acceptLadderPair = (ladderId: string, userIds: [string, string]) =>
 	mutate(`ladder/${ladderId}/accept`, { user_ids: userIds });
 export const createMatch = (ladderId: string, challengerId: string, defenderId: string) =>
 	mutate('match/create', { ladder_id: ladderId, challenger_id: challengerId, defender_id: defenderId });
+
+export const acceptTeamMember = (teamId: string, userId: string) =>
+	mutate('team/accept', { team_id: teamId, user_id: userId });
+export const acceptGroupMember = (groupId: string, userId: string) =>
+	mutate(`group/${groupId}/accept`, { user_id: userId });
+export const setRoundRole = (roundId: string, role: 'available' | 'unavailable' | 'selected', userId?: string) =>
+	mutate('round/role', { round_id: roundId, role, ...(userId ? { user_id: userId } : {}) });

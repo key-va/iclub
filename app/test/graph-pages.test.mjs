@@ -8,7 +8,7 @@ before(async () => {
     server = await createServer({
         plugins: [{ name: 'expose-page-actions', enforce: 'pre', transform(source, id) {
             const path = id.replaceAll('\\', '/');
-            if (path.endsWith('/components/routeLink.svelte')) return `
+            if (path.endsWith('/components/routeLink.svelte') || path.endsWith('/components/RouteLinkHiddenAction.svelte')) return `
                 <script>let { href, title, description, detail, children } = $props();</script>
                 <article><a {href}>{title}</a><p>{description}</p>{@render detail?.()}{@render children?.()}</article>`;
             if (path.endsWith('/components/hiddenOptions.svelte')) return `

@@ -3,6 +3,7 @@
 	import { local } from '#lib/stores/local.ts';
 	import { guids, entityOf, relationsOf, hrefOf, imageOf, type GuidRow, typeOf, nameOf } from '#lib/stores/guids.ts';
 	import {
+		roundRoleColour,
 		isTeamMember,
 		isTeamAdmin,
 		availabilityOptions,
@@ -12,10 +13,12 @@
 		teamView,
 		roundLabel,
 	} from '#lib/rounds.ts';
+	import ActionQuick from '#lib/components/ActionQuick.svelte';
+	import { acceptTeamMember, setRoundRole } from '#lib/stores/remote.ts';
 	import ApiService from '#lib/components/apiService.svelte';
 	import RouteLink from '#lib/components/routeLink.svelte';
+	import RouteLinkHiddenAction from '#lib/components/RouteLinkHiddenAction.svelte';
 	import HiddenOptions from '#lib/components/hiddenOptions.svelte';
-	import RoundRoleDot from '#lib/components/roundRoleDot.svelte';
 	import EntityHeader from '#lib/components/EntityHeader.svelte';
 	const id = $derived(page.params.team_id ?? '');
 	const teamEntity = $derived(entityOf(id));
@@ -95,21 +98,14 @@
 			{#if admin}
 				<div class="group">
 					{#each pending as user (user.rk)}
-						<RouteLink
+						<RouteLinkHiddenAction
 							href={hrefOf(user.rk)}
 							title={nameOf(user.rk)}
 							description="waiting to join"
 							image={imageOf(user.rk)}
-						>
-							<ApiService
-								inline
-								name="accept"
-								message={`Accept ${nameOf(user.rk)} onto the team?`}
-								endpoint="team/accept"
-								data={{ team_id: id, user_id: user.rk }}
-								confirm={false}
-							/>
-						</RouteLink>
+						 colour="orange">
+							<ActionQuick inline name="accept" action={() => acceptTeamMember(id, user.rk)} />
+						</RouteLinkHiddenAction>
 					{/each}
 				</div>
 			{/if}
@@ -137,26 +133,19 @@
 					{@const role = myRoundRelations.get(round.rk)?.role}
 					{#snippet availabilityActions()}
 						{#each availabilityOptions(role) as nextRole}
-							<ApiService
-								inline
-								name={nextRole}
-								message={`Mark yourself ${nextRole}?`}
-								endpoint="round/role"
-								data={{ round_id: round.rk, role: nextRole }}
-								confirm={false}
-							/>
+							<ActionQuick inline name={nextRole} action={() => setRoundRole(round.rk, nextRole)} />
 						{/each}
 					{/snippet}
-					<RouteLink
+					<RouteLinkHiddenAction
 						href={hrefOf(round.rk)}
 						title={round.name}
 						description={role == null ? 'no status' : String(role)}
 						children={isTeamMember(mine) && round.state !== 'complete' && availabilityOptions(role).length > 0
 							? availabilityActions
 							: undefined}
-					>
-						{#snippet detail()}<RoundRoleDot {role} />{round.is_home ? 'home' : 'away'} {round.date}{/snippet}
-					</RouteLink>
+						colour={roundRoleColour[String(role)] ?? 'grey'}>
+						{#snippet detail()}{round.is_home ? 'home' : 'away'} {round.date}{/snippet}
+					</RouteLinkHiddenAction>
 				{/each}
 
 				{#if standings.length}	
@@ -221,14 +210,6 @@
 </div>
 
 <style>
-	.dot {
-		display: inline-block;
-		width: 0.5em;
-		height: 0.5em;
-		margin: 0 0.5em;
-		border-radius: 50%;
-		background: grey;
-	}
 	.page {
 		width: 100%;
 	}

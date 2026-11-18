@@ -184,13 +184,20 @@ Do not introduce new storage abstractions unless a real gap is proven.
   - successful mutations whose graph refresh fails expose a refresh-only retry; callback/navigation retries also retain the completed response to avoid repeating mutations
 - [apiService.svelte](./app/src/lib/components/apiService.svelte)
   - consistent action button + confirmation/execute UX
-  - mutation actions confirm by default; long-press options and message posting opt out
+  - mutation actions confirm by default; quick options and message posting opt out
   - API call + `guids.refresh()` + optional redirect by `subject`
 - [actionActivity.ts](./app/src/lib/components/actionActivity.ts)
   - keeps revealed options open while an API action or its error/confirmation dialog is active
 - [routeLink.svelte](./app/src/lib/components/routeLink.svelte)
-  - standard route-list row UI: tap follows `href`; an optional children snippet holds options revealed by a long press (also right-click or Shift+Enter) that revert after 9 seconds
+  - standard navigation-only row: tapping the row follows `href`. Supports title, description, image and optional detail. No action children, long-press handling, reveal state or timeout.
   - shows a right arrow only when there is no image
+- [RouteLinkHiddenAction.svelte](./app/src/lib/components/RouteLinkHiddenAction.svelte)
+  - quick-action row: title/description/detail are informational, a coloured dot button reveals action children, and only the image/arrow icon navigates
+  - accepts `colour`; ladder standings use `ladderStateColours`, team/round rows use `roundRoleColour`, and pending applicants use orange (green for the selected doubles partner)
+  - the visible dot is 24px with a 44px touch target, placed between the text and image. Remove duplicate status dots from detail snippets in these rows.
+  - revealing replaces title/description/dot with actions and the image with an X. No timeout or long-press behaviour; X or Escape closes, with focus returned to the dot. Busy actions and error/confirmation screens disable closing via `trackActions`.
+  - if action children are unavailable, falls back to ordinary `RouteLink`. All former action-bearing RouteLinks (ladder challenges/pairing, group/team acceptance, round selection and team availability) use this component.
+  - migrated group/team/round controls use `ActionQuick` and named `remote.ts` calls (`acceptGroupMember`, `acceptTeamMember`, `setRoundRole`). Quick responses need not have `subject`; confirmation calls still require it.
 - [hiddenOptions.svelte](./app/src/lib/components/hiddenOptions.svelte)
   - title/description row with no `href`; a chevron reveals hidden content (action buttons, help or process text)
   - `inline` swaps the content in for the title and reverts after 9 seconds; otherwise it opens below the row and stays until tapped again
@@ -253,7 +260,7 @@ When implementing a new feature:
 - Consume graph data from ID-only `guids` store helpers. Gather `const relatedRows = $derived(relationsOf(id))`, filter relation rows by `typeOf(row.rk)`, then use `nameOf(row.rk)` or `entityOf(row.rk)` for entity attributes. Keep relationship fields such as rank/role/membership state on the raw row.
 - Graph-dependent feature helpers also use the current graph implicitly: `matchSummary(matchId)` and `outstandingTeamRounds(userId, teamId)`. Outstanding rounds are raw user-round relations; `roundView(entityOf(row.rk), teamRoundRelation)` resolves fixture/result display separately.
 - Use callback-based `ActionConfirmation` for confirmation plus API-subject navigation and `ActionQuick` for immediate actions that stay on the page. Keep endpoint/payload details in named `remote.ts` functions. Existing unmigrated consumers may retain `apiService.svelte`.
-- Use `routeLink.svelte` for list-style navigation rows (rows with an `href`).
+- Use `routeLink.svelte` for navigation-only rows. Use `RouteLinkHiddenAction.svelte` for rows with quick actions; supply status colours via `colour`, not an extra decorative dot in the detail snippet.
 - Use `hiddenOptions.svelte` for rows without an `href` that hide options, help or status text.
 - Link to entities with `hrefOf(id)` (`/<type>/<id>`) and `imageOf(id)` from the `guids` store; never link to `genc/...` from new code.
 - Keep auth/session state in `local` store only.
