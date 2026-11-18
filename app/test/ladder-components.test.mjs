@@ -85,7 +85,7 @@ function fixture(format = 'singles') {
 async function load(items, caller = 'user_me') {
     globalThis.fetch = async () => new Response(JSON.stringify(items));
     await guids.load('https://example.test/guids.json');
-    local.set_local_data({ caller_id: caller, device_id: null, connect_key: null });
+    local.setLocalData({ caller_id: caller, device_id: null, connect_key: null });
 }
 function html(name, props) { return render(components[name], { props }).body; }
 function action(markup, name) {

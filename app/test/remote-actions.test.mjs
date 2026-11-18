@@ -9,8 +9,9 @@ before(async () => {
         logLevel: 'error', optimizeDeps: { noDiscovery: true } });
     remote = await server.ssrLoadModule('/src/lib/stores/remote.ts');
     local = await server.ssrLoadModule('/src/lib/stores/local.ts');
-    const { privateKey } = await remote.generateKeyPair();
-    local.set_local_data({ caller_id: 'user_admin', device_id: 'device_test', connect_key: privateKey });
+    const auth = await server.ssrLoadModule('/src/lib/stores/auth.ts');
+    const { privateKey } = await auth.generateKeyPair();
+    local.setLocalData({ caller_id: 'user_admin', device_id: 'device_test', connect_key: privateKey });
 });
 after(async () => { globalThis.fetch = originalFetch; await server?.close(); });
 

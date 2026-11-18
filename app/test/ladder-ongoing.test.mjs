@@ -44,7 +44,7 @@ async function renderLadder(format, matches) {
     ];
     globalThis.fetch = async () => new Response(JSON.stringify(items));
     await guids.load('https://example.test/guids.json');
-    local.set_local_data({ caller_id: 'user_me', device_id: null, connect_key: null });
+    local.setLocalData({ caller_id: 'user_me', device_id: null, connect_key: null });
     return render(page, {
         context: new Map([['__request__', { page: { params: { ladder_id: 'ladder_test' } } }]])
     }).body;

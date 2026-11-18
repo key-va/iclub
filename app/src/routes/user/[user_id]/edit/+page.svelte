@@ -4,11 +4,11 @@
 	import { updateUser, deleteUser } from '#lib/stores/remote.ts';
 
 	import EntityHeader from '#lib/components/EntityHeader.svelte';
-	import { disconnectPush } from '#lib/stores/push.ts';
+	import { clearSession } from '#lib/stores/auth.ts';
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import { guids, entityOf, imageOf } from '#lib/stores/guids.ts';
-	import { local, clear_local_data } from '#lib/stores/local.ts';
+	import { local } from '#lib/stores/local.ts';
 
 	import HiddenOptions from '#lib/components/hiddenOptions.svelte';
 
@@ -88,15 +88,6 @@
 		phone = '';
 		image = '';
 		if (fileInput) fileInput.value = '';
-	}
-
-	async function clearSession() {
-		try {
-			await disconnectPush();
-		} catch (error) {
-			console.error('[Web Push] logout cleanup failed', error);
-		}
-		clear_local_data();
 	}
 
 	async function logout() {

@@ -62,7 +62,7 @@ function fixture() {
 }
 async function output(type, caller = 'user_admin', viewedUser = 'user_alice') {
     await loadGraph(guids, fixture());
-    local.set_local_data({ caller_id: caller, device_id: null, connect_key: null });
+    local.setLocalData({ caller_id: caller, device_id: null, connect_key: null });
     return render(pages[type], {
         context: new Map([['__request__', { page: { params: { [`${type}_id`]: type === 'user' ? viewedUser : `${type}_test` } } }]])
     }).body;

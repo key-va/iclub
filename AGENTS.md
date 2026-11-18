@@ -148,10 +148,14 @@ Do not introduce new storage abstractions unless a real gap is proven.
   - lookups use Svelte `createSubscriber` to track graph changes inside `$derived`, effects and templates even without `$guids.items`. Ordinary imperative reads return snapshots. Unchanged refreshes retain graph identity and do not invalidate lookup consumers.
 - [local.ts](./app/src/lib/stores/local.ts)
   - persisted device-local auth context (`caller_id`, `device_id`, `connect_key`)
-  - signature generation compatible with API verification
+  - persistence only; retains the existing `local` storage key and identity fields; `setLocalData` / `clearLocalData` replace state atomically
+- [auth.ts](./app/src/lib/stores/auth.ts)
+  - key generation (`generateKeyPair`), session establishment (`setSession`), session cleanup (`clearSession`) and request signing (`signRequest`)
+  - `signRequest` returns caller/device/signature from one identity snapshot, compatible with API verification
+  - cleanup disconnects push while identity is available, then clears local state even if push cleanup fails; navigation stays with the caller
 - [remote.ts](./app/src/lib/stores/remote.ts)
   - API caller (`callApi`) with signed/unsigned modes
-  - keypair generation for login/create flow
+  - named endpoint functions, payloads, signed/unsigned transport, graph refresh and recovery; delegates signing to `auth.ts`
 - [push.ts](./app/src/lib/stores/push.ts)
   - starts only in installed app mode; registers `/service.js` and reads the public VAPID key from `system/about`
   - requests permission on the next gesture, saves browser subscriptions via signed `user/push`, and refreshes data on received push
@@ -166,7 +170,7 @@ Do not introduce new storage abstractions unless a real gap is proven.
   - `LadderRequests.svelte` owns pending applicants and doubles partner selection/reset after acceptance or graph refresh.
   - `ladderRules.ts` replaces the former root-level `challenge.ts`. It shares challenge eligibility/reach, ladder state colours, and `ladderMembership(ladder, userId)`. Membership/admin flags remain on user-ladder relations; doubles competitive state/rank comes from the active pair-ladder relation. The pair page also uses this resolver. `pair` and competitive `relation` are raw relationship rows.
   - Contextual names put the page entity first and displayed entity second. Pass entities as props; components do not read route parameters. Local calculations/state stay inside components; shared ladder calculations stay alongside them.
-  - Auth remains in the existing local store. Ladder-page approval/join use `ActionConfirmation`; pending acceptance/pairing and singles/doubles standings challenges use `ActionQuick` with named functions from `remote.ts`. All contextual views use the same action components. Backend permissions and graph storage remain unchanged.
+  - Authentication behaviour lives in `auth.ts`, with identity persisted by `local.ts`. Ladder-page approval/join use `ActionConfirmation`; pending acceptance/pairing and singles/doubles standings challenges use `ActionQuick` with named functions from `remote.ts`. All contextual views use the same action components. Backend permissions and graph storage remain unchanged.
 - Other contextual sections follow the same page-first naming convention:
   - `teams/UserTeam`, `TeamUser`, `TeamRound`, `TeamSummary`; `groups/UserGroup`, `GroupUser`, `GroupSummary`; `rounds/UserRound`, `RoundUser`, `RoundSummary`; `matches/MatchContest`, `MatchHistory`; `pairs/PairLadder`.
   - Pages gather route entities and related rows, then compose these sections. Components receive entities/raw relations and own display calculations, permission visibility and local interaction state.
@@ -265,7 +269,7 @@ When implementing a new feature:
 - Use `routeLink.svelte` for navigation-only rows. Use `RouteLinkHiddenAction.svelte` for rows with quick actions; supply status colours via `colour`, not an extra decorative dot in the detail snippet.
 - Use `hiddenOptions.svelte` for rows without an `href` that hide options, help or status text.
 - Link to entities with `hrefOf(id)` (`/<type>/<id>`) and `imageOf(id)` from the `guids` store; never link to `genc/...` from new code.
-- Keep auth/session state in `local` store only.
+- Persist auth/session state in the `local` store only; use `auth.ts` for session establishment/cleanup and cryptography.
 - Keep API traffic behind named functions in `remote.ts`; components supply arguments through deferred action callbacks.
 
 ### New helper/service/component policy

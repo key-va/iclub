@@ -46,7 +46,7 @@ async function renderUser({ format = 'singles', relation = {}, caller = 'user_ad
     );
     globalThis.fetch = async () => new Response(JSON.stringify(items));
     await guids.load('https://example.test/guids.json');
-    local.set_local_data({ caller_id: caller, device_id: null, connect_key: null });
+    local.setLocalData({ caller_id: caller, device_id: null, connect_key: null });
     return render(page, {
         context: new Map([['__request__', { page: { params: { user_id: 'user_viewed' } } }]])
     }).body;

@@ -3,11 +3,10 @@
 
 	import {
 		requestOtp,
-		generateKeyPair,
 		createUser,
 		loginUser
 	} from '#lib/stores/remote.ts';
-	import { set_local_data } from '#lib/stores/local.ts';
+	import { generateKeyPair, setSession } from '#lib/stores/auth.ts';
 	import type { ApiResponse } from '#lib/stores/remote.ts';
 
 	type Step = 'contact' | 'otp' | 'create';
@@ -58,7 +57,7 @@
 			device_id: string;
 		};
 
-		set_local_data({ caller_id: user_id, device_id, connect_key: privateKey });
+		setSession({ caller_id: user_id, device_id, connect_key: privateKey });
 	}
 </script>
 
