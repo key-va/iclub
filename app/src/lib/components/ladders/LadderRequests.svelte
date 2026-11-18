@@ -11,6 +11,7 @@
 	const isLadderAdmin = $derived(ladderMembership(ladder, $local.caller_id).userRelation?.is_admin === true);
 	let selectedPairUserId = $state<string | null>(null);
 	const selectedPairUser = $derived(pending.find(player => player.rk === selectedPairUserId));
+	const selectedFirstName = $derived(selectedPairUser ? nameOf(selectedPairUser.rk).trim().split(/\s+/)[0] || 'this player' : '');
 	$effect(() => {
 		if (!selectedPairUser) selectedPairUserId = null;
 	});
@@ -22,7 +23,7 @@
 			<RouteLink href={hrefOf(player.rk)} title={nameOf(player.rk)} description="waiting to join" image={imageOf(player.rk)}>
 				{#if ladder.format === 'doubles'}
 					{#if selectedPairUser && selectedPairUser.rk !== player.rk}
-						<ActionQuick inline name="accept"
+						<ActionQuick inline name={`accept with ${selectedFirstName}`}
 							action={() => acceptLadderPair(ladder.rk, [selectedPairUser!.rk, player.rk])}
 							onsuccess={() => { selectedPairUserId = null; }} />
 					{:else}
