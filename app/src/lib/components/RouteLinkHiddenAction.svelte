@@ -60,9 +60,9 @@
 				<div bind:this={actionsNode} id={optionsId} class="actions" role="group" aria-label={`Actions for ${title}`} use:trackOptions>
 					{@render children()}
 				</div>
-				<button bind:this={closeButton} type="button" class="blue close-button" aria-label={`Close actions for ${title}`}
+				<button bind:this={closeButton} type="button" class="round-icon-small blue close-button" aria-label={`Close actions for ${title}`}
 					disabled={pendingActions > 0} onclick={close}>
-					<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" aria-hidden="true">
+					<svg viewBox="0 0 24 24" width="1rem" height="1rem" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
 						<path d="M6 6l12 12M18 6 6 18" />
 					</svg>
 				</button>
@@ -74,7 +74,7 @@
 				</button>
 				<a class="round-icon-small blue entity-link" {href} aria-label={`Open ${title}`} style:background-image={`url('${image}')`}>
 					{#if !image}
-						<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+						<svg viewBox="0 0 24 24" width="1rem" height="1rem" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
 							<path d="M5 12h14M13 5l7 7-7 7" />
 						</svg>
 					{/if}
@@ -103,6 +103,7 @@
 	}
 	.entity-link, .close-button { flex-shrink: 0; }
 	.entity-link { text-decoration: none; }
+	.close-button { padding: 0; border-radius: 50%; }
 	.actions {
 		display: flex;
 		flex: 1;
