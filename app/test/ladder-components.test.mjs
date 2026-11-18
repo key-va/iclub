@@ -18,6 +18,22 @@ before(async () => {
                     <script>let { href, title, description, image, detail, children } = $props();</script>
                     <article><a {href} data-image={image}>{title}</a><p>{description}</p>
                     {@render detail?.()}{@render children?.()}</article>`;
+                if (path.endsWith('/components/hiddenOptions.svelte')) return `
+                    <script>let { title, children } = $props();</script>
+                    <section aria-label={title}>{@render children?.()}</section>`;
+                if (path.endsWith('/stores/remote.ts')) return `
+                    export const activateLadder = id => ({ endpoint: 'ladder/' + id + '/activate', data: {} });
+                    export const joinLadder = id => ({ endpoint: 'ladder/' + id + '/join', data: {} });
+                    export const acceptLadderMember = (id, user) => ({ endpoint: 'ladder/' + id + '/accept', data: { user_id: user } });
+                    export const acceptLadderPair = (id, users) => ({ endpoint: 'ladder/' + id + '/accept', data: { user_ids: users } });
+                    export const createMatch = (id, challenger, defender) => ({ endpoint: 'match/create', data: { ladder_id: id, challenger_id: challenger, defender_id: defender } });`;
+                // Resolve callbacks against synchronous endpoint descriptors in this
+                // fixture only; real components must never invoke actions on render.
+                if (/\/components\/Action(?:Quick|Confirmation)\.svelte$/.test(path)) return `
+                    <script>let { name, action, disabled = false } = $props();
+                    const request = $derived(action());</script>
+                    <button aria-label={name} {disabled} data-endpoint={request.endpoint}
+                        data-payload={JSON.stringify(request.data)}>{name}</button>`;
                 if (path.endsWith('/components/apiService.svelte')) return `
                     <script>let { name, endpoint, data, disabled = false } = $props();</script>
                     <button aria-label={name} {disabled} data-endpoint={endpoint}
@@ -183,4 +199,26 @@ test('ladder page chooses users or pairs and orders competitive standings by ran
         assert.ok(output.indexOf(`href="${first}"`) < output.indexOf(`href="${second}"`));
         if (format === 'doubles') assert.doesNotMatch(output, /href="\/user\/user_(?:me|other)"/);
     }
+});
+
+test('ladder approval and join confirmations use the requested labels and permissions', async () => {
+    const { items, ladder, link } = fixture();
+    const renderPage = () => render(ladderPage, {
+        context: new Map([['__request__', { page: { params: { ladder_id: ladder.rk } } }]])
+    }).body;
+    ladder.state = 'pending';
+    items.push({ pk: 'club', rk: 'club_test', name: 'Club' });
+    link(ladder.rk, 'club_test', {});
+    link('club_test', 'user_admin', { is_admin: true });
+    await load(items, 'user_admin');
+    assert.equal(action(renderPage(), 'approve this ladder').disabled, false);
+    assert.equal(action(renderPage(), 'approve this ladder').endpoint, `ladder/${ladder.rk}/activate`);
+    await load(items, 'user_me');
+    assert.equal(action(renderPage(), 'approve this ladder').disabled, true);
+    ladder.state = 'active';
+    await load(items, 'user_outsider');
+    assert.equal(action(renderPage(), 'request to join').disabled, false);
+    assert.equal(action(renderPage(), 'request to join').endpoint, `ladder/${ladder.rk}/join`);
+    await load(items, null);
+    assert.equal(action(renderPage(), 'request to join').disabled, true);
 });

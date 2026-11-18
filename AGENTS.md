@@ -166,7 +166,7 @@ Do not introduce new storage abstractions unless a real gap is proven.
   - `LadderRequests.svelte` owns pending applicants and doubles partner selection/reset after acceptance or graph refresh.
   - `ladderRules.ts` replaces the former root-level `challenge.ts`. It shares challenge eligibility/reach, ladder state colours, and `ladderMembership(ladder, userId)`. Membership/admin flags remain on user-ladder relations; doubles competitive state/rank comes from the active pair-ladder relation. The pair page also uses this resolver. `pair` and competitive `relation` are raw relationship rows.
   - Contextual names put the page entity first and displayed entity second. Pass entities as props; components do not read route parameters. Local calculations/state stay inside components; shared ladder calculations stay alongside them.
-  - Auth remains in the existing local store; all mutations still use `ApiService` and the existing endpoints. No backend permission or storage changes.
+  - Auth remains in the existing local store. Ladder-page approval/join use `ActionConfirmation`; pending acceptance/pairing and singles/doubles standings challenges use `ActionQuick` with named functions from `remote.ts`. `UserLadder` on user pages retains `ApiService` until migrated. No backend permission or storage changes.
 - Frontend test files run serially (`--test-concurrency=1`) because their Vite SSR servers share the dependency cache; concurrent pre-bundling caused `ERR_OUTDATED_OPTIMIZED_DEP` in CI.
 
 - [EntityHeader.svelte](./app/src/lib/components/EntityHeader.svelte)
@@ -174,6 +174,14 @@ Do not introduce new storage abstractions unless a real gap is proven.
   - accepts an entity (defaults to its name, type and `imageOf(rk)`), with title/subtitle/image overrides for branded pages, forms and related-entity images
   - `image={null}` omits the image and install guidance; form previews remain reactive through the image prop
 
+- [ActionConfirmation.svelte](./app/src/lib/components/ActionConfirmation.svelte)
+  - accepts a deferred `action` callback returning `NavigationResponse`, confirms before execution, then always navigates to `hrefOf(response.subject)` on success; no destination/endpoint/data props
+- [ActionQuick.svelte](./app/src/lib/components/ActionQuick.svelte)
+  - executes its deferred `action` callback immediately, displays a timer while busy and never navigates, even if the response has a subject
+  - both public action components share `ActionControl.svelte` internally for confirmation/error UI, duplicate-submission guards and `api-action-state` events used by revealed options
+  - shared display props include name/disabled/inline/arrow/children/onsuccess; confirmation also accepts message
+  - named functions in `remote.ts` own payloads, signed HTTP requests and graph refresh: `activateLadder`, `joinLadder`, `acceptLadderMember`, `acceptLadderPair`, `createMatch`
+  - successful mutations whose graph refresh fails expose a refresh-only retry; callback/navigation retries also retain the completed response to avoid repeating mutations
 - [apiService.svelte](./app/src/lib/components/apiService.svelte)
   - consistent action button + confirmation/execute UX
   - mutation actions confirm by default; long-press options and message posting opt out
@@ -244,7 +252,7 @@ When implementing a new feature:
 
 - Consume graph data from ID-only `guids` store helpers. Gather `const relatedRows = $derived(relationsOf(id))`, filter relation rows by `typeOf(row.rk)`, then use `nameOf(row.rk)` or `entityOf(row.rk)` for entity attributes. Keep relationship fields such as rank/role/membership state on the raw row.
 - Graph-dependent feature helpers also use the current graph implicitly: `matchSummary(matchId)` and `outstandingTeamRounds(userId, teamId)`. Outstanding rounds are raw user-round relations; `roundView(entityOf(row.rk), teamRoundRelation)` resolves fixture/result display separately.
-- Use `apiService.svelte` for mutation actions where possible.
+- Use callback-based `ActionConfirmation` for confirmation plus API-subject navigation and `ActionQuick` for immediate actions that stay on the page. Keep endpoint/payload details in named `remote.ts` functions. Existing unmigrated consumers may retain `apiService.svelte`.
 - Use `routeLink.svelte` for list-style navigation rows (rows with an `href`).
 - Use `hiddenOptions.svelte` for rows without an `href` that hide options, help or status text.
 - Link to entities with `hrefOf(id)` (`/<type>/<id>`) and `imageOf(id)` from the `guids` store; never link to `genc/...` from new code.

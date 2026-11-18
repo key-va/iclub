@@ -2,7 +2,8 @@
 	import { hrefOf, imageOf, type GuidRow, nameOf } from '#lib/stores/guids.ts';
 	import { local } from '#lib/stores/local.ts';
 	import RouteLink from '../routeLink.svelte';
-	import ApiService from '../apiService.svelte';
+	import ActionQuick from '../ActionQuick.svelte';
+	import { createMatch } from '#lib/stores/remote.ts';
 	import { canChallenge, challengeDescription, ladderMembership, ladderStateColours } from './ladderRules.ts';
 
 	let { ladder, pair }: { ladder: GuidRow; pair: GuidRow } = $props();
@@ -18,9 +19,9 @@
 	{#snippet detail()}
 		<span class="dot" style:background={ladderStateColours[String(pair.state)] ?? 'grey'} role="img" aria-label={String(pair.state)}></span>{rank}
 	{/snippet}
-	<ApiService inline name="challenge" message={`challenge ${nameOf(pair.rk)}?`}
-		endpoint="match/create" data={{ ladder_id: ladder.rk, challenger_id: membership.competitorId, defender_id: pair.rk }}
-		disabled={!eligible} confirm={false} />
+	<ActionQuick inline name="challenge"
+		action={() => createMatch(ladder.rk, membership.competitorId!, pair.rk)}
+		disabled={!eligible} />
 </RouteLink>
 
 <style>

@@ -8,7 +8,8 @@
 	import LadderRequests from '#lib/components/ladders/LadderRequests.svelte';
 	import { matchSummary, pastMatches } from '#lib/matchSummary.ts';
 
-	import ApiService from '#lib/components/apiService.svelte';
+	import ActionConfirmation from '#lib/components/ActionConfirmation.svelte';
+	import { activateLadder, joinLadder } from '#lib/stores/remote.ts';
 	import RouteLink from '#lib/components/routeLink.svelte';
 	import HiddenOptions from '#lib/components/hiddenOptions.svelte';
 
@@ -64,11 +65,11 @@
 		{#if ladder.state === 'pending'}
 			<div class="group">
 				<HiddenOptions inline title="Pending" description="pending approval">
-					<ApiService
+					<ActionConfirmation
 						inline
-						name="accept"
+						name="approve this ladder"
 						message={`approve the ladder ${ladder.name} to make it active?`}
-						endpoint={`ladder/${ladderId}/activate`}
+						action={() => activateLadder(ladderId)}
 						disabled={!isClubAdmin}
 					/>
 				</HiddenOptions>
@@ -90,7 +91,7 @@
         {/if}
 
 		{#if ladder.state === 'active' && myRelation?.is_participant !== true && !isPending}
-				<ApiService name="join request" message={`join the ladder ${ladder.name}?`} endpoint={`ladder/${ladderId}/join`} disabled={!caller_id} />
+				<ActionConfirmation name="request to join" message={`join the ladder ${ladder.name}?`} action={() => joinLadder(ladderId)} disabled={!caller_id} />
 		{/if}
 
 		<HiddenOptions title="Leaderboard" badge={leaderboard.length}>
