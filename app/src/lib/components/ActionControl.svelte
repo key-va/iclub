@@ -17,12 +17,19 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { cubicIn, cubicOut } from 'svelte/easing';
-	import { hrefOf } from '#lib/stores/guids.ts';
+	import { navigationHref } from '#lib/stores/remote.ts';
 
 	let {
-		name = 'do action', message = 'are you sure?', action,
-		confirm, navigate, disabled = false, inline = false, arrow = false,
-		onsuccess, children,
+		name = 'do action',
+		message = 'are you sure?',
+		action,
+		confirm,
+		navigate,
+		disabled = false,
+		inline = false,
+		arrow = false,
+		onsuccess,
+		children
 	}: ActionProps & { confirm: boolean; navigate: boolean } = $props();
 
 	let isExpanded = $state(false);
@@ -44,7 +51,9 @@
 		originY = event.clientY;
 		shown = message;
 		isError = false;
-		triggerButton?.dispatchEvent(new CustomEvent('api-action-state', { bubbles: true, detail: true }));
+		triggerButton?.dispatchEvent(
+			new CustomEvent('api-action-state', { bubbles: true, detail: true })
+		);
 
 		// without confirmation the button itself shows progress; the overlay only appears for an error
 		if (confirm) isExpanded = true;
@@ -55,14 +64,22 @@
 		isExpanded = false;
 		isBusy = false;
 		isError = false;
-		triggerButton?.dispatchEvent(new CustomEvent('api-action-state', { bubbles: true, detail: false }));
+		triggerButton?.dispatchEvent(
+			new CustomEvent('api-action-state', { bubbles: true, detail: false })
+		);
 	}
 
 	function radiusFrom(x: number, y: number) {
-		return Math.hypot(Math.max(x, window.innerWidth - x), Math.max(y, window.innerHeight - y));
+		return Math.hypot(
+			Math.max(x, window.innerWidth - x),
+			Math.max(y, window.innerHeight - y)
+		);
 	}
 
-	function wipeIn(_node: Element, { x, y, duration = 350 }: { x: number; y: number; duration?: number }) {
+	function wipeIn(
+		_node: Element,
+		{ x, y, duration = 350 }: { x: number; y: number; duration?: number }
+	) {
 		const radius = radiusFrom(x, y);
 
 		return {
@@ -81,7 +98,10 @@
 	}
 
 	// white edge that rides the clip-path: a growing ring in, a sweeping line out
-	function edgeIn(_node: Element, { x, y, duration = 350 }: { x: number; y: number; duration?: number }) {
+	function edgeIn(
+		_node: Element,
+		{ x, y, duration = 350 }: { x: number; y: number; duration?: number }
+	) {
 		const radius = radiusFrom(x, y);
 
 		return {
@@ -113,16 +133,23 @@
 		shown = '...this may take a moment...';
 
 		try {
-			const result = completed ?? await (retryAction ?? action)();
+			const result = completed ?? (await (retryAction ?? action)());
 			completed = result;
 			retryAction = undefined;
 			if (!result.success) throw new Error(result.message || 'action failed');
-			if (navigate && !result.subject) throw new Error('The action response did not include a navigation subject.');
+			if (navigate && !result.subject)
+				throw new Error(
+					'The action response did not include a navigation subject.'
+				);
 			await onsuccess?.(result);
-			if (navigate) await goto(hrefOf(result.subject!));
+			if (navigate) await goto(navigationHref(result.subject!));
 			close();
 		} catch (error) {
-			if (error instanceof Error && 'retry' in error && typeof error.retry === 'function') {
+			if (
+				error instanceof Error &&
+				'retry' in error &&
+				typeof error.retry === 'function'
+			) {
 				retryAction = error.retry as () => Promise<ApiResponse>;
 			}
 			shown = error instanceof Error ? error.message : 'action failed';
@@ -131,18 +158,46 @@
 			isExpanded = true;
 		}
 	}
-
 </script>
 
 {#snippet trigger()}
-	<button bind:this={triggerButton} class={disabled ? 'grey' : arrow ? 'blue' : 'pink'} aria-label={name} aria-busy={isBusy} disabled={disabled || isBusy || isExpanded} onclick={start}>
+	<button
+		bind:this={triggerButton}
+		class={disabled ? 'grey' : arrow ? 'blue' : 'pink'}
+		aria-label={name}
+		aria-busy={isBusy}
+		disabled={disabled || isBusy || isExpanded}
+		onclick={start}
+	>
 		{#if !arrow && !quiet}<p>{name}</p>{/if}
 		{#if quiet}
-			<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="working">
-				<path d="M6 3h12M6 21h12M7 3c0 5 5 6 5 9s-5 4-5 9M17 3c0 5-5 6-5 9s5 4 5 9" />
+			<svg
+				viewBox="0 0 24 24"
+				width="20"
+				height="20"
+				fill="none"
+				stroke="currentColor"
+				stroke-width="3"
+				stroke-linecap="round"
+				stroke-linejoin="round"
+				role="img"
+				aria-label="working"
+			>
+				<path
+					d="M6 3h12M6 21h12M7 3c0 5 5 6 5 9s-5 4-5 9M17 3c0 5-5 6-5 9s5 4 5 9"
+				/>
 			</svg>
 		{:else if !inline || arrow}
-			<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+			<svg
+				viewBox="0 0 24 24"
+				width="20"
+				height="20"
+				fill="none"
+				stroke="currentColor"
+				stroke-width="3"
+				stroke-linecap="round"
+				stroke-linejoin="round"
+			>
 				<path d="M5 12h14M13 5l7 7-7 7" />
 			</svg>
 		{/if}
@@ -165,7 +220,15 @@
 		in:edgeIn={{ x: originX, y: originY, duration: 400 }}
 		out:edgeOut={{ duration: 300 }}
 	></div>
-	<div class="expanded" role="dialog" aria-modal="true" aria-label={isError ? 'Action error' : 'Confirm action'} tabindex="-1" in:wipeIn={{ x: originX, y: originY, duration: 400 }} out:wipeOut={{ duration: 300 }}>
+	<div
+		class="expanded"
+		role="dialog"
+		aria-modal="true"
+		aria-label={isError ? 'Action error' : 'Confirm action'}
+		tabindex="-1"
+		in:wipeIn={{ x: originX, y: originY, duration: 400 }}
+		out:wipeOut={{ duration: 300 }}
+	>
 		<div class="confirmation">
 			<div class="row center">
 				<p><strong>{shown}</strong></p>
@@ -175,14 +238,22 @@
 		{#if isError}
 			<div class="row center">
 				{#if retryAction || completed}
-					<button class="pink" aria-label="retry" disabled={disabled} onclick={execute}><p>retry</p></button>
+					<button class="pink" aria-label="retry" {disabled} onclick={execute}>
+						<p>retry</p>
+					</button>
 				{/if}
-				<button class="blue" aria-label="okay" onclick={close}><p>okay</p></button>
+				<button class="blue" aria-label="okay" onclick={close}>
+					<p>okay</p>
+				</button>
 			</div>
 		{:else if !isBusy}
 			<div class="row center">
-				<button class="pink" aria-label={name} disabled={disabled} onclick={execute}><p>yes, go ahead</p></button>
-				<button class="blue" aria-label="cancel" onclick={close}><p>cancel</p></button>
+				<button class="pink" aria-label={name} {disabled} onclick={execute}>
+					<p>yes, go ahead</p>
+				</button>
+				<button class="blue" aria-label="cancel" onclick={close}>
+					<p>cancel</p>
+				</button>
 			</div>
 		{/if}
 	</div>
@@ -202,7 +273,7 @@
 		inset: 0;
 		width: 100vw;
 		height: 100vh;
-		background: var(--brand-foreground, #FF1493);
+		background: var(--brand-foreground, #ff1493);
 		color: white;
 		z-index: 10;
 		overflow: hidden;

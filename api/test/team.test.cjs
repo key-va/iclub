@@ -293,7 +293,9 @@ test("membership requests require active team; only team admin accepts and all e
     rows.delete(key("round_r", U));
     rows.delete(key(U, "round_r"));
     get("user", U).name = "Alice Player";
-    assert.equal((await call("join", U)).status, 200);
+    const joined = await call("join", U);
+    assert.equal(joined.status, 200);
+    assert.equal(joined.jsonBody.subject, T);
     assert.equal(pushes.at(-1).content, "Alice Player has requested to join");
     assert.equal(get(T, U).state, "pending");
     assert.equal((await call("join", U)).status, 409);

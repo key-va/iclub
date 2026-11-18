@@ -1,5 +1,10 @@
-import { relationsOf, type GuidRow, typeOf, entityOf } from '#lib/stores/guids.ts';
-import { ladderSettingDefaults } from '#lib/strings.ts';
+import {
+	relationsOf,
+	type GuidRow,
+	typeOf,
+	entityOf
+} from '#lib/stores/guids.ts';
+import { ladderSettingDefaults } from '#lib/components/ladders/ladderSettings.ts';
 
 type Relation = Record<string, unknown>;
 
@@ -21,7 +26,9 @@ export function inReach(
 	const myRank = Number(me.rank);
 	const steps = myRank - target.rank;
 	if (!(steps > 0)) return false;
-	const system = String(ladder?.ladder_system ?? ladderSettingDefaults.ladder_system);
+	const system = String(
+		ladder?.ladder_system ?? ladderSettingDefaults.ladder_system
+	);
 	if (system === 'win_points') return Number(me.points) >= steps;
 	if (system === 'half_rank') return steps <= Math.floor(myRank / 2);
 	const range = Number(system.match(/^static_range_(\d+)$/)?.[1]);
@@ -36,34 +43,57 @@ export function canChallenge(
 	target: ChallengeTarget
 ) {
 	if (me?.state !== 'active') return false;
-	if (target.relation.is_participant !== true || !['active', 'cooling'].includes(String(target.relation.state))) return false;
+	if (
+		target.relation.is_participant !== true ||
+		!['active', 'cooling'].includes(String(target.relation.state))
+	)
+		return false;
 	return inReach(ladder, me, callerId, target);
 }
 
 // User membership/admin flags stay separate from pair competitive standings.
 export function ladderMembership(ladder: GuidRow, userId: string | null) {
-	const userRelation = relationsOf(ladder.rk).find(row => row.rk === userId);
-	const pair = ladder.format === 'doubles' && userId
-		? relationsOf(ladder.rk).filter(row => typeOf(row.rk) === 'pair' && entityOf(row.rk)).find(candidate =>
-			candidate.is_participant === true &&
-			relationsOf(candidate.rk).filter(row => typeOf(row.rk) === 'user' && entityOf(row.rk)).some(member => member.rk === userId))
-		: undefined;
+	const userRelation = relationsOf(ladder.rk).find((row) => row.rk === userId);
+	const pair =
+		ladder.format === 'doubles' && userId
+			? relationsOf(ladder.rk)
+					.filter((row) => typeOf(row.rk) === 'pair' && entityOf(row.rk))
+					.find(
+						(candidate) =>
+							candidate.is_participant === true &&
+							relationsOf(candidate.rk)
+								.filter((row) => typeOf(row.rk) === 'user' && entityOf(row.rk))
+								.some((member) => member.rk === userId)
+					)
+			: undefined;
 	return {
 		userRelation,
 		pair,
 		relation: ladder.format === 'doubles' ? pair : userRelation,
-		competitorId: ladder.format === 'doubles' ? pair?.rk ?? null : userId,
+		competitorId: ladder.format === 'doubles' ? (pair?.rk ?? null) : userId
 	};
 }
 
 export const ladderStateColours: Record<string, string> = {
-	away: 'red', busy: 'gold', cooling: 'blue', active: 'green',
+	away: 'red',
+	busy: 'gold',
+	cooling: 'blue',
+	active: 'green'
 };
 
-export function challengeDescription(target: GuidRow, competitorId: string | null, eligible: boolean) {
+export function challengeDescription(
+	target: GuidRow,
+	competitorId: string | null,
+	eligible: boolean
+) {
 	const state = String(target.state);
-	if (target.rk === competitorId) return state === 'active' ? 'available' : state;
+	if (target.rk === competitorId)
+		return state === 'active' ? 'available' : state;
 	if (state === 'away') return 'away';
 	if (state === 'busy') return 'in a match';
-	return eligible ? (state === 'active' ? 'available' : state) : 'cannot challenge';
+	return eligible
+		? state === 'active'
+			? 'available'
+			: state
+		: 'cannot challenge';
 }

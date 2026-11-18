@@ -402,7 +402,7 @@ export async function teamAction(
                     `team/${teamId}`,
                     context,
                 );
-                return reply(200, "Membership requested");
+                return reply(200, "Membership requested", undefined, teamId);
             }
             if (action === "sync" ? !isTeamMember(mine) : !isTeamAdmin(mine))
                 return reply(

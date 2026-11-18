@@ -2,11 +2,22 @@
 	import EntityHeader from '#lib/components/EntityHeader.svelte';
 	import { page } from '$app/state';
 	import { local } from '#lib/stores/local.ts';
-	import { guids, nameOf, entityOf, relationsOf, hrefOf, imageOf, typeOf } from '#lib/stores/guids.ts';
+	import {
+		guids,
+		nameOf,
+		entityOf,
+		relationsOf,
+		hrefOf,
+		imageOf,
+		typeOf
+	} from '#lib/stores/guids.ts';
 	import LadderUser from '#lib/components/ladders/LadderUser.svelte';
 	import LadderPair from '#lib/components/ladders/LadderPair.svelte';
 	import LadderRequests from '#lib/components/ladders/LadderRequests.svelte';
-	import { matchSummary, pastMatches } from '#lib/matchSummary.ts';
+	import {
+		matchSummary,
+		pastMatches
+	} from '#lib/components/matches/matchRules.ts';
 
 	import ActionConfirmation from '#lib/components/ActionConfirmation.svelte';
 	import { activateLadder, joinLadder } from '#lib/stores/remote.ts';
@@ -19,47 +30,69 @@
 	const ladder = $derived(entityOf(ladderId));
 	// Singles list users; doubles list pairs. Competitive rank belongs to the ladder relation.
 	const leaderboard = $derived(
-		relationsOf(ladderId).filter(row => typeOf(row.rk) === (ladder?.format === 'doubles' ? 'pair' : 'user'))
+		relationsOf(ladderId)
+			.filter(
+				(row) =>
+					typeOf(row.rk) === (ladder?.format === 'doubles' ? 'pair' : 'user')
+			)
 			.filter((user) => user.is_participant === true)
 			.sort((a, b) => Number(a.rank) - Number(b.rank))
 	);
 
-	const clubId = $derived(relationsOf(ladderId).filter(row => typeOf(row.rk) === 'club' && entityOf(row.rk))[0]?.rk ?? '');
+	const clubId = $derived(
+		relationsOf(ladderId).filter(
+			(row) => typeOf(row.rk) === 'club' && entityOf(row.rk)
+		)[0]?.rk ?? ''
+	);
 	const isClubAdmin = $derived(
-		relationsOf(clubId).some((relation) => relation.rk === caller_id && relation.is_admin === true)
+		relationsOf(clubId).some(
+			(relation) => relation.rk === caller_id && relation.is_admin === true
+		)
 	);
 	const myRelation = $derived(
-		relationsOf(ladderId).filter(row => typeOf(row.rk) === 'user' && entityOf(row.rk)).find((user) => user.rk === caller_id)
+		relationsOf(ladderId)
+			.filter((row) => typeOf(row.rk) === 'user' && entityOf(row.rk))
+			.find((user) => user.rk === caller_id)
 	);
 
 	// Players who asked to join and are waiting for a ladder admin to accept
 	const pending = $derived(
-		relationsOf(ladderId).filter(row => typeOf(row.rk) === 'user' && entityOf(row.rk)).filter((user) => user.state === 'pending')
+		relationsOf(ladderId)
+			.filter((row) => typeOf(row.rk) === 'user' && entityOf(row.rk))
+			.filter((user) => user.state === 'pending')
 	);
 	const isPending = $derived(pending.some((user) => user.rk === caller_id));
 	const ongoingMatches = $derived(
-		relationsOf(ladderId).filter(row => typeOf(row.rk) === 'match' && entityOf(row.rk)).filter(
-			(match) => entityOf(match.rk)?.state === 'pending' || entityOf(match.rk)?.state === 'active'
-		)
+		relationsOf(ladderId)
+			.filter((row) => typeOf(row.rk) === 'match' && entityOf(row.rk))
+			.filter(
+				(match) =>
+					entityOf(match.rk)?.state === 'pending' ||
+					entityOf(match.rk)?.state === 'active'
+			)
 	);
 
 	// The caller's matches on this ladder that are still pending or active
 	const yourMatches = $derived(
-		ongoingMatches.filter(
-			(match) => relationsOf(match.rk).filter(row => typeOf(row.rk) === 'user' && entityOf(row.rk)).some((user) => user.rk === caller_id)
+		ongoingMatches.filter((match) =>
+			relationsOf(match.rk)
+				.filter((row) => typeOf(row.rk) === 'user' && entityOf(row.rk))
+				.some((user) => user.rk === caller_id)
 		)
 	);
 
 	// Finished matches on this ladder, newest first (IDs embed their creation time)
 	const history = $derived(
-		pastMatches(relationsOf(ladderId).filter(row => typeOf(row.rk) === 'match' && entityOf(row.rk))).sort((a, b) => b.rk.localeCompare(a.rk))
+		pastMatches(
+			relationsOf(ladderId).filter(
+				(row) => typeOf(row.rk) === 'match' && entityOf(row.rk)
+			)
+		).sort((a, b) => b.rk.localeCompare(a.rk))
 	);
-
 </script>
 
 <div class="page">
 	{#if ladder}
-		
 		<EntityHeader entity={ladder} />
 
 		{#if ladder.state === 'pending'}
@@ -79,48 +112,72 @@
 		<LadderRequests {ladder} />
 
 		<div class="group">
-
-		{#if isPending}
-            <RouteLink title={nameOf(caller_id ?? '')} description="waiting to join" href={hrefOf(caller_id ?? '')} image={imageOf(caller_id ?? '')} />
-        {/if}
-
-		{#if yourMatches.length > 0}
-			{#each yourMatches as match (match.rk)}
-				<RouteLink href={hrefOf(match.rk)} title={nameOf(match.rk)} description={String(entityOf(match.rk)?.state) + ' match'} />
-			{/each}
-        {/if}
-
-		{#if ladder.state === 'active' && myRelation?.is_participant !== true && !isPending}
-				<ActionConfirmation name="request to join" message={`join the ladder ${ladder.name}?`} action={() => joinLadder(ladderId)} disabled={!caller_id} />
-		{/if}
-
-		<HiddenOptions title="Leaderboard" badge={leaderboard.length}>
-		</HiddenOptions>
-		
-		{#each leaderboard as player (player.rk)}
-			{#if ladder.format === 'doubles'}
-				<LadderPair {ladder} pair={player} />
-			{:else}
-				<LadderUser {ladder} user={player} />
+			{#if isPending}
+				<RouteLink
+					title={nameOf(caller_id ?? '')}
+					description="waiting to join"
+					href={hrefOf(caller_id ?? '')}
+					image={imageOf(caller_id ?? '')}
+				/>
 			{/if}
-		{/each}
+
+			{#if yourMatches.length > 0}
+				{#each yourMatches as match (match.rk)}
+					<RouteLink
+						href={hrefOf(match.rk)}
+						title={nameOf(match.rk)}
+						description={String(entityOf(match.rk)?.state) + ' match'}
+					/>
+				{/each}
+			{/if}
+
+			{#if ladder.state === 'active' && myRelation?.is_participant !== true && !isPending}
+				<ActionConfirmation
+					name="request to join"
+					message={`join the ladder ${ladder.name}?`}
+					action={() => joinLadder(ladderId)}
+					disabled={!caller_id}
+				/>
+			{/if}
+
+			<HiddenOptions
+				title="Leaderboard"
+				badge={leaderboard.length}
+			></HiddenOptions>
+
+			{#each leaderboard as player (player.rk)}
+				{#if ladder.format === 'doubles'}
+					<LadderPair {ladder} pair={player} />
+				{:else}
+					<LadderUser {ladder} user={player} />
+				{/if}
+			{/each}
 		</div>
-        
+
 		<HiddenOptions title="Ongoing Matches">
 			{#each ongoingMatches as match (match.rk)}
-				<RouteLink href={hrefOf(match.rk)} title={nameOf(match.rk)} description={String(entityOf(match.rk)?.state) + ' match'} />
+				<RouteLink
+					href={hrefOf(match.rk)}
+					title={nameOf(match.rk)}
+					description={String(entityOf(match.rk)?.state) + ' match'}
+				/>
 			{/each}
 		</HiddenOptions>
 
-        <HiddenOptions title="Completed Matches">
+		<HiddenOptions title="Completed Matches">
 			{#each history as match (match.rk)}
-				<RouteLink href={hrefOf(match.rk)} title={nameOf(match.rk)} description={matchSummary(match.rk)} />
+				<RouteLink
+					href={hrefOf(match.rk)}
+					title={nameOf(match.rk)}
+					description={matchSummary(match.rk)}
+				/>
 			{/each}
-			</HiddenOptions>
-		
+		</HiddenOptions>
 	{:else}
 		<div class="row right">
-			<p class="truncate"><strong>{$guids.loaded ? 'Not found' : 'Loading'}</strong><br />ladder</p>
+			<p class="truncate">
+				<strong>{$guids.loaded ? 'Not found' : 'Loading'}</strong><br />ladder
+			</p>
 			<div class="blank-icon-small"></div>
 		</div>
 	{/if}

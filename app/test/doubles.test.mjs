@@ -8,7 +8,7 @@ before(async () => {
     server = await createServer({server:{middlewareMode:true,hmr:false,ws:false,watch:null},logLevel:'error',optimizeDeps:{noDiscovery:true}});
     guids = (await server.ssrLoadModule('/src/lib/stores/guids.ts')).guids;
     branding = await server.ssrLoadModule('/src/lib/stores/branding.ts');
-    summary = await server.ssrLoadModule('/src/lib/matchSummary.ts');
+    summary = await server.ssrLoadModule('/src/lib/components/matches/matchRules.ts');
     challenge = await server.ssrLoadModule('/src/lib/components/ladders/ladderRules.ts');
 });
 after(async () => { await server?.close(); });

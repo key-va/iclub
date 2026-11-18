@@ -1,11 +1,14 @@
 <script lang="ts">
+	import { prepareSquareImage } from '#lib/components/images/prepareSquareImage.ts';
+	import ActionConfirmation from '#lib/components/ActionConfirmation.svelte';
+	import { createGroup } from '#lib/stores/remote.ts';
+
 	import { branding } from '#lib/stores/branding.ts';
 	import EntityHeader from '#lib/components/EntityHeader.svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { onMount } from 'svelte';
 	import { local } from '#lib/stores/local.ts';
-	import ApiService from '#lib/components/apiService.svelte';
 
 	let name = $state(page.url.searchParams.get('name') ?? '');
 	let image = $state('');
@@ -24,30 +27,7 @@
 		if (!file) return;
 
 		try {
-			const bitmap = await createImageBitmap(file);
-			const size = Math.min(512, bitmap.width, bitmap.height);
-			const side = Math.min(bitmap.width, bitmap.height);
-			const canvas = document.createElement('canvas');
-
-			canvas.width = size;
-			canvas.height = size;
-
-			canvas
-				.getContext('2d')!
-				.drawImage(
-					bitmap,
-					(bitmap.width - side) / 2,
-					(bitmap.height - side) / 2,
-					side,
-					side,
-					0,
-					0,
-					size,
-					size,
-				);
-
-			bitmap.close();
-			image = canvas.toDataURL('image/jpeg', 0.85);
+			image = await prepareSquareImage(file);
 		} catch {
 			imageError = 'that file could not be read as an image';
 		}
@@ -62,7 +42,11 @@
 </script>
 
 <div class="page">
-	<EntityHeader title="Group" subtitle="create" image={image || $branding.icon} />
+	<EntityHeader
+		title="Group"
+		subtitle="create"
+		image={image || $branding.icon}
+	/>
 
 	{#if !$branding.clubId}<p class="info">
 			Open your club website to create a group.
@@ -110,11 +94,10 @@
 		{/if}
 	</div>
 
-	<ApiService
+	<ActionConfirmation
 		name="create"
 		message={`create the group ${cleanName}?`}
-		endpoint="group/create"
-		data={createData}
+		action={() => createGroup(createData)}
 		disabled={cleanName === '' || !$branding.clubId}
 	/>
 </div>

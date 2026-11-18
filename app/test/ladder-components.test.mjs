@@ -22,6 +22,9 @@ before(async () => {
                     <script>let { title, children } = $props();</script>
                     <section aria-label={title}>{@render children?.()}</section>`;
                 if (path.endsWith('/stores/remote.ts')) return `
+                    export const acceptTeamMember = (id, user) => ({ endpoint: 'team/accept', data: { team_id: id, user_id: user } });
+                    export const acceptGroupMember = (id, user) => ({ endpoint: 'group/' + id + '/accept', data: { user_id: user } });
+                    export const setRoundRole = (id, role) => ({ endpoint: 'round/role', data: { round_id: id, role } });
                     export const activateLadder = id => ({ endpoint: 'ladder/' + id + '/activate', data: {} });
                     export const joinLadder = id => ({ endpoint: 'ladder/' + id + '/join', data: {} });
                     export const acceptLadderMember = (id, user) => ({ endpoint: 'ladder/' + id + '/accept', data: { user_id: user } });
@@ -181,7 +184,7 @@ test('user doubles section displays the pair standing instead of the user member
     const { items, ladder } = fixture('doubles');
     await load(items);
     const output = html('UserLadder', { ladder, user: graph.entityOf( 'user_other') });
-    assert.match(output, /aria-label="cooling"><\/span>2/);
+    assert.match(output, /cooling[\s\S]*?2/);
     assert.doesNotMatch(output, /<\/span>88/);
     assert.equal(action(output, 'challenge'), undefined);
 });

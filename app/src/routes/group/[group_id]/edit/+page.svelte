@@ -1,19 +1,28 @@
 <script lang="ts">
+	import { prepareSquareImage } from '#lib/components/images/prepareSquareImage.ts';
+	import ActionConfirmation from '#lib/components/ActionConfirmation.svelte';
+	import { updateGroup } from '#lib/stores/remote.ts';
+
 	import EntityHeader from '#lib/components/EntityHeader.svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { onMount } from 'svelte';
-	import { guids, entityOf, imageOf, relationsOf, typeOf } from '#lib/stores/guids.ts';
+	import {
+		guids,
+		entityOf,
+		imageOf,
+		relationsOf,
+		typeOf
+	} from '#lib/stores/guids.ts';
 	import { local } from '#lib/stores/local.ts';
-	import ApiService from '#lib/components/apiService.svelte';
 
 	const groupId = $derived(page.params.group_id ?? '');
 	const group = $derived(entityOf(groupId));
 
 	const admin = $derived(
-		relationsOf(groupId).filter(row => typeOf(row.rk) === 'user' && entityOf(row.rk)).some(
-			(user) => user.rk === $local.caller_id && user.is_admin === true,
-		),
+		relationsOf(groupId)
+			.filter((row) => typeOf(row.rk) === 'user' && entityOf(row.rk))
+			.some((user) => user.rk === $local.caller_id && user.is_admin === true)
 	);
 
 	let name = $state('');
@@ -27,19 +36,19 @@
 	});
 
 	const nameChanged = $derived(
-		name.trim() !== '' && name.trim() !== group?.name,
+		name.trim() !== '' && name.trim() !== group?.name
 	);
 	const changed = $derived(Boolean(group) && (image !== '' || nameChanged));
 
 	const updateData = $derived({
 		...(nameChanged ? { name: name.trim() } : {}),
-		...(image !== '' ? { image } : {}),
+		...(image !== '' ? { image } : {})
 	});
 
 	const changes = $derived(
 		Object.keys(updateData).map((key) =>
-			key === 'image' ? 'group image' : 'group name',
-		),
+			key === 'image' ? 'group image' : 'group name'
+		)
 	);
 
 	const updateMessage = $derived(`update the ${changes.join(' and ')}?`);
@@ -54,30 +63,7 @@
 		if (!file) return;
 
 		try {
-			const bitmap = await createImageBitmap(file);
-			const size = Math.min(512, bitmap.width, bitmap.height);
-			const side = Math.min(bitmap.width, bitmap.height);
-			const canvas = document.createElement('canvas');
-
-			canvas.width = size;
-			canvas.height = size;
-
-			canvas
-				.getContext('2d')!
-				.drawImage(
-					bitmap,
-					(bitmap.width - side) / 2,
-					(bitmap.height - side) / 2,
-					side,
-					side,
-					0,
-					0,
-					size,
-					size,
-				);
-
-			bitmap.close();
-			image = canvas.toDataURL('image/jpeg', 0.85);
+			image = await prepareSquareImage(file);
 		} catch {
 			imageError = 'that file could not be read as an image';
 		}
@@ -96,7 +82,11 @@
 
 <div class="page">
 	{#if group && admin}
-		<EntityHeader entity={group} subtitle="edit" image={image || imageOf(group.rk)} />
+		<EntityHeader
+			entity={group}
+			subtitle="edit"
+			image={image || imageOf(group.rk)}
+		/>
 
 		<div class="row right">
 			<input
@@ -146,24 +136,23 @@
 			</p>
 		</div>
 
-		<ApiService
+		<ActionConfirmation
 			name="update"
 			message={updateMessage}
-			endpoint={`group/${groupId}/update`}
-			data={updateData}
+			action={() => updateGroup(groupId, updateData)}
 			disabled={!changed}
 			onsuccess={clearForm}
 		/>
 	{:else}
 		<div class="row right">
 			<p class="truncate">
-				<strong
-					>{$guids.loaded
+				<strong>
+					{$guids.loaded
 						? group
 							? 'Only a group admin can edit this group'
 							: 'Not found'
-						: 'Loading'}</strong
-				><br />edit
+						: 'Loading'}
+				</strong><br />edit
 			</p>
 			<div class="blank-icon-small"></div>
 		</div>

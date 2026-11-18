@@ -1,6 +1,12 @@
 <script lang="ts">
-	import ApiService from './apiService.svelte';
-	import { callApi, generateKeyPair } from '#lib/stores/remote.ts';
+	import ActionConfirmation from '#lib/components/ActionConfirmation.svelte';
+
+	import {
+		requestOtp,
+		generateKeyPair,
+		createUser,
+		loginUser
+	} from '#lib/stores/remote.ts';
 	import { set_local_data } from '#lib/stores/local.ts';
 	import type { ApiResponse } from '#lib/stores/remote.ts';
 
@@ -36,7 +42,7 @@
 			publicKey = keys.publicKey;
 			privateKey = keys.privateKey;
 
-			const result = await callApi<{ exists: boolean }>('user/otp', { email: email.trim() }, false);
+			const result = await requestOtp(email.trim());
 			step = result.data?.exists ? 'otp' : 'create';
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'failed to request otp code';
@@ -47,7 +53,10 @@
 
 	// Both login and create return the new device identity
 	function onAuthenticated(result: ApiResponse) {
-		const { user_id, device_id } = result.data as { user_id: string; device_id: string };
+		const { user_id, device_id } = result.data as {
+			user_id: string;
+			device_id: string;
+		};
 
 		set_local_data({ caller_id: user_id, device_id, connect_key: privateKey });
 	}
@@ -64,7 +73,17 @@
 				onkeydown={(e) => e.key === 'Enter' && getOtp()}
 			/>
 			<button aria-label="Go" disabled={isLoading} onclick={getOtp}>
-				<svg viewBox="0 0 24 24" width="1rem" height="1rem" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" role="img">
+				<svg
+					viewBox="0 0 24 24"
+					width="1rem"
+					height="1rem"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="3"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					role="img"
+				>
 					<path d="M5 12h14M13 5l7 7-7 7" />
 				</svg>
 			</button>
@@ -80,36 +99,47 @@
 	{/if}
 
 	{#if step === 'create'}
-	<div class="group">
-		<div class="row right">
-			<input type="text" placeholder="First" bind:value={fname} />
+		<div class="group">
+			<div class="row right">
+				<input type="text" placeholder="First" bind:value={fname} />
+			</div>
+			<div class="row right">
+				<input type="text" placeholder="Last" bind:value={lname} />
+			</div>
 		</div>
-		<div class="row right">
-			<input type="text" placeholder="Last" bind:value={lname} />
-		</div>
-	</div>
 
-		<ApiService
+		<ActionConfirmation
 			name="create account"
 			message="are you sure you want to create an account?"
-			endpoint="user/create"
-			signed={false}
+			action={() =>
+				createUser({
+					name: `${fname.trim()} ${lname.trim()}`,
+					email: email.trim(),
+					phone: phone.trim() || undefined,
+					key: publicKey
+				})}
 			disabled={!fname.trim() || !lname.trim()}
-			data={{ name: `${fname.trim()} ${lname.trim()}`, email: email.trim(), phone: phone.trim() || undefined, key: publicKey }}
 			onsuccess={onAuthenticated}
 		/>
 	{:else if step === 'otp'}
 		<div class="row right">
-			<input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="XXXXXX" autocomplete="one-time-code" bind:value={otp} />
+			<input
+				type="text"
+				inputmode="numeric"
+				pattern="[0-9]*"
+				maxlength="6"
+				placeholder="XXXXXX"
+				autocomplete="one-time-code"
+				bind:value={otp}
+			/>
 		</div>
 
-		<ApiService
+		<ActionConfirmation
 			name="login"
 			message="are you sure you want to login?"
-			endpoint="user/login"
-			signed={false}
+			action={() =>
+				loginUser({ email: email.trim(), otp: otp.trim(), key: publicKey })}
 			disabled={!otp.trim()}
-			data={{ email: email.trim(), otp: otp.trim(), key: publicKey }}
 			onsuccess={onAuthenticated}
 		/>
 	{/if}

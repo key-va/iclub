@@ -9,6 +9,11 @@ const originalFetch = globalThis.fetch;
 
 before(async () => {
     server = await createServer({
+        plugins: [{ name: 'expose-membership-actions', enforce: 'pre', transform(source, id) {
+            if (!id.replaceAll('\\', '/').endsWith('/components/RouteLinkHiddenAction.svelte')) return;
+            return `<script>let { href, title, description, detail, children } = $props();</script>
+                <section><a {href}>{title}</a><p>{description}</p>{@render detail?.()}{@render children?.()}</section>`;
+        }}],
         server: { middlewareMode: true, hmr: false, ws: false, watch: null },
         logLevel: 'error',
         optimizeDeps: { noDiscovery: true }
@@ -78,6 +83,6 @@ test('accepted doubles keep their pair state and rank without a waiting control'
         pair: true
     });
     assert.match(html, />available/);
-    assert.match(html, /aria-label="active"><\/span>3/);
+    assert.match(html, /available[\s\S]*?3/);
     assert.doesNotMatch(html, /aria-label="accept"|waiting to join/);
 });

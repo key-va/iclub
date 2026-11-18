@@ -261,7 +261,7 @@ export async function groupAction(
             `${caller.name || "A player"} has requested to join`,
             id,
         );
-        return reply(200, "Membership requested");
+        return reply(200, "Membership requested", id);
     }
     if (mine?.is_admin !== true)
         return reply(403, "Only a group admin can accept a player");

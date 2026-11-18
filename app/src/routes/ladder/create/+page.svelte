@@ -1,18 +1,25 @@
 <script lang="ts">
+	import { prepareSquareImage } from '#lib/components/images/prepareSquareImage.ts';
+	import ActionConfirmation from '#lib/components/ActionConfirmation.svelte';
+	import { createLadder } from '#lib/stores/remote.ts';
+
 	import { branding } from '#lib/stores/branding.ts';
 	import EntityHeader from '#lib/components/EntityHeader.svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { onMount } from 'svelte';
 	import { local } from '#lib/stores/local.ts';
-	import ApiService from '#lib/components/apiService.svelte';
-	import { ladderSettings } from '#lib/strings.ts';
+
+	import { ladderSettings } from '#lib/components/ladders/ladderSettings.ts';
 
 	let name = $state(page.url.searchParams.get('name') ?? '');
 	// Number fields start empty (showing the default as a placeholder) and fall back to the default on the API
 	let values = $state<Record<string, string | number | null>>(
 		Object.fromEntries(
-			Object.entries(ladderSettings).map(([key, setting]) => [key, setting.type === 'enum' ? setting.default : null])
+			Object.entries(ladderSettings).map(([key, setting]) => [
+				key,
+				setting.type === 'enum' ? setting.default : null
+			])
 		)
 	);
 	let image = $state('');
@@ -29,7 +36,12 @@
 
 		if (setting.type !== 'number' || value === null) return true;
 
-		return typeof value === 'number' && Number.isInteger(value) && value >= setting.min && value <= setting.max;
+		return (
+			typeof value === 'number' &&
+			Number.isInteger(value) &&
+			value >= setting.min &&
+			value <= setting.max
+		);
 	}
 
 	// Centre-crop to a square and shrink to a small JPEG so the upload stays well under the API limit
@@ -42,20 +54,7 @@
 		if (!file) return;
 
 		try {
-			const bitmap = await createImageBitmap(file);
-			const size = Math.min(512, bitmap.width, bitmap.height);
-			const side = Math.min(bitmap.width, bitmap.height);
-			const canvas = document.createElement('canvas');
-
-			canvas.width = size;
-			canvas.height = size;
-
-			canvas
-				.getContext('2d')!
-				.drawImage(bitmap, (bitmap.width - side) / 2, (bitmap.height - side) / 2, side, side, 0, 0, size, size);
-
-			bitmap.close();
-			image = canvas.toDataURL('image/jpeg', 0.85);
+			image = await prepareSquareImage(file);
 		} catch {
 			imageError = 'that file could not be read as an image';
 		}
@@ -63,27 +62,53 @@
 
 	const numbersValid = $derived(Object.keys(ladderSettings).every(numberOk));
 
-
 	const createData = $derived({
 		name: cleanName,
 		club_id: $branding.clubId,
-		...Object.fromEntries(Object.entries(values).filter(([, value]) => value !== null)),
+		...Object.fromEntries(
+			Object.entries(values).filter(([, value]) => value !== null)
+		),
 		...(image !== '' ? { image } : {})
 	});
 
 	onMount(() => {
-		if (!$local.caller_id || !$local.device_id) goto('/login', { replaceState: true });
+		if (!$local.caller_id || !$local.device_id)
+			goto('/login', { replaceState: true });
 	});
 </script>
 
 <div class="page">
-	<EntityHeader title="Ladder" subtitle="create" image={image || $branding.icon} />
+	<EntityHeader
+		title="Ladder"
+		subtitle="create"
+		image={image || $branding.icon}
+	/>
 
 	<div class="group">
 		<div class="row right">
-			<input type="text" placeholder="ladder name" autocomplete="off" bind:value={name} />
-			<button class="blue" aria-label="image" onclick={() => fileInput?.click()}>
-				<svg viewBox="0 0 24 24" width="1rem" height="1rem" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="Camera">
+			<input
+				type="text"
+				placeholder="ladder name"
+				autocomplete="off"
+				bind:value={name}
+			/>
+			<button
+				class="blue"
+				aria-label="image"
+				onclick={() => fileInput?.click()}
+			>
+				<svg
+					viewBox="0 0 24 24"
+					width="1rem"
+					height="1rem"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="3"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					role="img"
+					aria-label="Camera"
+				>
 					<path d="M2.5 7h4l1.5-3h8l1.5 3h4v13h-19z" />
 					<circle cx="12" cy="13.5" r="4" />
 				</svg>
@@ -137,25 +162,44 @@
 				</div>
 			{/if}
 			{#if setting.type === 'number' && !numberOk(key)}
-				<div class="row right"><p class="error">{setting.label} must be a whole number from {setting.min} to {setting.max}</p></div>
+				<div class="row right">
+					<p class="error">
+						{setting.label} must be a whole number from {setting.min} to {setting.max}
+					</p>
+				</div>
 			{/if}
 		{/each}
 	</div>
 
-	<ApiService
+	<ActionConfirmation
 		name="create"
 		message={`create the ladder ${cleanName}?`}
-		endpoint="ladder/create"
-		data={createData}
+		action={() => createLadder(createData)}
 		disabled={cleanName === '' || !numbersValid || !$branding.clubId}
 	>
-		<button class="blue" aria-label="help" aria-pressed={showHelp} onclick={() => (showHelp = !showHelp)}>
-			<svg viewBox="0 0 24 24" width="1rem" height="1rem" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="Help">
+		<button
+			class="blue"
+			aria-label="help"
+			aria-pressed={showHelp}
+			onclick={() => (showHelp = !showHelp)}
+		>
+			<svg
+				viewBox="0 0 24 24"
+				width="1rem"
+				height="1rem"
+				fill="none"
+				stroke="currentColor"
+				stroke-width="3"
+				stroke-linecap="round"
+				stroke-linejoin="round"
+				role="img"
+				aria-label="Help"
+			>
 				<path d="M9 9a3 3 0 1 1 4.5 2.6c-1 .6-1.5 1.2-1.5 2.4" />
 				<path d="M12 18h.01" />
 			</svg>
 		</button>
-	</ApiService>
+	</ActionConfirmation>
 </div>
 
 <style>

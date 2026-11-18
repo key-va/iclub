@@ -1,10 +1,13 @@
 <script lang="ts">
+	import { prepareSquareImage } from '#lib/components/images/prepareSquareImage.ts';
+	import ActionConfirmation from '#lib/components/ActionConfirmation.svelte';
+
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { local } from '#lib/stores/local.ts';
 	import { branding } from '#lib/stores/branding.ts';
-	import { callApi } from '#lib/stores/remote.ts';
-	import ApiService from '#lib/components/apiService.svelte';
+	import { getTeamOptions, createTeam } from '#lib/stores/remote.ts';
+
 	import EntityHeader from '#lib/components/EntityHeader.svelte';
 	type Option = { id: string; name: string };
 	let association = $state('');
@@ -26,27 +29,7 @@
 		const file = fileInput?.files?.[0];
 		if (!file) return;
 		try {
-			const bitmap = await createImageBitmap(file);
-			const side = Math.min(bitmap.width, bitmap.height);
-			const size = Math.min(512, side);
-			const canvas = document.createElement('canvas');
-			canvas.width = size;
-			canvas.height = size;
-			canvas
-				.getContext('2d')!
-				.drawImage(
-					bitmap,
-					(bitmap.width - side) / 2,
-					(bitmap.height - side) / 2,
-					side,
-					side,
-					0,
-					0,
-					size,
-					size,
-				);
-			bitmap.close();
-			image = canvas.toDataURL('image/jpeg', 0.85);
+			image = await prepareSquareImage(file);
 		} catch {
 			imageError = 'That image could not be read';
 		}
@@ -74,15 +57,11 @@
 		}
 		loading = true;
 		try {
-			const response = await callApi<{ kind: string; options: Option[] }>(
-				'team/options',
-				{
-					association,
-					...(competition ? { competition } : {}),
-					...(section ? { section } : {}),
-				},
-				false,
-			);
+			const response = await getTeamOptions({
+				association,
+				...(competition ? { competition } : {}),
+				...(section ? { section } : {})
+			});
 			if (current !== sequence) return;
 			if (response.data?.kind === 'competitions')
 				competitions = response.data.options;
@@ -102,7 +81,12 @@
 </script>
 
 <div class="page">
-	<EntityHeader title="Request a Team" subtitle={$branding.name} image={image || $branding.icon} truncate={false} />
+	<EntityHeader
+		title="Request a Team"
+		subtitle={$branding.name}
+		image={image || $branding.icon}
+		truncate={false}
+	/>
 	{#if !$branding.clubId}<div class="row right">
 			<p>Open your club website to request a team.</p>
 		</div>{/if}
@@ -112,10 +96,11 @@
 				aria-label="Association"
 				bind:value={association}
 				onchange={() => load('association')}
-				><option value="">Select association</option><option value="brta"
-					>BRTA</option
-				></select
 			>
+				<option value="">Select association</option><option value="brta">
+					BRTA
+				</option>
+			</select>
 			<button
 				class="blue"
 				aria-label="image"
@@ -155,11 +140,13 @@
 					bind:value={competition}
 					disabled={loading}
 					onchange={() => load('competition')}
-					><option value="">Select competition and season</option
-					>{#each competitions as option}<option value={option.id}
-							>{option.name}</option
-						>{/each}</select
 				>
+					<option value="">
+						Select competition and season
+					</option>{#each competitions as option}<option value={option.id}>
+							{option.name}
+						</option>{/each}
+				</select>
 			</div>{/if}
 		{#if competition}<div class="row right">
 				<select
@@ -167,18 +154,22 @@
 					bind:value={section}
 					disabled={loading}
 					onchange={() => load('section')}
-					><option value="">Select section</option
-					>{#each sections as option}<option value={option.id}
-							>{option.name}</option
-						>{/each}</select
 				>
+					<option value="">
+						Select section
+					</option>{#each sections as option}<option value={option.id}>
+							{option.name}
+						</option>{/each}
+				</select>
 			</div>{/if}
 		{#if section}<div class="row right">
-				<select aria-label="Team" bind:value={team} disabled={loading}
-					><option value="">Select team</option>{#each teams as option}<option
-							value={option.id}>{option.name}</option
-						>{/each}</select
-				>
+				<select aria-label="Team" bind:value={team} disabled={loading}>
+					<option value="">Select team</option>{#each teams as option}<option
+							value={option.id}
+						>
+							{option.name}
+						</option>{/each}
+				</select>
 			</div>{/if}
 		{#if loading}<div class="row right">
 				<p role="status">Loading options…</p>
@@ -189,23 +180,25 @@
 					class="blue"
 					onclick={() =>
 						load(
-							section ? 'section' : competition ? 'competition' : 'association',
-						)}>Retry</button
+							section ? 'section' : competition ? 'competition' : 'association'
+						)}
 				>
+					Retry
+				</button>
 			</div>{/if}
 		{#if imageError}<p role="alert">{imageError}</p>{/if}
 	</div>
-	<ApiService
+	<ActionConfirmation
 		name="request team"
 		message="Request this team for your club administrator to approve?"
-		endpoint="team/create"
-		data={{
-			association,
-			competition,
-			section,
-			team,
-			...(image ? { image } : {}),
-		}}
+		action={() =>
+			createTeam({
+				association,
+				competition,
+				section,
+				team,
+				...(image ? { image } : {})
+			})}
 		disabled={!team || loading || !$branding.clubId}
 	/>
 </div>

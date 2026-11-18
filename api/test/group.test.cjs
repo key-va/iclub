@@ -199,7 +199,9 @@ test("creation uses origin club, its icon and mirrored creator admin/participant
     );
 });
 test("membership requires an active group, then a request and group-admin acceptance; unrelated club admins cannot accept", async () => {
-    assert.equal((await call("join", "user_applicant")).status, 200);
+    const joined = await call("join", "user_applicant");
+    assert.equal(joined.status, 200);
+    assert.equal(joined.jsonBody.subject, "group_g");
     assert.equal(get("group_g", "user_applicant").state, "pending");
     assert.equal(get("group_g", "user_applicant").is_participant, false);
     mirrors("group_g", "user_applicant");

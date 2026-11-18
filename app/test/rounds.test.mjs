@@ -12,7 +12,7 @@ before(async () => {
     });
     guids = (await server.ssrLoadModule("/src/lib/stores/guids.ts")).guids;
     entityOf = (await server.ssrLoadModule("/src/lib/stores/guids.ts")).entityOf;
-    rounds = await server.ssrLoadModule("/src/lib/rounds.ts");
+    rounds = await server.ssrLoadModule("/src/lib/components/rounds/roundRules.ts");
 });
 after(async () => {
     await server?.close();

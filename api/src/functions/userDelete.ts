@@ -88,7 +88,8 @@ export async function userDelete(request: HttpRequest, context: InvocationContex
         status: 200,
         jsonBody: {
             success: true,
-            message: "Okay, user removed"
+            message: "Okay, user removed",
+            subject: "/login"
         }
     };
 }

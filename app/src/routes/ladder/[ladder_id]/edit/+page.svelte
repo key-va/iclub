@@ -1,11 +1,15 @@
 <script lang="ts">
+	import { prepareSquareImage } from '#lib/components/images/prepareSquareImage.ts';
+	import ActionConfirmation from '#lib/components/ActionConfirmation.svelte';
+	import { updateLadder, deleteLadder } from '#lib/stores/remote.ts';
+
 	import EntityHeader from '#lib/components/EntityHeader.svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { onMount } from 'svelte';
 	import { guids, entityOf, imageOf } from '#lib/stores/guids.ts';
 	import { local } from '#lib/stores/local.ts';
-	import ApiService from '#lib/components/apiService.svelte';
+
 	import HiddenOptions from '#lib/components/hiddenOptions.svelte';
 
 	const ladderId = $derived(page.params.ladder_id ?? '');
@@ -21,7 +25,9 @@
 		name = ladder?.name ?? '';
 	});
 
-	const nameChanged = $derived(name.trim() !== '' && name.trim() !== ladder?.name);
+	const nameChanged = $derived(
+		name.trim() !== '' && name.trim() !== ladder?.name
+	);
 	const changed = $derived(Boolean(ladder) && (image !== '' || nameChanged));
 
 	const updateData = $derived({
@@ -30,7 +36,9 @@
 	});
 
 	const changes = $derived(
-		Object.keys(updateData).map((key) => (key === 'image' ? 'ladder image' : 'ladder name'))
+		Object.keys(updateData).map((key) =>
+			key === 'image' ? 'ladder image' : 'ladder name'
+		)
 	);
 
 	const updateMessage = $derived(`update the ${changes.join(' and ')}?`);
@@ -45,20 +53,7 @@
 		if (!file) return;
 
 		try {
-			const bitmap = await createImageBitmap(file);
-			const size = Math.min(512, bitmap.width, bitmap.height);
-			const side = Math.min(bitmap.width, bitmap.height);
-			const canvas = document.createElement('canvas');
-
-			canvas.width = size;
-			canvas.height = size;
-
-			canvas
-				.getContext('2d')!
-				.drawImage(bitmap, (bitmap.width - side) / 2, (bitmap.height - side) / 2, side, side, 0, 0, size, size);
-
-			bitmap.close();
-			image = canvas.toDataURL('image/jpeg', 0.85);
+			image = await prepareSquareImage(file);
 		} catch {
 			imageError = 'that file could not be read as an image';
 		}
@@ -70,18 +65,43 @@
 	}
 
 	onMount(() => {
-		if (!$local.caller_id || !$local.device_id) goto('/login', { replaceState: true });
+		if (!$local.caller_id || !$local.device_id)
+			goto('/login', { replaceState: true });
 	});
 </script>
 
 <div class="page">
 	{#if ladder}
-		<EntityHeader entity={ladder} subtitle="edit" image={image || imageOf(ladder.rk)} />
+		<EntityHeader
+			entity={ladder}
+			subtitle="edit"
+			image={image || imageOf(ladder.rk)}
+		/>
 
 		<div class="row right">
-			<input type="text" placeholder="ladder name" autocomplete="off" bind:value={name} />
-			<button class="blue" aria-label="image" onclick={() => fileInput?.click()}>
-				<svg viewBox="0 0 24 24" width="1rem" height="1rem" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="Camera">
+			<input
+				type="text"
+				placeholder="ladder name"
+				autocomplete="off"
+				bind:value={name}
+			/>
+			<button
+				class="blue"
+				aria-label="image"
+				onclick={() => fileInput?.click()}
+			>
+				<svg
+					viewBox="0 0 24 24"
+					width="1rem"
+					height="1rem"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="3"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					role="img"
+					aria-label="Camera"
+				>
 					<path d="M2.5 7h4l1.5-3h8l1.5 3h4v13h-19z" />
 					<circle cx="12" cy="13.5" r="4" />
 				</svg>
@@ -100,30 +120,33 @@
 		{/if}
 
 		<div class="row center">
-			<p>Only the <strong>ladder name</strong> and <strong>image</strong> can be modified after creation</p>
+			<p>
+				Only the <strong>ladder name</strong> and <strong>image</strong> can be modified
+				after creation
+			</p>
 		</div>
 
-		<ApiService
+		<ActionConfirmation
 			name="update"
 			message={updateMessage}
-			endpoint={`ladder/${ladderId}/update`}
-			data={updateData}
+			action={() => updateLadder(ladderId, updateData)}
 			disabled={!changed}
 			onsuccess={clearForm}
 		/>
 
 		<HiddenOptions inline title="More" description="delete ladder">
-			<ApiService
+			<ActionConfirmation
 				inline
 				name="delete"
 				message="delete this ladder? this cannot be undone"
-				endpoint={`ladder/${ladderId}/delete`}
-				onsuccess={() => goto('/browse')}
+				action={() => deleteLadder(ladderId)}
 			/>
 		</HiddenOptions>
 	{:else}
 		<div class="row right">
-			<p class="truncate"><strong>{$guids.loaded ? 'Not found' : 'Loading'}</strong><br />edit</p>
+			<p class="truncate">
+				<strong>{$guids.loaded ? 'Not found' : 'Loading'}</strong><br />edit
+			</p>
 			<div class="blank-icon-small"></div>
 		</div>
 	{/if}

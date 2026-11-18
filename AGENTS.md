@@ -2,7 +2,7 @@
 
 This repository is a reusable scaffold/template for future apps.
 
-Today it intentionally contains **no domain-specific product logic** beyond basic user/account flows. Its purpose is to provide a stable implementation baseline for:
+The app implements ladders, doubles pairs, matches, teams, rounds and groups on a shared implementation baseline:
 
 - a generic graph-style data model in Azure Table Storage
 - a SvelteKit frontend that reads from a published `guids.json`
@@ -166,7 +166,13 @@ Do not introduce new storage abstractions unless a real gap is proven.
   - `LadderRequests.svelte` owns pending applicants and doubles partner selection/reset after acceptance or graph refresh.
   - `ladderRules.ts` replaces the former root-level `challenge.ts`. It shares challenge eligibility/reach, ladder state colours, and `ladderMembership(ladder, userId)`. Membership/admin flags remain on user-ladder relations; doubles competitive state/rank comes from the active pair-ladder relation. The pair page also uses this resolver. `pair` and competitive `relation` are raw relationship rows.
   - Contextual names put the page entity first and displayed entity second. Pass entities as props; components do not read route parameters. Local calculations/state stay inside components; shared ladder calculations stay alongside them.
-  - Auth remains in the existing local store. Ladder-page approval/join use `ActionConfirmation`; pending acceptance/pairing and singles/doubles standings challenges use `ActionQuick` with named functions from `remote.ts`. `UserLadder` on user pages retains `ApiService` until migrated. No backend permission or storage changes.
+  - Auth remains in the existing local store. Ladder-page approval/join use `ActionConfirmation`; pending acceptance/pairing and singles/doubles standings challenges use `ActionQuick` with named functions from `remote.ts`. All contextual views use the same action components. Backend permissions and graph storage remain unchanged.
+- Other contextual sections follow the same page-first naming convention:
+  - `teams/UserTeam`, `TeamUser`, `TeamRound`, `TeamSummary`; `groups/UserGroup`, `GroupUser`, `GroupSummary`; `rounds/UserRound`, `RoundUser`, `RoundSummary`; `matches/MatchContest`, `MatchHistory`; `pairs/PairLadder`.
+  - Pages gather route entities and related rows, then compose these sections. Components receive entities/raw relations and own display calculations, permission visibility and local interaction state.
+  - Shared feature helpers are colocated: `rounds/roundRules.ts`, `matches/matchRules.ts`, `ladders/ladderSettings.ts`. These replace root-level `rounds.ts`, `matchSummary.ts`, `strings.ts`; do not add forwarding modules.
+  - `messages/MessageThread.svelte` shares message sorting, sender resolution, validation and posting for matches, rounds and groups. `images/prepareSquareImage.ts` shares square JPEG preparation for creation/edit forms.
+  - Named remote functions cover each endpoint used by the UI, including public OTP/login, team discovery, system info and push registration. Mutations refresh the graph; confirmation functions validate response subjects. Group/team join return their entity ID, ladder deletion returns `/browse`, and user deletion returns `/login`. User deletion clears the local session before response-driven navigation.
 - Frontend test files run serially (`--test-concurrency=1`) because their Vite SSR servers share the dependency cache; concurrent pre-bundling caused `ERR_OUTDATED_OPTIMIZED_DEP` in CI.
 
 - [EntityHeader.svelte](./app/src/lib/components/EntityHeader.svelte)
@@ -175,17 +181,13 @@ Do not introduce new storage abstractions unless a real gap is proven.
   - `image={null}` omits the image and install guidance; form previews remain reactive through the image prop
 
 - [ActionConfirmation.svelte](./app/src/lib/components/ActionConfirmation.svelte)
-  - accepts a deferred `action` callback returning `NavigationResponse`, confirms before execution, then always navigates to `hrefOf(response.subject)` on success; no destination/endpoint/data props
+  - accepts a deferred `action` callback returning `NavigationResponse`, confirms before execution, then always navigates using the API response subject on success (an entity ID or validated local path); no destination/endpoint/data props
 - [ActionQuick.svelte](./app/src/lib/components/ActionQuick.svelte)
   - executes its deferred `action` callback immediately, displays a timer while busy and never navigates, even if the response has a subject
   - both public action components share `ActionControl.svelte` internally for confirmation/error UI, duplicate-submission guards and `api-action-state` events used by revealed options
   - shared display props include name/disabled/inline/arrow/children/onsuccess; confirmation also accepts message
   - named functions in `remote.ts` own payloads, signed HTTP requests and graph refresh: `activateLadder`, `joinLadder`, `acceptLadderMember`, `acceptLadderPair`, `createMatch`
   - successful mutations whose graph refresh fails expose a refresh-only retry; callback/navigation retries also retain the completed response to avoid repeating mutations
-- [apiService.svelte](./app/src/lib/components/apiService.svelte)
-  - consistent action button + confirmation/execute UX
-  - mutation actions confirm by default; quick options and message posting opt out
-  - API call + `guids.refresh()` + optional redirect by `subject`
 - [actionActivity.ts](./app/src/lib/components/actionActivity.ts)
   - keeps revealed options open while an API action or its error/confirmation dialog is active
 - [routeLink.svelte](./app/src/lib/components/routeLink.svelte)
@@ -238,7 +240,7 @@ The default assumption for AI workflows is:
 
 - reuse existing helper/service/component first
 - add a new primitive only when the existing one cannot cleanly support the feature
-- keep new feature logic in endpoints/pages, not in duplicated infrastructure glue
+- keep business rules in endpoints and presentation calculations in contextual components
 
 ---
 
@@ -259,12 +261,12 @@ When implementing a new feature:
 
 - Consume graph data from ID-only `guids` store helpers. Gather `const relatedRows = $derived(relationsOf(id))`, filter relation rows by `typeOf(row.rk)`, then use `nameOf(row.rk)` or `entityOf(row.rk)` for entity attributes. Keep relationship fields such as rank/role/membership state on the raw row.
 - Graph-dependent feature helpers also use the current graph implicitly: `matchSummary(matchId)` and `outstandingTeamRounds(userId, teamId)`. Outstanding rounds are raw user-round relations; `roundView(entityOf(row.rk), teamRoundRelation)` resolves fixture/result display separately.
-- Use callback-based `ActionConfirmation` for confirmation plus API-subject navigation and `ActionQuick` for immediate actions that stay on the page. Keep endpoint/payload details in named `remote.ts` functions. Existing unmigrated consumers may retain `apiService.svelte`.
+- Use callback-based `ActionConfirmation` for confirmation plus API-subject navigation and `ActionQuick` for immediate actions that stay on the page. Keep endpoint/payload details in named `remote.ts` functions. The former `apiService.svelte` has been removed.
 - Use `routeLink.svelte` for navigation-only rows. Use `RouteLinkHiddenAction.svelte` for rows with quick actions; supply status colours via `colour`, not an extra decorative dot in the detail snippet.
 - Use `hiddenOptions.svelte` for rows without an `href` that hide options, help or status text.
 - Link to entities with `hrefOf(id)` (`/<type>/<id>`) and `imageOf(id)` from the `guids` store; never link to `genc/...` from new code.
 - Keep auth/session state in `local` store only.
-- Keep API traffic through `callApi`.
+- Keep API traffic behind named functions in `remote.ts`; components supply arguments through deferred action callbacks.
 
 ### New helper/service/component policy
 
@@ -279,11 +281,9 @@ If added, document it in this file under the relevant section.
 
 ## 7) Current Non-Goals (Intentional)
 
-- No domain-specific ladder/event/team business workflows yet
-- No advanced role/permission system beyond current self-ownership checks
 - No specialized analytics/reporting model beyond base telemetry
 
-This is deliberate: the scaffold is meant to stay generic and composable for future app builds.
+Keep shared infrastructure composable while implementing feature rules in their own modules.
 
 ## Doubles ladders
 
@@ -344,7 +344,7 @@ This is deliberate: the scaffold is meant to stay generic and composable for fut
 ## Deployment plan and displayed version
 
 - SWA uses the Standard SKU in the shared infrastructure template for both branch-selected environments.
-- `system/about` owns the displayed `data.version` string, currently `261110`. The layout loads it through an unsigned `callApi` request on mount and displays that exact value in the footer. There is no build-time/hardcoded frontend version fallback.
+- `system/about` owns the displayed `data.version` string, currently `261110`. The layout loads it through unsigned `getSystemAbout()` on mount and displays that exact value in the footer. There is no build-time/hardcoded frontend version fallback.
 - The about endpoint remains public and retains the Web Push public key required for registration; legacy OneSignal App IDs are not returned.
 
 ## Teams and TROLS competitions
@@ -360,7 +360,7 @@ This is deliberate: the scaffold is meant to stay generic and composable for fut
 - New team endpoints use conditional ETag updates on existing club/team entities for short-lived operation leases, preventing concurrent duplicate creation, sync and role transitions. Team `operation_guard` stores an expiry timestamp while busy and `0` when released; it is operational metadata, not a boolean. The legacy `operation_until` field is honored during rollout and removed on migration. The guard remains on the team entity; nothing was moved to `auths`. No new table or lock entity exists. Mutation errors may require a refresh/retry; storage remains sequential across mirrored rows, as elsewhere in the app. Missing round-user mirrors are repaired during sync/backfill.
 - A successful selection notifies the nominated player; `selected -> unavailable` notifies team admins, linking to the affected round. Notifications follow graph publication and are best effort; push failure never undoes a role change and there is no durable queue.
 - `message/create` accepts exactly one of `match_id` or `round_id`. Round messaging reuses `doPostMessage`, signed requests and public graph relations, and is open to authenticated non-members. It notifies approved team members other than the sender based on team membership, not round-player links. The service's legacy `matchId` argument names its parent entity ID and also accepts round IDs.
-- UI: `/team/create`, `/team/{id}`, `/round/{id}`, browse/menu links, pending team approvals on the club administrator's user page, and upcoming rounds grouped by team on the user home page. `rounds.ts` and `roundRoleDot.svelte` share the role colours and graph-derived displays. No home-page API was added.
+- UI: `/team/create`, `/team/{id}`, `/round/{id}`, browse/menu links, pending team approvals on the club administrator's user page, and upcoming rounds grouped by team on the user home page. `components/rounds/roundRules.ts` and `roundRoleDot.svelte` share the role colours and graph-derived displays. No home-page API was added.
 - Verification: existing backend/frontend commands still apply. `api/test/team.test.cjs` exercises graph/permission/sync/notification rules; `api/test/trols.test.cjs` uses captured public TROLS HTML with personal contact rows removed. `app/test/rounds.test.mjs` verifies inverse round relationships, grouping, filtering, colours and results. See `docs/teams.md` for usage and operational limits.
 
 ## Groups

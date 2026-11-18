@@ -2,9 +2,17 @@
 	import EntityHeader from '#lib/components/EntityHeader.svelte';
 	import { page } from '$app/state';
 	import { local } from '#lib/stores/local.ts';
-	import { guids, entityOf, hrefOf, imageOf, relationsOf, nameOf, typeOf } from '#lib/stores/guids.ts';
+	import {
+		guids,
+		entityOf,
+		hrefOf,
+		imageOf,
+		relationsOf,
+		nameOf,
+		typeOf
+	} from '#lib/stores/guids.ts';
 
-    import RouteLink from '#lib/components/routeLink.svelte';
+	import RouteLink from '#lib/components/routeLink.svelte';
 
 	const { caller_id, device_id } = $local;
 
@@ -18,11 +26,12 @@
 		<EntityHeader {entity} subtitle="entity" />
 	{:else}
 		<div class="row right">
-			<p class="truncate"><strong>{$guids.loaded ? 'Not found' : 'Loading'}</strong><br />entity</p>
+			<p class="truncate">
+				<strong>{$guids.loaded ? 'Not found' : 'Loading'}</strong><br />entity
+			</p>
 			<div class="blank-icon-small"></div>
 		</div>
 	{/if}
-
 
 	{#if relatedRows.length > 0}
 		{#each relatedRows as related_entity}
@@ -37,12 +46,11 @@
 	{:else}
 		<RouteLink
 			href={`/`}
-			title='None'
-			description='no relations found'
+			title="None"
+			description="no relations found"
 			isWhite={false}
 		/>
 	{/if}
-
 </div>
 
 <style>

@@ -1,9 +1,14 @@
-import { relationsOf, type GuidRow, typeOf, entityOf } from '#lib/stores/guids.ts';
+import {
+	relationsOf,
+	type GuidRow,
+	typeOf,
+	entityOf
+} from '#lib/stores/guids.ts';
 export const roundRoleColour: Record<string, string> = {
 	selected: 'green',
 	available: 'blue',
 	unavailable: 'red',
-	pending: 'orange',
+	pending: 'orange'
 };
 export function isTeamAdmin(relation?: Record<string, unknown>): boolean {
 	return typeof relation?.is_admin === 'boolean'
@@ -11,8 +16,12 @@ export function isTeamAdmin(relation?: Record<string, unknown>): boolean {
 		: relation?.role === 'is_admin';
 }
 export const isTeamMember = (relation?: Record<string, unknown>) =>
-	isTeamAdmin(relation) || relation?.is_member === true || relation?.role === 'is_member';
-export function availabilityOptions(role: unknown): ('available' | 'unavailable')[] {
+	isTeamAdmin(relation) ||
+	relation?.is_member === true ||
+	relation?.role === 'is_member';
+export function availabilityOptions(
+	role: unknown
+): ('available' | 'unavailable')[] {
 	if (role === 'pending') return ['unavailable', 'available'];
 	if (role === 'available' || role === 'selected') return ['unavailable'];
 	if (role === 'unavailable') return ['available'];
@@ -22,7 +31,7 @@ export function availabilityOptions(role: unknown): ('available' | 'unavailable'
 // These aliases are derived views, never copies persisted back to guids.json.
 export function roundView<T extends GuidRow>(
 	round: T,
-	teamRelation?: GuidRow,
+	teamRelation?: GuidRow
 ): T {
 	const view: GuidRow = { ...round };
 	// Entity fallback keeps pre-migration datasets readable until a team refresh.
@@ -48,7 +57,7 @@ export function roundView<T extends GuidRow>(
 		'sets_for',
 		'sets_against',
 		'games_for',
-		'games_against',
+		'games_against'
 	]) {
 		view[key] = round[`ext_${key}`] ?? round[key];
 	}
@@ -88,7 +97,7 @@ export function teamView<T extends GuidRow>(team: T): T {
 		'rank',
 		'wins',
 		'points',
-		'percentage',
+		'percentage'
 	])
 		view[key] = team[`ext_${key}`] ?? team[key];
 	return view as T;
@@ -105,13 +114,27 @@ export function roundLabel(round: GuidRow): string {
 }
 export function outstandingTeamRounds(userId: string, teamId: string) {
 	const teamRounds = new Map(
-		relationsOf(teamId).filter(row => typeOf(row.rk) === 'round' && entityOf(row.rk)).map(row => [row.rk, row]),
+		relationsOf(teamId)
+			.filter((row) => typeOf(row.rk) === 'round' && entityOf(row.rk))
+			.map((row) => [row.rk, row])
 	);
-	const viewOf = (row: GuidRow) => roundView(entityOf(row.rk)!, teamRounds.get(row.rk));
+	const viewOf = (row: GuidRow) =>
+		roundView(entityOf(row.rk)!, teamRounds.get(row.rk));
 	return relationsOf(userId)
-		.filter(row => typeOf(row.rk) === 'round' && entityOf(row.rk) && teamRounds.has(row.rk))
-		.filter(row => ['pending', 'selected'].includes(String(row.role)) && viewOf(row).state !== 'complete')
-		.sort((a, b) => String(viewOf(a).date).localeCompare(String(viewOf(b).date)) || Number(viewOf(a).number) - Number(viewOf(b).number));
+		.filter(
+			(row) =>
+				typeOf(row.rk) === 'round' && entityOf(row.rk) && teamRounds.has(row.rk)
+		)
+		.filter(
+			(row) =>
+				['pending', 'selected'].includes(String(row.role)) &&
+				viewOf(row).state !== 'complete'
+		)
+		.sort(
+			(a, b) =>
+				String(viewOf(a).date).localeCompare(String(viewOf(b).date)) ||
+				Number(viewOf(a).number) - Number(viewOf(b).number)
+		);
 }
 export function officialResult(record: GuidRow, teamRelation?: GuidRow) {
 	const round = roundView(record, teamRelation);
@@ -124,7 +147,7 @@ export function officialResult(record: GuidRow, teamRelation?: GuidRow) {
 		.filter(
 			(key) =>
 				round[`${key}_for`] !== undefined &&
-				round[`${key}_against`] !== undefined,
+				round[`${key}_against`] !== undefined
 		)
 		.map((key) => `${round[`${key}_for`]}–${round[`${key}_against`]} ${key}`)
 		.join(' · ');

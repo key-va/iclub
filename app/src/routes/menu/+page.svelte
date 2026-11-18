@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { branding } from '#lib/stores/branding.ts';
 	import EntityHeader from '#lib/components/EntityHeader.svelte';
-	import { hrefOf, imageOf } from '#lib/stores/guids.ts';
+	import { hrefOf } from '#lib/stores/guids.ts';
 	import { local } from '#lib/stores/local.ts';
 
 	import RouteLink from '#lib/components/routeLink.svelte';
@@ -13,19 +13,39 @@
 	<EntityHeader title={$branding.name} subtitle="menu" image={$branding.icon} />
 
 	{#if caller_id && device_id}
-
-		<RouteLink href="/browse" title="Browse" description="ladders, teams and groups" isWhite={true} />
-		<RouteLink href="{hrefOf(caller_id)}/edit" title="Profile" description="edit your profile" isWhite={false} />
-
+		<RouteLink
+			href="/browse"
+			title="Browse"
+			description="ladders, teams and groups"
+			isWhite={true}
+		/>
+		<RouteLink
+			href="{hrefOf(caller_id)}/edit"
+			title="Profile"
+			description="edit your profile"
+			isWhite={false}
+		/>
 	{:else}
-
-		<RouteLink href="/login" title="Login" description="login or create account" isWhite={true} />
-		<RouteLink href="/browse" title="Browse" description="ladders, teams and groups" isWhite={false} />
-
+		<RouteLink
+			href="/login"
+			title="Login"
+			description="login or create account"
+			isWhite={true}
+		/>
+		<RouteLink
+			href="/browse"
+			title="Browse"
+			description="ladders, teams and groups"
+			isWhite={false}
+		/>
 	{/if}
-	
-	<RouteLink href="/about" title="About" description="help and about" isWhite={false} />
 
+	<RouteLink
+		href="/about"
+		title="About"
+		description="help and about"
+		isWhite={false}
+	/>
 </div>
 
 <style>

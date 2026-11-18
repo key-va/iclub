@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { roundRoleColour } from '#lib/rounds.ts';
+	import { roundRoleColour } from '#lib/components/rounds/roundRules.ts';
 	let { role }: { role: unknown } = $props();
 </script>
 

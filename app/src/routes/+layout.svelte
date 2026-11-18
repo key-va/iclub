@@ -7,7 +7,7 @@
 	import { guids, nameOf, hrefOf } from '#lib/stores/guids.ts';
 	import { local } from '#lib/stores/local.ts';
 	import { startPush } from '#lib/stores/push.ts';
-	import { callApi } from '#lib/stores/remote.ts';
+	import { getSystemAbout } from '#lib/stores/remote.ts';
 	import type { LayoutProps } from './$types';
 
 	let { children }: LayoutProps = $props();
@@ -15,17 +15,35 @@
 	let version = $state<string | null>(null);
 
 	const appOrigin = window.location.origin;
-	const manifestUrl = $derived($branding.clubId ? `${API_URL}/system/manifest?origin=${encodeURIComponent(appOrigin)}` : '/manifest.webmanifest');
+	const manifestUrl = $derived(
+		$branding.clubId
+			? `${API_URL}/system/manifest?origin=${encodeURIComponent(appOrigin)}`
+			: '/manifest.webmanifest'
+	);
 	$effect(() => {
-		document.documentElement.style.setProperty('--brand-foreground', $branding.foreground);
-		document.documentElement.style.setProperty('--brand-background', $branding.background);
-		document.documentElement.style.setProperty('--brand-foreground-text', $branding.foregroundText);
-		document.documentElement.style.setProperty('--brand-background-text', $branding.backgroundText);
+		document.documentElement.style.setProperty(
+			'--brand-foreground',
+			$branding.foreground
+		);
+		document.documentElement.style.setProperty(
+			'--brand-background',
+			$branding.background
+		);
+		document.documentElement.style.setProperty(
+			'--brand-foreground-text',
+			$branding.foregroundText
+		);
+		document.documentElement.style.setProperty(
+			'--brand-background-text',
+			$branding.backgroundText
+		);
 	});
 
 	const callerId = $derived($local.caller_id);
 	const isLoggedIn = $derived(Boolean($local.caller_id && $local.device_id));
-	const homeHref = $derived(isLoggedIn && callerId ? hrefOf(callerId) : '/login');
+	const homeHref = $derived(
+		isLoggedIn && callerId ? hrefOf(callerId) : '/login'
+	);
 
 	let originX = innerWidth;
 	let originY = innerHeight;
@@ -34,7 +52,11 @@
 	onNavigate((navigation) => {
 		// the root page only redirects on load, so it shouldn't animate
 		if (navigation.from?.url.pathname === '/') return;
-		if (!document.startViewTransition || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+		if (
+			!document.startViewTransition ||
+			matchMedia('(prefers-reduced-motion: reduce)').matches
+		)
+			return;
 
 		const root = document.documentElement;
 		const maxX = Math.max(originX, innerWidth - originX);
@@ -56,9 +78,13 @@
 	});
 
 	onMount(() => {
-		callApi<{ version: string }>('system/about', {}, false)
-			.then(result => { version = result.data?.version ?? null; })
-			.catch(error => console.error('[about] could not load API version', error));
+		getSystemAbout()
+			.then((result) => {
+				version = result.data?.version ?? null;
+			})
+			.catch((error) =>
+				console.error('[about] could not load API version', error)
+			);
 
 		const track = (e: PointerEvent) => {
 			originX = e.clientX;
@@ -67,7 +93,9 @@
 		addEventListener('pointerdown', track, true);
 
 		// load the guids snapshot once on startup, then keep it fresh
-		guids.load().catch((err) => console.error('[guids] initial load failed', err));
+		guids
+			.load()
+			.catch((err) => console.error('[guids] initial load failed', err));
 		guids.startAutoRefresh(90000);
 
 		const stopPush = startPush();
@@ -90,7 +118,11 @@
 	<link rel="manifest" href={manifestUrl} />
 	<meta name="theme-color" content={$branding.background} />
 	<link rel="apple-touch-icon" href={$branding.appleIcon} />
-	<link rel="icon" type={$branding.clubId ? 'image/jpeg' : 'image/png'} href={$branding.clubId ? $branding.icon : '/favicons/favicon-32.png'} />
+	<link
+		rel="icon"
+		type={$branding.clubId ? 'image/jpeg' : 'image/png'}
+		href={$branding.clubId ? $branding.icon : '/favicons/favicon-32.png'}
+	/>
 </svelte:head>
 
 <div class="wipe-tint" aria-hidden="true"></div>
@@ -100,7 +132,18 @@
 	<div class="row right">
 		<a class="button" href="/menu" aria-label="menu">
 			<button aria-label="menu">
-				<svg viewBox="0 0 24 24" width="1rem" height="1rem" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="Menu">
+				<svg
+					viewBox="0 0 24 24"
+					width="1rem"
+					height="1rem"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="3"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					role="img"
+					aria-label="Menu"
+				>
 					<line x1="4" y1="5" x2="20" y2="5" />
 					<line x1="4" y1="12" x2="20" y2="12" />
 					<line x1="4" y1="19" x2="20" y2="19" />
@@ -116,14 +159,27 @@
 
 <div class="footer">
 	<div class="row left">
-		<p class="truncate"><strong>Intra Club</strong>{#if version}<br />v{version}{/if}</p>
+		<p class="truncate">
+			<strong>Intra Club</strong>{#if version}<br />v{version}{/if}
+		</p>
 	</div>
 </div>
 
 <div class="fixed-bottom">
 	<div class="row right">
 		<button aria-label="Go back" onclick={back}>
-			<svg viewBox="0 0 24 24" width="1rem" height="1rem" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="Back">
+			<svg
+				viewBox="0 0 24 24"
+				width="1rem"
+				height="1rem"
+				fill="none"
+				stroke="currentColor"
+				stroke-width="3"
+				stroke-linecap="round"
+				stroke-linejoin="round"
+				role="img"
+				aria-label="Back"
+			>
 				<path d="M19 12H5M11 5l-7 7 7 7" />
 			</svg>
 			<p>back</p>
@@ -137,7 +193,18 @@
 					></button>
 				{:else}
 					<button aria-label="home">
-						<svg viewBox="0 0 24 24" width="1rem" height="1rem" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="Home">
+						<svg
+							viewBox="0 0 24 24"
+							width="1rem"
+							height="1rem"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="3"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							role="img"
+							aria-label="Home"
+						>
 							<path d="M3 10L12 3l9 7" />
 							<path d="M5 10v10h14V10z" />
 						</svg>
@@ -153,7 +220,7 @@
 		width: 100%;
 		min-height: 5rem;
 		display: flex;
-		background: var(--brand-background, #00BFFF);
+		background: var(--brand-background, #00bfff);
 		color: #e6e6e6;
 	}
 
