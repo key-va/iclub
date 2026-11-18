@@ -1,8 +1,4 @@
-import {
-	relatedEntities,
-	relationsOf,
-	type GuidRow,
-} from '#lib/stores/guids.ts';
+import { relationsOf, type GuidRow, typeOf, entityOf } from '#lib/stores/guids.ts';
 export const roundRoleColour: Record<string, string> = {
 	selected: 'green',
 	available: 'blue',
@@ -107,29 +103,15 @@ export function roundLabel(round: GuidRow): string {
 		return 'postponed';
 	return String(round.state ?? 'pending');
 }
-export function outstandingTeamRounds(
-	items: GuidRow[],
-	userId: string,
-	teamId: string,
-) {
+export function outstandingTeamRounds(userId: string, teamId: string) {
 	const teamRounds = new Map(
-		relationsOf(items, teamId)
-			.filter((relation) => relation.rk.startsWith('round_'))
-			.map((relation) => [relation.rk, relation]),
+		relationsOf(teamId).filter(row => typeOf(row.rk) === 'round' && entityOf(row.rk)).map(row => [row.rk, row]),
 	);
-	return relatedEntities(items, userId, 'round')
-		.map((round) => roundView(round, teamRounds.get(round.rk)))
-		.filter(
-			(round) =>
-				teamRounds.has(round.rk) &&
-				['pending', 'selected'].includes(String(round.relation.role)) &&
-				round.state !== 'complete',
-		)
-		.sort(
-			(a, b) =>
-				String(a.date).localeCompare(String(b.date)) ||
-				Number(a.number) - Number(b.number),
-		);
+	const viewOf = (row: GuidRow) => roundView(entityOf(row.rk)!, teamRounds.get(row.rk));
+	return relationsOf(userId)
+		.filter(row => typeOf(row.rk) === 'round' && entityOf(row.rk) && teamRounds.has(row.rk))
+		.filter(row => ['pending', 'selected'].includes(String(row.role)) && viewOf(row).state !== 'complete')
+		.sort((a, b) => String(viewOf(a).date).localeCompare(String(viewOf(b).date)) || Number(viewOf(a).number) - Number(viewOf(b).number));
 }
 export function officialResult(record: GuidRow, teamRelation?: GuidRow) {
 	const round = roundView(record, teamRelation);

@@ -83,7 +83,7 @@ function action(markup, name) {
 test('singles standings resolve challenge identity, reach, state and self restrictions', async () => {
     const { items, ladder } = fixture();
     await load(items);
-    const user = graph.relatedEntities(items, ladder.rk, 'user').find(row => row.rk === 'user_other');
+    const user = graph.relationsOf(ladder.rk).filter(row => graph.typeOf(row.rk) === 'user').find(row => row.rk === 'user_other');
     const props = { ladder, user };
     let output = html('LadderUser', props);
     assert.match(output, /href="\/user\/user_other"/);
@@ -95,18 +95,19 @@ test('singles standings resolve challenge identity, reach, state and self restri
     await load(items, 'user_admin');
     assert.equal(action(html('LadderUser', props), 'challenge').disabled, true);
     await load(items);
-    user.relation.state = 'away';
+    user.state = 'away';
     assert.equal(action(html('LadderUser', props), 'challenge').disabled, true);
 });
 
 test('doubles resolve pair standing and either partner as the same challenger', async () => {
     const { items, ladder } = fixture('doubles');
-    const membership = rules.ladderMembership(items, ladder, 'user_me');
+    await load(items);
+    const membership = rules.ladderMembership( ladder, 'user_me');
     assert.equal(membership.userRelation.rank, 99);
     assert.equal(membership.userRelation.is_admin, true);
     assert.equal(membership.relation.rank, 4);
     assert.equal(membership.competitorId, 'pair_mine');
-    const pair = graph.relatedEntities(items, ladder.rk, 'pair').find(row => row.rk === 'pair_other');
+    const pair = graph.relationsOf(ladder.rk).filter(row => graph.typeOf(row.rk) === 'pair').find(row => row.rk === 'pair_other');
     for (const caller of ['user_me', 'user_partner']) {
         await load(items, caller);
         const output = html('LadderPair', { ladder, pair });
@@ -119,14 +120,14 @@ test('doubles resolve pair standing and either partner as the same challenger', 
     assert.equal(action(html('LadderPair', { ladder, pair }), 'challenge').disabled, true);
     // Retired memberships must never supply an active competitive identity.
     items.find(row => row.pk === ladder.rk && row.rk === 'pair_mine').is_participant = false;
-    assert.equal(rules.ladderMembership(items, ladder, 'user_me').competitorId, null);
     await load(items, 'user_me');
+    assert.equal(rules.ladderMembership( ladder, 'user_me').competitorId, null);
     assert.equal(action(html('LadderPair', { ladder, pair }), 'challenge').disabled, true);
 });
 
 test('user ladder sections isolate ongoing matches to the viewed user and ladder', async () => {
     const { items, link, ladder } = fixture();
-    const user = graph.entityOf(items, 'user_other');
+    const user = items.find(row => row.pk === 'user' && row.rk === 'user_other');
     for (const [id, state, parent] of [['live', 'active', ladder.rk], ['done', 'complete', ladder.rk], ['elsewhere', 'active', 'ladder_elsewhere']]) {
         items.push({ pk: 'match', rk: `match_${id}`, name: id, state });
         link(user.rk, `match_${id}`, { role: 'defender' });
@@ -163,7 +164,7 @@ test('pending application controls are limited to ladder admins and honour ladde
 test('user doubles section displays the pair standing instead of the user membership rank', async () => {
     const { items, ladder } = fixture('doubles');
     await load(items);
-    const output = html('UserLadder', { ladder, user: graph.entityOf(items, 'user_other') });
+    const output = html('UserLadder', { ladder, user: graph.entityOf( 'user_other') });
     assert.match(output, /aria-label="cooling"><\/span>2/);
     assert.doesNotMatch(output, /<\/span>88/);
     assert.equal(action(output, 'challenge'), undefined);

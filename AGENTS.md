@@ -142,7 +142,10 @@ Do not introduce new storage abstractions unless a real gap is proven.
   - stateful loader/refresher for `guids.json`
   - auto-refresh timer support
   - merge strategy to preserve object identity when unchanged
-  - helpers: `entityOf`, `relationsOf`, `relatedEntities`, `entitiesOfType`, `nameOf`
+  - ID-only reactive helpers: `entityOf(id)`, `nameOf(id)`, `relationsOf(id)`; none accepts an items argument
+  - `relationsOf(id)` returns raw outgoing relation rows, including unresolved links. Filter by `typeOf(row.rk)`; resolve entity names/attributes separately. Never merge entity and relationship attributes or attach `.relation`.
+  - `relatedEntities` and `entitiesOfType` were removed. Filter the `entities` store for all entities of a type.
+  - lookups use Svelte `createSubscriber` to track graph changes inside `$derived`, effects and templates even without `$guids.items`. Ordinary imperative reads return snapshots. Unchanged refreshes retain graph identity and do not invalidate lookup consumers.
 - [local.ts](./app/src/lib/stores/local.ts)
   - persisted device-local auth context (`caller_id`, `device_id`, `connect_key`)
   - signature generation compatible with API verification
@@ -161,7 +164,7 @@ Do not introduce new storage abstractions unless a real gap is proven.
   - `LadderUser.svelte` and `LadderPair.svelte` present singles/doubles standings and challenge controls. The ladder page gathers/sorts participants and chooses by ladder format.
   - `UserLadder.svelte` owns a user's ladder section, including relevant live matches, standing, and challenge/accept controls.
   - `LadderRequests.svelte` owns pending applicants and doubles partner selection/reset after acceptance or graph refresh.
-  - `ladderRules.ts` replaces the former root-level `challenge.ts`. It shares challenge eligibility/reach, ladder state colours, and `ladderMembership(items, ladder, userId)`. Membership/admin flags remain on user-ladder relations; doubles competitive state/rank comes from the active pair-ladder relation. The pair page also uses this resolver.
+  - `ladderRules.ts` replaces the former root-level `challenge.ts`. It shares challenge eligibility/reach, ladder state colours, and `ladderMembership(ladder, userId)`. Membership/admin flags remain on user-ladder relations; doubles competitive state/rank comes from the active pair-ladder relation. The pair page also uses this resolver. `pair` and competitive `relation` are raw relationship rows.
   - Contextual names put the page entity first and displayed entity second. Pass entities as props; components do not read route parameters. Local calculations/state stay inside components; shared ladder calculations stay alongside them.
   - Auth remains in the existing local store; all mutations still use `ApiService` and the existing endpoints. No backend permission or storage changes.
 - Frontend test files run serially (`--test-concurrency=1`) because their Vite SSR servers share the dependency cache; concurrent pre-bundling caused `ERR_OUTDATED_OPTIMIZED_DEP` in CI.
@@ -239,7 +242,8 @@ When implementing a new feature:
 
 ### Frontend
 
-- Consume graph data from `guids` store helpers.
+- Consume graph data from ID-only `guids` store helpers. Gather `const relatedRows = $derived(relationsOf(id))`, filter relation rows by `typeOf(row.rk)`, then use `nameOf(row.rk)` or `entityOf(row.rk)` for entity attributes. Keep relationship fields such as rank/role/membership state on the raw row.
+- Graph-dependent feature helpers also use the current graph implicitly: `matchSummary(matchId)` and `outstandingTeamRounds(userId, teamId)`. Outstanding rounds are raw user-round relations; `roundView(entityOf(row.rk), teamRoundRelation)` resolves fixture/result display separately.
 - Use `apiService.svelte` for mutation actions where possible.
 - Use `routeLink.svelte` for list-style navigation rows (rows with an `href`).
 - Use `hiddenOptions.svelte` for rows without an `href` that hide options, help or status text.

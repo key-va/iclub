@@ -133,7 +133,7 @@
 				{#if isLoggedIn && callerId}
 					<button
 						style="background-image: url('{PUBLIC_URL}/{callerId}.jpg');"
-						aria-label={nameOf($guids.items, callerId)}
+						aria-label={nameOf(callerId)}
 					></button>
 				{:else}
 					<button aria-label="home">

@@ -1,24 +1,24 @@
 <script lang="ts">
-	import { guids, relatedEntities, hrefOf, imageOf, type GuidRow } from '#lib/stores/guids.ts';
+	import { hrefOf, imageOf, type GuidRow, relationsOf, typeOf, entityOf, nameOf } from '#lib/stores/guids.ts';
 	import { local } from '#lib/stores/local.ts';
 	import RouteLink from '../routeLink.svelte';
 	import ApiService from '../apiService.svelte';
 	import { canChallenge, ladderMembership, ladderStateColours } from './ladderRules.ts';
 
 	let { user, ladder }: { user: GuidRow; ladder: GuidRow } = $props();
-	const membership = $derived(ladderMembership($guids.items, ladder, user.rk));
+	const membership = $derived(ladderMembership(ladder, user.rk));
 	const userRelation: Record<string, unknown> = $derived(membership.userRelation ?? {});
 	const relation: Record<string, unknown> = $derived(membership.relation ?? userRelation);
 	const rank = $derived(Number(relation.rank));
-	const viewer = $derived(ladderMembership($guids.items, ladder, $local.caller_id));
+	const viewer = $derived(ladderMembership(ladder, $local.caller_id));
 	const isLadderAdmin = $derived(viewer.userRelation?.is_admin === true);
 	const eligible = $derived(canChallenge(ladder, viewer.relation, viewer.competitorId, {
 		rk: membership.competitorId ?? user.rk, rank, relation,
 	}));
 	const matches = $derived(
-		relatedEntities($guids.items, user.rk, 'match').filter(match =>
-			['pending', 'active'].includes(String(match.state)) &&
-			relatedEntities($guids.items, match.rk, 'ladder').some(parent => parent.rk === ladder.rk)),
+		relationsOf(user.rk).filter(row => typeOf(row.rk) === 'match' && entityOf(row.rk)).filter(match =>
+			['pending', 'active'].includes(String(entityOf(match.rk)?.state)) &&
+			relationsOf(match.rk).filter(row => typeOf(row.rk) === 'ladder' && entityOf(row.rk)).some(parent => parent.rk === ladder.rk)),
 	);
 	const stateText = $derived.by(() => {
 		const state = String(relation.state);
@@ -44,8 +44,8 @@
 	{#each matches as match (match.rk)}
 		<RouteLink
 			href={hrefOf(match.rk)}
-			title={match.name ?? 'no name'}
-			description={String(match.state) + ' match'}
+			title={nameOf(match.rk)}
+			description={String(entityOf(match.rk)?.state) + ' match'}
 			isWhite={false}
 		/>
 	{:else}

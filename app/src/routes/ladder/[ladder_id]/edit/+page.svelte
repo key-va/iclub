@@ -9,7 +9,7 @@
 	import HiddenOptions from '#lib/components/hiddenOptions.svelte';
 
 	const ladderId = $derived(page.params.ladder_id ?? '');
-	const ladder = $derived(entityOf($guids.items, ladderId));
+	const ladder = $derived(entityOf(ladderId));
 
 	let name = $state('');
 	let image = $state('');

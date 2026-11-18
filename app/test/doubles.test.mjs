@@ -1,17 +1,19 @@
+import { loadGraph } from './loadGraph.mjs';
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer } from 'vite';
 process.env.VITE_PREFIX = 'iclub-test';
-let server, summary, challenge, branding;
+let server, summary, challenge, branding, guids;
 before(async () => {
     server = await createServer({server:{middlewareMode:true,hmr:false,ws:false,watch:null},logLevel:'error',optimizeDeps:{noDiscovery:true}});
+    guids = (await server.ssrLoadModule('/src/lib/stores/guids.ts')).guids;
     branding = await server.ssrLoadModule('/src/lib/stores/branding.ts');
     summary = await server.ssrLoadModule('/src/lib/matchSummary.ts');
     challenge = await server.ssrLoadModule('/src/lib/components/ladders/ladderRules.ts');
 });
 after(async () => { await server?.close(); });
 
-test('doubles match summaries use pair outcomes rather than duplicated participant outcomes',()=>{
+test('doubles match summaries use pair outcomes rather than duplicated participant outcomes',async()=>{
     const items=[
         {pk:'pair',rk:'pair_one',name:'A and B'},{pk:'pair',rk:'pair_two',name:'C and D'},
         {pk:'user',rk:'user_a',name:'A'},{pk:'user',rk:'user_c',name:'C'},
@@ -20,16 +22,20 @@ test('doubles match summaries use pair outcomes rather than duplicated participa
         {pk:'match_test',rk:'user_a',role:'participant',result:'winner',score:'6,7'},
         {pk:'match_test',rk:'user_c',role:'participant',result:'loser',score:'2,5'}
     ];
-    assert.equal(summary.matchSummary(items,'match_test'),'A and B wins 6-2 7-5');
-    items[5].result='forfeiter';assert.equal(summary.matchSummary(items,'match_test'),'A and B wins by forfeit 6-2 7-5');
+    await loadGraph(guids, items);
+    assert.equal(summary.matchSummary('match_test'),'A and B wins 6-2 7-5');
+    items[5].result='forfeiter';await loadGraph(guids, items);assert.equal(summary.matchSummary('match_test'),'A and B wins by forfeit 6-2 7-5');
 });
 
-test('singles summaries and completed history filtering remain unchanged',()=>{
+test('singles summaries and completed history filtering remain unchanged',async()=>{
     const items=[{pk:'user',rk:'user_a',name:'A'},{pk:'user',rk:'user_b',name:'B'},
         {pk:'match_test',rk:'user_a',role:'challenger',result:'winner',score:6},
         {pk:'match_test',rk:'user_b',role:'defender',result:'loser',score:2}];
-    assert.equal(summary.matchSummary(items,'match_test'),'A wins 6-2');
-    assert.equal(summary.pastMatches([{state:'pending'},{state:'active'},{state:'complete'}]).length,1);
+    await loadGraph(guids, items);
+    assert.equal(summary.matchSummary('match_test'),'A wins 6-2');
+    const matches = [{pk:'match',rk:'match_pending',state:'pending'},{pk:'match',rk:'match_active',state:'active'},{pk:'match',rk:'match_done',state:'complete'}];
+    await loadGraph(guids, matches);
+    assert.deepEqual(summary.pastMatches(matches).map(row => row.rk), ['match_done']);
 });
 
 test('challenge controls work for pair and user competitors across rank, reach and state rules',()=>{

@@ -2,15 +2,15 @@
 	import EntityHeader from '#lib/components/EntityHeader.svelte';
 	import { page } from '$app/state';
 	import { local } from '#lib/stores/local.ts';
-	import { guids, entityOf, relatedEntities, hrefOf, imageOf } from '#lib/stores/guids.ts';
+	import { guids, entityOf, hrefOf, imageOf, relationsOf, nameOf, typeOf } from '#lib/stores/guids.ts';
 
     import RouteLink from '#lib/components/routeLink.svelte';
 
 	const { caller_id, device_id } = $local;
 
 	const entityId = $derived(page.params.entity_id ?? '');
-	const entity = $derived(entityOf($guids.items, entityId));
-	const related_entities = $derived(relatedEntities($guids.items, entityId));
+	const entity = $derived(entityOf(entityId));
+	const relatedRows = $derived(relationsOf(entityId));
 </script>
 
 <div class="page">
@@ -24,12 +24,12 @@
 	{/if}
 
 
-	{#if related_entities.length > 0}
-		{#each related_entities as related_entity}
+	{#if relatedRows.length > 0}
+		{#each relatedRows as related_entity}
 			<RouteLink
 				href={hrefOf(related_entity.rk)}
-				title={related_entity.name??'no name'}
-				description={related_entity.pk}
+				title={nameOf(related_entity.rk)}
+				description={typeOf(related_entity.rk)}
 				isWhite={related_entity.rk === caller_id}
 				image={imageOf(related_entity.rk)}
 			/>

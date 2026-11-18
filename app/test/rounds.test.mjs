@@ -1,20 +1,23 @@
+import { loadGraph } from './loadGraph.mjs';
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { createServer } from "vite";
 process.env.VITE_PREFIX = "iclub-test";
-let server, rounds;
+let server, rounds, guids, entityOf;
 before(async () => {
     server = await createServer({
         server: { middlewareMode: true, hmr: false, ws: false, watch: null },
         logLevel: "error",
         optimizeDeps: { noDiscovery: true },
     });
+    guids = (await server.ssrLoadModule("/src/lib/stores/guids.ts")).guids;
+    entityOf = (await server.ssrLoadModule("/src/lib/stores/guids.ts")).entityOf;
     rounds = await server.ssrLoadModule("/src/lib/rounds.ts");
 });
 after(async () => {
     await server?.close();
 });
-test("outstanding rounds include overdue pending and selected roles, grouped by team without completed rounds", () => {
+test("outstanding rounds include overdue pending and selected roles, grouped by team without completed rounds", async () => {
     const items = [];
     for (const [id, team, date, status, role] of [
         ["round_a", "team_one", "2026-11-17", "scheduled", "selected"],
@@ -34,10 +37,11 @@ test("outstanding rounds include overdue pending and selected roles, grouped by 
             { pk: "user_a", rk: id, role },
         );
     }
+    await loadGraph(guids, items);
     assert.deepEqual(
         rounds
-            .outstandingTeamRounds(items, "user_a", "team_one")
-            .map((r) => [r.rk, r.relation.role]),
+            .outstandingTeamRounds( "user_a", "team_one")
+            .map((r) => [r.rk, r.role]),
         [
             ["round_c", "pending"],
             ["round_h", "selected"],
@@ -45,15 +49,15 @@ test("outstanding rounds include overdue pending and selected roles, grouped by 
             ["round_g", "pending"],
         ],
     );
+    await loadGraph(guids, items);
     assert.deepEqual(
         rounds
-            .outstandingTeamRounds(items, "user_a", "team_two")
+            .outstandingTeamRounds( "user_a", "team_two")
             .map((r) => r.rk),
         [],
     );
     assert.deepEqual(
         rounds.outstandingTeamRounds(
-            items,
             "user_other",
             "team_one",
         ),
@@ -86,7 +90,7 @@ test("role colours and result summaries match the contract, including zero score
     assert.equal(rounds.isTeamMember({ is_member: false }), false);
 });
 
-test("prefixed external values render through derived views and app lifecycle states drive outstanding rounds", () => {
+test("prefixed external values render through derived views and app lifecycle states drive outstanding rounds", async () => {
     const items = [
         {
             pk: "round",
@@ -121,16 +125,17 @@ test("prefixed external values render through derived views and app lifecycle st
         { pk: "user_a", rk: "round_done", role: "selected" },
         { pk: "user_a", rk: "round_bye", role: "pending" },
     ];
+    await loadGraph(guids, items);
     const upcoming = rounds.outstandingTeamRounds(
-        items,
         "user_a",
         "team_a",
     );
     assert.equal(upcoming.length, 1);
-    assert.equal(upcoming[0].date, "2026-11-17");
-    assert.equal(upcoming[0].opponent, "Royals");
-    assert.equal(upcoming[0].state, "pending");
-    assert.equal(upcoming[0].relation.role, "pending");
+    const view = rounds.roundView(entityOf(upcoming[0].rk));
+    assert.equal(view.date, "2026-11-17");
+    assert.equal(view.opponent, "Royals");
+    assert.equal(view.state, "pending");
+    assert.equal(upcoming[0].role, "pending");
     assert.equal(rounds.officialResult(items[1], items[4]), "7–3 points");
     assert.equal(rounds.officialResult(items[2], items[5]), "bye");
     assert.equal(

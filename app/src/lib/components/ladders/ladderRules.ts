@@ -1,4 +1,4 @@
-import { relatedEntities, relationsOf, type GuidRow } from '#lib/stores/guids.ts';
+import { relationsOf, type GuidRow, typeOf, entityOf } from '#lib/stores/guids.ts';
 import { ladderSettingDefaults } from '#lib/strings.ts';
 
 type Relation = Record<string, unknown>;
@@ -41,17 +41,17 @@ export function canChallenge(
 }
 
 // User membership/admin flags stay separate from pair competitive standings.
-export function ladderMembership(items: GuidRow[], ladder: GuidRow, userId: string | null) {
-	const userRelation = relationsOf(items, ladder.rk).find(row => row.rk === userId);
+export function ladderMembership(ladder: GuidRow, userId: string | null) {
+	const userRelation = relationsOf(ladder.rk).find(row => row.rk === userId);
 	const pair = ladder.format === 'doubles' && userId
-		? relatedEntities(items, ladder.rk, 'pair').find(candidate =>
-			candidate.relation.is_participant === true &&
-			relatedEntities(items, candidate.rk, 'user').some(member => member.rk === userId))
+		? relationsOf(ladder.rk).filter(row => typeOf(row.rk) === 'pair' && entityOf(row.rk)).find(candidate =>
+			candidate.is_participant === true &&
+			relationsOf(candidate.rk).filter(row => typeOf(row.rk) === 'user' && entityOf(row.rk)).some(member => member.rk === userId))
 		: undefined;
 	return {
 		userRelation,
 		pair,
-		relation: ladder.format === 'doubles' ? pair?.relation : userRelation,
+		relation: ladder.format === 'doubles' ? pair : userRelation,
 		competitorId: ladder.format === 'doubles' ? pair?.rk ?? null : userId,
 	};
 }
@@ -60,8 +60,8 @@ export const ladderStateColours: Record<string, string> = {
 	away: 'red', busy: 'gold', cooling: 'blue', active: 'green',
 };
 
-export function challengeDescription(target: Pick<ChallengeTarget, 'rk' | 'relation'>, competitorId: string | null, eligible: boolean) {
-	const state = String(target.relation.state);
+export function challengeDescription(target: GuidRow, competitorId: string | null, eligible: boolean) {
+	const state = String(target.state);
 	if (target.rk === competitorId) return state === 'active' ? 'available' : state;
 	if (state === 'away') return 'away';
 	if (state === 'busy') return 'in a match';

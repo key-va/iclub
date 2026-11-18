@@ -2,33 +2,27 @@
 	import { page } from '$app/state';
 	import { roundView, isTeamAdmin, availabilityOptions } from '#lib/rounds.ts';
 	import { local } from '#lib/stores/local.ts';
-	import {
-		guids,
-		entityOf,
-		relatedEntities,
-		hrefOf,
-		imageOf,
-	} from '#lib/stores/guids.ts';
+	import { guids, entityOf, hrefOf, imageOf, relationsOf, typeOf, nameOf } from '#lib/stores/guids.ts';
 	import ApiService from '#lib/components/apiService.svelte';
 	import RouteLink from '#lib/components/routeLink.svelte';
 	import HiddenOptions from '#lib/components/hiddenOptions.svelte';
 	import RoundRoleDot from '#lib/components/roundRoleDot.svelte';
 	import EntityHeader from '#lib/components/EntityHeader.svelte';
 	const id = $derived(page.params.round_id ?? '');
-	const roundEntity = $derived(entityOf($guids.items, id));
-	const team = $derived(relatedEntities($guids.items, id, 'team')[0]);
+	const roundEntity = $derived(entityOf(id));
+	const team = $derived(relationsOf(id).filter(row => typeOf(row.rk) === 'team' && entityOf(row.rk))[0]);
 	const round = $derived(
-		roundEntity ? roundView(roundEntity, team?.relation) : undefined,
+		roundEntity ? roundView(roundEntity, team) : undefined,
 	);
 	const complete = $derived(round?.state === 'complete');
-	const fixtureName = $derived(`${round?.opponent} vs ${team?.name}`);
+	const fixtureName = $derived(`${round?.opponent} vs ${nameOf(team?.rk ?? '')}`);
 	const result = $derived.by(() => {
 		if (!round || !team) return { name: '', outcome: '', scores: '' };
 		if (round.result === 'bye' || round.result === 'washout')
-			return { name: team.name, outcome: round.result, scores: '' };
+			return { name: nameOf(team.rk), outcome: round.result, scores: '' };
 		const opponentWon = round.result === 'loser';
 		return {
-			name: opponentWon ? String(round.opponent) : team.name,
+			name: opponentWon ? String(round.opponent) : nameOf(team.rk),
 			outcome:
 				round.result === 'draw'
 					? 'draws'
@@ -48,22 +42,22 @@
 				.join(' · '),
 		};
 	});
-	const players = $derived(relatedEntities($guids.items, id, 'user'));
+	const players = $derived(relationsOf(id).filter(row => typeOf(row.rk) === 'user' && entityOf(row.rk)));
 	const mine = $derived(players.find((p) => p.rk === $local.caller_id));
-	const myAvailabilityOptions = $derived(availabilityOptions(mine?.relation.role));
+	const myAvailabilityOptions = $derived(availabilityOptions(mine?.role));
 	const admin = $derived(
 		!!team &&
-			relatedEntities($guids.items, team.rk, 'user').some(
-				(u) => u.rk === $local.caller_id && isTeamAdmin(u.relation),
+			relationsOf(team.rk).filter(row => typeOf(row.rk) === 'user' && entityOf(row.rk)).some(
+				(u) => u.rk === $local.caller_id && isTeamAdmin(u),
 			),
 	);
 	const messages = $derived(
-		relatedEntities($guids.items, id, 'message')
+		relationsOf(id).filter(row => typeOf(row.rk) === 'message' && entityOf(row.rk))
 			.sort((a, b) => a.rk.localeCompare(b.rk))
 			.map((message) => ({
 				...message,
-				sender: relatedEntities($guids.items, message.rk).find(
-					(e) => e.relation.role === 'sender',
+				sender: relationsOf(message.rk).find(
+					(e) => e.role === 'sender',
 				),
 			})),
 	);
@@ -116,39 +110,39 @@
 		<div class="group">
 			<RouteLink
 				href={hrefOf(team.rk)}
-				title={team.name}
+				title={nameOf(team.rk)}
 				image={imageOf(team.rk)}
 			/>
 			{#each players as player (player.rk)}
 				{#snippet selectionAction()}
 					<ApiService
 						inline
-						name={player.relation.role === 'selected' ? 'available' : 'select'}
-						message={player.relation.role === 'selected' ? `Mark ${player.name} available?` : `Select ${player.name}?`}
+						name={player.role === 'selected' ? 'available' : 'select'}
+						message={player.role === 'selected' ? `Mark ${nameOf(player.rk)} available?` : `Select ${nameOf(player.rk)}?`}
 						endpoint="round/role"
 						data={{
 							round_id: id,
 							user_id: player.rk,
 							role:
-								player.relation.role === 'selected' ? 'available' : 'selected',
+								player.role === 'selected' ? 'available' : 'selected',
 						}}
 						confirm={false}
 					/>
 				{/snippet}
 				<RouteLink
 					href={hrefOf(player.rk)}
-					title={player.name}
-					description={String(player.relation.role)}
+					title={nameOf(player.rk)}
+					description={String(player.role)}
 					image={imageOf(player.rk)}
 					children={!complete &&
 					admin &&
-					(player.relation.role === 'available' ||
-						player.relation.role === 'selected')
+					(player.role === 'available' ||
+						player.role === 'selected')
 						? selectionAction
 						: undefined}
 				>
 					{#snippet detail()}<RoundRoleDot
-							role={player.relation.role}
+							role={player.role}
 						/>{/snippet}
 				</RouteLink>
 			{/each}
@@ -158,10 +152,10 @@
 			<HiddenOptions title="Messages" badge={messages.length} />
 			{#each messages as message}<RouteLink
 					href={hrefOf(message.sender?.rk ?? '')}
-					title={message.sender?.name ?? 'Someone'}
+					title={message.sender ? nameOf(message.sender.rk) : 'Someone'}
 					image={imageOf(message.sender?.rk ?? '')}
 				/>
-				<div class="row right message"><p>{message.name}</p></div>{/each}
+				<div class="row right message"><p>{nameOf(message.rk)}</p></div>{/each}
 			{#if $local.caller_id}<ApiService
 					name="send"
 					arrow

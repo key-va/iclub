@@ -3,16 +3,16 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { onMount } from 'svelte';
-	import { guids, entityOf, relatedEntities, imageOf } from '#lib/stores/guids.ts';
+	import { guids, entityOf, imageOf, relationsOf, typeOf } from '#lib/stores/guids.ts';
 	import { local } from '#lib/stores/local.ts';
 	import ApiService from '#lib/components/apiService.svelte';
 
 	const groupId = $derived(page.params.group_id ?? '');
-	const group = $derived(entityOf($guids.items, groupId));
+	const group = $derived(entityOf(groupId));
 
 	const admin = $derived(
-		relatedEntities($guids.items, groupId, 'user').some(
-			(user) => user.rk === $local.caller_id && user.relation.is_admin === true,
+		relationsOf(groupId).filter(row => typeOf(row.rk) === 'user' && entityOf(row.rk)).some(
+			(user) => user.rk === $local.caller_id && user.is_admin === true,
 		),
 	);
 

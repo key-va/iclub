@@ -1,9 +1,9 @@
 <script lang="ts">
 	import EntityHeader from '#lib/components/EntityHeader.svelte';
 	import { page } from '$app/state';
-	import { guids, entityOf } from '#lib/stores/guids.ts';
+	import { entityOf } from '#lib/stores/guids.ts';
 
-	const bot = $derived(entityOf($guids.items, page.params.bot_id ?? ''));
+	const bot = $derived(entityOf(page.params.bot_id ?? ''));
 </script>
 
 <div class="page">

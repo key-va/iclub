@@ -1,45 +1,39 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { local } from '#lib/stores/local.ts';
-	import {
-		guids,
-		entityOf,
-		relatedEntities,
-		hrefOf,
-		imageOf,
-	} from '#lib/stores/guids.ts';
+	import { guids, entityOf, hrefOf, imageOf, relationsOf, typeOf, nameOf } from '#lib/stores/guids.ts';
 	import ApiService from '#lib/components/apiService.svelte';
 	import RouteLink from '#lib/components/routeLink.svelte';
 	import HiddenOptions from '#lib/components/hiddenOptions.svelte';
 	import EntityHeader from '#lib/components/EntityHeader.svelte';
 	const id = $derived(page.params.group_id ?? '');
-	const group = $derived(entityOf($guids.items, id));
-	const users = $derived(relatedEntities($guids.items, id, 'user'));
+	const group = $derived(entityOf(id));
+	const users = $derived(relationsOf(id).filter(row => typeOf(row.rk) === 'user' && entityOf(row.rk)));
 	const mine = $derived(
-		users.find((user) => user.rk === $local.caller_id)?.relation,
+		users.find((user) => user.rk === $local.caller_id),
 	);
 	const admin = $derived(mine?.is_admin === true);
-	const club = $derived(relatedEntities($guids.items, id, 'club')[0]);
+	const club = $derived(relationsOf(id).filter(row => typeOf(row.rk) === 'club' && entityOf(row.rk))[0]);
 	const clubAdmin = $derived(
 		!!club &&
-			relatedEntities($guids.items, club.rk, 'user').some(
+			relationsOf(club.rk).filter(row => typeOf(row.rk) === 'user' && entityOf(row.rk)).some(
 				(user) =>
-					user.rk === $local.caller_id && user.relation.is_admin === true,
+					user.rk === $local.caller_id && user.is_admin === true,
 			),
 	);
 	const participants = $derived(
-		users.filter((user) => user.relation.is_participant === true),
+		users.filter((user) => user.is_participant === true),
 	);
 	const pending = $derived(
-		users.filter((user) => user.relation.state === 'pending'),
+		users.filter((user) => user.state === 'pending'),
 	);
 	const messages = $derived(
-		relatedEntities($guids.items, id, 'message')
+		relationsOf(id).filter(row => typeOf(row.rk) === 'message' && entityOf(row.rk))
 			.sort((a, b) => a.rk.localeCompare(b.rk))
 			.map((message) => ({
 				...message,
-				sender: relatedEntities($guids.items, message.rk).find(
-					(entity) => entity.relation.role === 'sender',
+				sender: relationsOf(message.rk).find(
+					(entity) => entity.role === 'sender',
 				),
 			})),
 	);
@@ -73,14 +67,14 @@
 					{#each pending as user (user.rk)}
 						<RouteLink
 							href={hrefOf(user.rk)}
-							title={user.name}
+							title={nameOf(user.rk)}
 							description="waiting to join"
 							image={imageOf(user.rk)}
 						>
 							<ApiService
 								inline
 								name="accept"
-								message={`Accept ${user.name} into the group?`}
+								message={`Accept ${nameOf(user.rk)} into the group?`}
 								endpoint={`group/${id}/accept`}
 								data={{ user_id: user.rk }}
 								confirm={false}
@@ -104,8 +98,8 @@
 				{#each participants as user (user.rk)}
 					<RouteLink
 						href={hrefOf(user.rk)}
-						title={user.name}
-						description={user.relation.is_admin === true
+						title={nameOf(user.rk)}
+						description={user.is_admin === true
 							? 'admin'
 							: 'participant'}
 						image={imageOf(user.rk)}
@@ -118,10 +112,10 @@
 			<HiddenOptions title="Messages" badge={messages.length} />
 			{#each messages as message}<RouteLink
 					href={hrefOf(message.sender?.rk ?? '')}
-					title={message.sender?.name ?? 'Someone'}
+					title={message.sender ? nameOf(message.sender.rk) : 'Someone'}
 					image={imageOf(message.sender?.rk ?? '')}
 				/>
-				<div class="row right message"><p>{message.name}</p></div>{/each}
+				<div class="row right message"><p>{nameOf(message.rk)}</p></div>{/each}
 			{#if $local.caller_id}<ApiService
 					name="send"
 					arrow

@@ -1,10 +1,10 @@
 <script lang="ts">
-	import { isTeamAdmin, isTeamMember, outstandingTeamRounds } from '#lib/rounds.ts';
+	import { isTeamAdmin, isTeamMember, outstandingTeamRounds, roundView } from '#lib/rounds.ts';
 	import RoundRoleDot from '#lib/components/roundRoleDot.svelte';
 	import EntityHeader from '#lib/components/EntityHeader.svelte';
 	import { page } from '$app/state';
 	import { local } from '#lib/stores/local.ts';
-	import { guids, entityOf, relatedEntities, hrefOf, imageOf } from '#lib/stores/guids.ts';
+	import { guids, entityOf, hrefOf, imageOf, relationsOf, typeOf, nameOf } from '#lib/stores/guids.ts';
 
 	import RouteLink from '#lib/components/routeLink.svelte';
 	import HiddenOptions from '#lib/components/hiddenOptions.svelte';
@@ -15,26 +15,25 @@
 	const caller_id = $derived($local.caller_id);
 
 	const user_id = $derived(page.params.user_id ?? '');
-	const user_entity = $derived(entityOf($guids.items, user_id));
-	const adminClubs = $derived(
-		relatedEntities($guids.items, user_id, 'club').filter((club) => club.relation.is_admin === true)
-	);
+	const user_entity = $derived(entityOf(user_id));
+	const relatedRows = $derived(relationsOf(user_id));
+	const adminClubs = $derived(relatedRows.filter(row => typeOf(row.rk) === 'club' && row.is_admin === true));
 	const pendingApprovalLadders = $derived(
 		adminClubs.flatMap((club) =>
-			relatedEntities($guids.items, club.rk, 'ladder').filter((ladder) => ladder.state === 'pending')
+			relationsOf(club.rk).filter(row => typeOf(row.rk) === 'ladder' && entityOf(row.rk)).filter((ladder) => entityOf(ladder.rk)?.state === 'pending')
 		)
 	);
 
-    const groups = $derived(relatedEntities($guids.items, user_id, 'group'));
-    const pendingGroups = $derived(adminClubs.flatMap(club => relatedEntities($guids.items, club.rk, 'group').filter(group => group.state === 'pending')));
-    const teams = $derived(relatedEntities($guids.items, user_id, 'team'));
-    const pendingTeams = $derived(adminClubs.flatMap(club => relatedEntities($guids.items, club.rk, 'team').filter(team => team.state === 'pending')));
+    const groups = $derived(relatedRows.filter(row => typeOf(row.rk) === 'group' && entityOf(row.rk)));
+    const pendingGroups = $derived(adminClubs.flatMap(club => relationsOf(club.rk).filter(row => typeOf(row.rk) === 'group' && entityOf(row.rk)).filter(group => entityOf(group.rk)?.state === 'pending')));
+    const teams = $derived(relatedRows.filter(row => typeOf(row.rk) === 'team' && entityOf(row.rk)));
+    const pendingTeams = $derived(adminClubs.flatMap(club => relationsOf(club.rk).filter(row => typeOf(row.rk) === 'team' && entityOf(row.rk)).filter(team => entityOf(team.rk)?.state === 'pending')));
 
-	const ladders = $derived(relatedEntities($guids.items, user_id, 'ladder'));
+	const ladders = $derived(relatedRows.filter(row => typeOf(row.rk) === 'ladder' && entityOf(row.rk)));
 
 	// Finished matches this user played, newest first (IDs embed their creation time)
 	const history = $derived(
-		pastMatches(relatedEntities($guids.items, user_id, 'match')).sort((a, b) => b.rk.localeCompare(a.rk))
+		pastMatches(relatedRows.filter(row => typeOf(row.rk) === 'match' && entityOf(row.rk))).sort((a, b) => b.rk.localeCompare(a.rk))
 	);
 
 </script>
@@ -48,7 +47,7 @@
 				{#each pendingApprovalLadders as ladder (ladder.rk)}
 					<RouteLink
 						href={hrefOf(ladder.rk)}
-						title={ladder.name ?? 'no name'}
+						title={nameOf(ladder.rk)}
 						description="pending club approval"
 						isWhite={false}
 						image={imageOf(ladder.rk)}
@@ -58,12 +57,12 @@
 		{/if}
 
         {#if user_id === $local.caller_id}
-            {#each pendingTeams as team}<RouteLink href={hrefOf(team.rk)} title={team.name} description="pending club approval" image={imageOf(team.rk)} />{/each}
-            {#each pendingGroups as group (group.rk)}<RouteLink href={hrefOf(group.rk)} title={group.name} description="pending club approval" image={imageOf(group.rk)} isWhite={true} />{/each}
+            {#each pendingTeams as team}<RouteLink href={hrefOf(team.rk)} title={nameOf(team.rk)} description="pending club approval" image={imageOf(team.rk)} />{/each}
+            {#each pendingGroups as group (group.rk)}<RouteLink href={hrefOf(group.rk)} title={nameOf(group.rk)} description="pending club approval" image={imageOf(group.rk)} isWhite={true} />{/each}
         {/if}
 
 		{#each ladders as ladder (ladder.rk)}
-			<UserLadder user={user_entity} {ladder} />
+			<UserLadder user={user_entity} ladder={entityOf(ladder.rk)!} />
 		{:else}
 		{#if user_id === caller_id && ladders.length === 0 && teams.length === 0 && groups.length === 0}
 			<div class="group">
@@ -78,14 +77,14 @@
 
 		{#each teams as team (team.rk)}
             <div class="group">
-				<RouteLink href={hrefOf(team.rk)} title={team.name} description={team.state === 'pending' ? 'pending club approval' : isTeamMember(team.relation) ? String(team.ext_section_name).toLowerCase() + ' rank ' + team.ext_rank : 'pending'} image={imageOf(team.rk)} />
-                {#if team.state === 'active' && team.relation.state === 'pending' && relatedEntities($guids.items, team.rk, 'user').some(user => user.rk === caller_id && isTeamAdmin(user.relation))}
+				<RouteLink href={hrefOf(team.rk)} title={nameOf(team.rk)} description={entityOf(team.rk)?.state === 'pending' ? 'pending club approval' : isTeamMember(team) ? String(entityOf(team.rk)?.ext_section_name).toLowerCase() + ' rank ' + entityOf(team.rk)?.ext_rank : 'pending'} image={imageOf(team.rk)} />
+                {#if entityOf(team.rk)?.state === 'active' && team.state === 'pending' && relationsOf(team.rk).filter(row => typeOf(row.rk) === 'user' && entityOf(row.rk)).some(user => user.rk === caller_id && isTeamAdmin(user))}
                     <ApiService name="accept" message={`accept ${user_entity.name ?? 'this player'} into this team?`} endpoint="team/accept" data={{ team_id: team.rk, user_id }} />
                 {/if}
-                {#if isTeamMember(team.relation)}
-                    {#each outstandingTeamRounds($guids.items,user_id,team.rk) as round (round.rk)}
-                        <RouteLink href={hrefOf(round.rk)} title={round.name} description={`${round.relation.role}`}>
-                            {#snippet detail()}<RoundRoleDot role={round.relation.role} />{round.date}{/snippet}
+                {#if isTeamMember(team)}
+                    {#each outstandingTeamRounds(user_id, team.rk) as round (round.rk)}
+                        <RouteLink href={hrefOf(round.rk)} title={nameOf(round.rk)} description={`${round.role}`}>
+                            {#snippet detail()}<RoundRoleDot role={round.role} />{roundView(entityOf(round.rk)!).date}{/snippet}
                         </RouteLink>
                     {:else}<HiddenOptions title="No pending or selected rounds" />{/each}
                 {/if}
@@ -93,9 +92,9 @@
         {/each}
 		
         {#each groups as group (group.rk)}
-            {#if group.relation.is_participant === true || group.relation.state === 'pending'}
-                    <RouteLink href={hrefOf(group.rk)} title={group.name} description={group.state === 'pending' ? 'pending club approval' : group.relation.is_participant === true ? 'group' : 'pending'} image={imageOf(group.rk)} />
-                    {#if group.state === 'active' && group.relation.state === 'pending' && relatedEntities($guids.items, group.rk, 'user').some(user => user.rk === caller_id && user.relation.is_admin === true)}
+            {#if group.is_participant === true || group.state === 'pending'}
+                    <RouteLink href={hrefOf(group.rk)} title={nameOf(group.rk)} description={entityOf(group.rk)?.state === 'pending' ? 'pending club approval' : group.is_participant === true ? 'group' : 'pending'} image={imageOf(group.rk)} />
+                    {#if entityOf(group.rk)?.state === 'active' && group.state === 'pending' && relationsOf(group.rk).filter(row => typeOf(row.rk) === 'user' && entityOf(row.rk)).some(user => user.rk === caller_id && user.is_admin === true)}
                         <ApiService name="accept" message={`Accept ${user_entity.name ?? 'this player'} into this group?`} endpoint={`group/${group.rk}/accept`} data={{user_id}} />
                     {/if}
             {/if}
@@ -103,7 +102,7 @@
 
 		<HiddenOptions title="Match History">
 		{#each history as match (match.rk)}
-			<RouteLink href={hrefOf(match.rk)} title={match.name ?? 'no name'} description={matchSummary($guids.items, match.rk)} />
+			<RouteLink href={hrefOf(match.rk)} title={nameOf(match.rk)} description={matchSummary(match.rk)} />
 		{/each}
 		</HiddenOptions>
 	

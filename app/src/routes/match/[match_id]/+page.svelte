@@ -3,7 +3,7 @@
 	import { page } from '$app/state';
 	import { local } from '#lib/stores/local.ts';
 	import { ladderSettings } from '#lib/strings.ts';
-	import { guids, entityOf, relatedEntities, relationsOf, hrefOf, imageOf, nameOf } from '#lib/stores/guids.ts';
+	import { guids, entityOf, relationsOf, hrefOf, imageOf, nameOf, typeOf } from '#lib/stores/guids.ts';
 
 	import ApiService from '#lib/components/apiService.svelte';
 	import VersusLink from '#lib/components/versusLink.svelte';
@@ -13,18 +13,19 @@
 	const { caller_id } = $local;
 
 	const matchId = $derived(page.params.match_id ?? '');
-	const match = $derived(entityOf($guids.items, matchId));
-	const ladder = $derived(relatedEntities($guids.items, matchId, 'ladder')[0]);
-	const players = $derived(relatedEntities($guids.items, matchId, ladder?.format === 'doubles' ? 'pair' : 'user'));
-	const matchUsers = $derived(relatedEntities($guids.items, matchId, 'user'));
-	const challenger = $derived(players.find((player) => player.relation.role === 'challenger'));
-	const defender = $derived(players.find((player) => player.relation.role === 'defender'));
+	const match = $derived(entityOf(matchId));
+	const ladderRow = $derived(relationsOf(matchId).find(row => typeOf(row.rk) === 'ladder'));
+	const ladder = $derived(ladderRow ? entityOf(ladderRow.rk) : undefined);
+	const players = $derived(relationsOf(matchId).filter(row => typeOf(row.rk) === (ladder?.format === 'doubles' ? 'pair' : 'user')));
+	const matchUsers = $derived(relationsOf(matchId).filter(row => typeOf(row.rk) === 'user' && entityOf(row.rk)));
+	const challenger = $derived(players.find((player) => player.role === 'challenger'));
+	const defender = $derived(players.find((player) => player.role === 'defender'));
 
 	const isLadderAdmin = $derived(
-		!!ladder && relationsOf($guids.items, ladder.rk).some((relation) => relation.rk === caller_id && relation.is_admin === true)
+		!!ladder && relationsOf(ladder.rk).some((relation) => relation.rk === caller_id && relation.is_admin === true)
 	);
-	const isPlayer = $derived(matchUsers.some(user => user.rk === caller_id && ['challenger', 'defender', 'participant'].includes(String(user.relation.role))));
-	const isDefender = $derived(caller_id === defender?.rk || !!defender && relatedEntities($guids.items, defender.rk, 'user').some(user => user.rk === caller_id));
+	const isPlayer = $derived(matchUsers.some(user => user.rk === caller_id && ['challenger', 'defender', 'participant'].includes(String(user.role))));
+	const isDefender = $derived(caller_id === defender?.rk || !!defender && relationsOf(defender.rk).filter(row => typeOf(row.rk) === 'user' && entityOf(row.rk)).some(user => user.rk === caller_id));
 
 	// One row of inputs per set, labelled by match format
 	const setLabels: Record<string, string[]> = {
@@ -43,22 +44,22 @@
 	});
 	const isComplete = $derived(match?.state === 'complete');
 	// Recorded scores are a single number or comma-separated games per set, eg "6,4"
-	const recordedGames = (player?: { relation: Record<string, unknown> }) =>
-		player?.relation.score === undefined || player.relation.score === '' ? [] : String(player.relation.score).split(',');
+	const recordedGames = (player?: Record<string, unknown>) =>
+		player?.score === undefined || player.score === '' ? [] : String(player.score).split(',');
 	const recordedChallenger = $derived(recordedGames(challenger));
 	const recordedDefender = $derived(recordedGames(defender));
-	const roleText = (player: { relation: Record<string, unknown> }, fallback: string) =>
-		isComplete ? String(player.relation.result ?? fallback) : fallback;
+	const roleText = (player: Record<string, unknown>, fallback: string) =>
+		isComplete ? String(player.result ?? fallback) : fallback;
 	const completeSummary = $derived.by(() => {
-		const winner = [challenger, defender].find((player) => player?.relation.result === 'winner');
+		const winner = [challenger, defender].find((player) => player?.result === 'winner');
 		const loser = winner === challenger ? defender : challenger;
 		if (!winner) return '';
 		const mine = winner === challenger ? recordedChallenger : recordedDefender;
 		const theirs = winner === challenger ? recordedDefender : recordedChallenger;
 		const sets = mine.map((games, i) => `${games}-${theirs[i] ?? 0}`).join(' ');
-		return loser?.relation.result === 'forfeiter'
-			? `${winner.name} wins by forfeit${sets ? ` ${sets}` : ''}`
-			: `${winner.name} wins${sets ? ` ${sets}` : ''}`;
+		return loser?.result === 'forfeiter'
+			? `${nameOf(winner.rk)} wins by forfeit${sets ? ` ${sets}` : ''}`
+			: `${nameOf(winner.rk)} wins${sets ? ` ${sets}` : ''}`;
 	});
 	let challengerScores = $state<string[]>(['', '', '']);
 	let defenderScores = $state<string[]>(['', '', '']);
@@ -85,21 +86,21 @@
 		const won = (mine: number[], theirs: number[]) => mine.filter((games, i) => games > theirs[i]).length;
 		const challengerWon = won(challengerSets, defenderSets);
 		const defenderWon = won(defenderSets, challengerSets);
-		if (challengerWon === defenderWon) return `${challenger?.name} ${challengerSets.join(' ')} - ${defenderSets.join(' ')} ${defender?.name}`;
+		if (challengerWon === defenderWon) return `${nameOf(challenger?.rk ?? '')} ${challengerSets.join(' ')} - ${defenderSets.join(' ')} ${nameOf(defender?.rk ?? '')}`;
 		const [winner, mine, theirs] =
 			challengerWon > defenderWon ? [challenger, challengerSets, defenderSets] : [defender, defenderSets, challengerSets];
-		return `${winner?.name} wins ${mine.map((games, i) => `${games}-${theirs[i]}`).join('  ')}`;
+		return `${nameOf(winner?.rk ?? '')} wins ${mine.map((games, i) => `${games}-${theirs[i]}`).join('  ')}`;
 	});
 	const canAccept = $derived(match?.state === 'pending' && (isDefender || isLadderAdmin));
 
 	// Message ids start with a timestamp, so sorting them gives oldest first
 	const messages = $derived(
-		relatedEntities($guids.items, matchId, 'message')
+		relationsOf(matchId).filter(row => typeOf(row.rk) === 'message' && entityOf(row.rk))
 			.sort((a, b) => a.rk.localeCompare(b.rk))
 			.map((message) => ({
 				...message,
 				// the sender is a user, or the bot for automated messages
-				sender: relatedEntities($guids.items, message.rk).find((related) => related.relation.role === 'sender')
+				sender: relationsOf(message.rk).find((related) => related.role === 'sender')
 			}))
 	);
 	let messageText = $state('');
@@ -122,8 +123,8 @@
 		{#if challenger && defender}
 			<div class="group">
 				<VersusLink
-					left={{ href: hrefOf(challenger.rk), title: challenger.name ?? 'no name', description: roleText(challenger, 'challenger'), image: imageOf(ladder?.format === 'doubles' ? ladder.rk : challenger.rk) }}
-					right={{ href: hrefOf(defender.rk), title: defender.name ?? 'no name', description: roleText(defender, 'defender'), image: imageOf(ladder?.format === 'doubles' ? ladder.rk : defender.rk) }}
+					left={{ href: hrefOf(challenger.rk), title: nameOf(challenger.rk), description: roleText(challenger, 'challenger'), image: imageOf(ladder?.format === 'doubles' ? ladder.rk : challenger.rk) }}
+					right={{ href: hrefOf(defender.rk), title: nameOf(defender.rk), description: roleText(defender, 'defender'), image: imageOf(ladder?.format === 'doubles' ? ladder.rk : defender.rk) }}
 				/>
 				{#if isComplete && completeSummary}
 					<div class="row center">
@@ -133,9 +134,9 @@
 				{#if match.state === 'active'}
 					{#each labels as label, i (label)}
 						<div class="row scores">
-							<input type="text" inputmode="numeric" maxlength="1" pattern={`[0-${maxGames}]`} title={`from 0 to ${maxGames}`} placeholder="0" aria-label="{challenger.name} {label}" aria-invalid={challengerScores[i].trim() !== '' && !isGames(challengerScores[i])} bind:value={challengerScores[i]} />
+							<input type="text" inputmode="numeric" maxlength="1" pattern={`[0-${maxGames}]`} title={`from 0 to ${maxGames}`} placeholder="0" aria-label="{nameOf(challenger.rk)} {label}" aria-invalid={challengerScores[i].trim() !== '' && !isGames(challengerScores[i])} bind:value={challengerScores[i]} />
 							<span class="set-label">{label}</span>
-							<input type="text" inputmode="numeric" maxlength="1" pattern={`[0-${maxGames}]`} title={`from 0 to ${maxGames}`} placeholder="0" aria-label="{defender.name} {label}" aria-invalid={defenderScores[i].trim() !== '' && !isGames(defenderScores[i])} bind:value={defenderScores[i]} />
+							<input type="text" inputmode="numeric" maxlength="1" pattern={`[0-${maxGames}]`} title={`from 0 to ${maxGames}`} placeholder="0" aria-label="{nameOf(defender.rk)} {label}" aria-invalid={defenderScores[i].trim() !== '' && !isGames(defenderScores[i])} bind:value={defenderScores[i]} />
 						</div>
 					{/each}
 					{#if hasInvalidScores}
@@ -152,13 +153,13 @@
 				{/if}
 				{#if match.state === 'pending'}
 					<div class="row center">
-						<p class="info">waiting for <strong>{defender.name}</strong> to accept</p>
+						<p class="info">waiting for <strong>{nameOf(defender.rk)}</strong> to accept</p>
 					</div>
 				{/if}
 				{#if match.state === 'pending' && canAccept}
 					<ApiService
 						name="accept"
-						message={`accept the challenge from ${challenger?.name ?? 'your opponent'}?`}
+						message={`accept the challenge from ${nameOf(challenger?.rk ?? '')}?`}
 						endpoint={`match/${matchId}/accept`}
 						disabled={!canAccept}
 					/>
@@ -187,9 +188,9 @@
 			<HiddenOptions title="Messages" description="" badge={messages.length} />
 			{#if messages.length}
 				{#each messages as message (message.rk)}
-					<RouteLink href={hrefOf(message.sender?.rk ?? '')} title={message.sender?.name ?? 'someone'} description={sentAt(message.rk)} image={imageOf(message.sender?.rk ?? '')}>
+					<RouteLink href={hrefOf(message.sender?.rk ?? '')} title={message.sender ? nameOf(message.sender.rk) : 'someone'} description={sentAt(message.rk)} image={imageOf(message.sender?.rk ?? '')}>
 					</RouteLink>
-					<div class="message right"><p>{message.name}</p></div>
+					<div class="message right"><p>{nameOf(message.rk)}</p></div>
 				{/each}
 			{/if}
 
@@ -210,7 +211,7 @@
 			
 		</div>
 
-		<RouteLink href={hrefOf(ladder?.rk)} title={ladder?.name ?? 'someone'} description="ladder" image={imageOf(ladder?.rk)}>
+		<RouteLink href={hrefOf(ladder?.rk ?? '')} title={ladder?.name ?? 'someone'} description="ladder" image={imageOf(ladder?.rk ?? '')}>
 		</RouteLink>
 
 		<HiddenOptions inline title="More Options" description="match is {String(match.state)}">

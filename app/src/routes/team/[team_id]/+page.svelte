@@ -1,15 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { local } from '#lib/stores/local.ts';
-	import {
-		guids,
-		entityOf,
-		relatedEntities,
-		relationsOf,
-		hrefOf,
-		imageOf,
-		type GuidRow,
-	} from '#lib/stores/guids.ts';
+	import { guids, entityOf, relationsOf, hrefOf, imageOf, type GuidRow, typeOf, nameOf } from '#lib/stores/guids.ts';
 	import {
 		isTeamMember,
 		isTeamAdmin,
@@ -26,31 +18,31 @@
 	import RoundRoleDot from '#lib/components/roundRoleDot.svelte';
 	import EntityHeader from '#lib/components/EntityHeader.svelte';
 	const id = $derived(page.params.team_id ?? '');
-	const teamEntity = $derived(entityOf($guids.items, id));
+	const teamEntity = $derived(entityOf(id));
 	const team = $derived(teamEntity ? teamView(teamEntity) : undefined);
-	const users = $derived(relatedEntities($guids.items, id, 'user'));
-	const mine = $derived(users.find((u) => u.rk === $local.caller_id)?.relation);
+	const users = $derived(relationsOf(id).filter(row => typeOf(row.rk) === 'user' && entityOf(row.rk)));
+	const mine = $derived(users.find((u) => u.rk === $local.caller_id));
 	const myRoundRelations = $derived(
 		new Map(
-			($local.caller_id ? relationsOf($guids.items, $local.caller_id) : [])
+			($local.caller_id ? relationsOf($local.caller_id) : [])
 				.map((relation) => [relation.rk, relation]),
 		),
 	);
 	const admin = $derived(isTeamAdmin(mine));
-	const club = $derived(relatedEntities($guids.items, id, 'club')[0]);
+	const club = $derived(relationsOf(id).filter(row => typeOf(row.rk) === 'club' && entityOf(row.rk))[0]);
 	const clubAdmin = $derived(
 		!!club &&
-			relatedEntities($guids.items, club.rk, 'user').some(
-				(u) => u.rk === $local.caller_id && u.relation.is_admin === true,
+			relationsOf(club.rk).filter(row => typeOf(row.rk) === 'user' && entityOf(row.rk)).some(
+				(u) => u.rk === $local.caller_id && u.is_admin === true,
 			),
 	);
 	const rounds = $derived(
-		relatedEntities($guids.items, id, 'round')
-			.map((round) => roundView(round, round.relation))
+		relationsOf(id).filter(row => typeOf(row.rk) === 'round' && entityOf(row.rk))
+			.map((round) => roundView(entityOf(round.rk)!, round))
 			.sort((a, b) => Number(a.number) - Number(b.number)),
 	);
-	const members = $derived(users.filter((u) => isTeamMember(u.relation)));
-	const pending = $derived(users.filter((u) => u.relation.state === 'pending'));
+	const members = $derived(users.filter((u) => isTeamMember(u)));
+	const pending = $derived(users.filter((u) => u.state === 'pending'));
 	const standings = $derived(jsonArray(team?.standings));
 	const calendar = $derived(jsonArray(team?.calendar));
 	function roundSummary(round: GuidRow) {
@@ -105,14 +97,14 @@
 					{#each pending as user (user.rk)}
 						<RouteLink
 							href={hrefOf(user.rk)}
-							title={user.name}
+							title={nameOf(user.rk)}
 							description="waiting to join"
 							image={imageOf(user.rk)}
 						>
 							<ApiService
 								inline
 								name="accept"
-								message={`Accept ${user.name} onto the team?`}
+								message={`Accept ${nameOf(user.rk)} onto the team?`}
 								endpoint="team/accept"
 								data={{ team_id: id, user_id: user.rk }}
 								confirm={false}
@@ -127,7 +119,7 @@
 					{@const viewer = users.find((user) => user.rk === $local.caller_id)}
 					<RouteLink
 						href={hrefOf(viewer?.rk ?? '')}
-						title={viewer?.name}
+						title={nameOf(viewer?.rk ?? '')}
 						description="waiting to join"
 						image={imageOf(viewer?.rk ?? '')}
 					/>
@@ -201,8 +193,8 @@
 				{#each members as user (user.rk)}
 					<RouteLink
 						href={hrefOf(user.rk)}
-						title={user.name}
-						description={isTeamAdmin(user.relation)
+						title={nameOf(user.rk)}
+						description={isTeamAdmin(user)
 							? 'administrator'
 							: 'member'}
 						image={imageOf(user.rk)}

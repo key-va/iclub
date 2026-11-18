@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { branding } from '#lib/stores/branding.ts';
 	import EntityHeader from '#lib/components/EntityHeader.svelte';
-	import { guids, relatedEntities, hrefOf, imageOf } from '#lib/stores/guids.ts';
+	import { hrefOf, imageOf } from '#lib/stores/guids.ts';
 	import { local } from '#lib/stores/local.ts';
 
 	import RouteLink from '#lib/components/routeLink.svelte';

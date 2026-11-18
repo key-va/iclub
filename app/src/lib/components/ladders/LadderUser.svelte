@@ -1,24 +1,24 @@
 <script lang="ts">
-	import { guids, hrefOf, imageOf, type GuidRow } from '#lib/stores/guids.ts';
+	import { hrefOf, imageOf, type GuidRow, nameOf } from '#lib/stores/guids.ts';
 	import { local } from '#lib/stores/local.ts';
 	import RouteLink from '../routeLink.svelte';
 	import ApiService from '../apiService.svelte';
 	import { canChallenge, challengeDescription, ladderMembership, ladderStateColours } from './ladderRules.ts';
 
-	let { ladder, user }: { ladder: GuidRow; user: GuidRow & { relation: GuidRow } } = $props();
-	const membership = $derived(ladderMembership($guids.items, ladder, $local.caller_id));
-	const rank = $derived(Number(user.relation.rank));
+	let { ladder, user }: { ladder: GuidRow; user: GuidRow } = $props();
+	const membership = $derived(ladderMembership(ladder, $local.caller_id));
+	const rank = $derived(Number(user.rank));
 	const eligible = $derived(canChallenge(ladder, membership.relation, membership.competitorId, {
-		rk: user.rk, rank, relation: user.relation,
+		rk: user.rk, rank, relation: user,
 	}));
 	const description = $derived(challengeDescription(user, membership.competitorId, eligible));
 </script>
 
-<RouteLink href={hrefOf(user.rk)} title={user.name ?? 'no name'} {description} image={imageOf(user.rk)}>
+<RouteLink href={hrefOf(user.rk)} title={nameOf(user.rk)} {description} image={imageOf(user.rk)}>
 	{#snippet detail()}
-		<span class="dot" style:background={ladderStateColours[String(user.relation.state)] ?? 'grey'} role="img" aria-label={String(user.relation.state)}></span>{rank}
+		<span class="dot" style:background={ladderStateColours[String(user.state)] ?? 'grey'} role="img" aria-label={String(user.state)}></span>{rank}
 	{/snippet}
-	<ApiService inline name="challenge" message={`challenge ${user.name ?? 'this player'}?`}
+	<ApiService inline name="challenge" message={`challenge ${nameOf(user.rk)}?`}
 		endpoint="match/create" data={{ ladder_id: ladder.rk, challenger_id: membership.competitorId, defender_id: user.rk }}
 		disabled={!eligible} confirm={false} />
 </RouteLink>

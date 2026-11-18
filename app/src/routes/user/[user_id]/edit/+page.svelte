@@ -9,7 +9,7 @@
 	import HiddenOptions from '#lib/components/hiddenOptions.svelte';
 
 	const userId = $derived($local.caller_id ?? '');
-	const user = $derived(entityOf($guids.items, userId));
+	const user = $derived(entityOf(userId));
 
 	let name = $state('');
 	let email = $state('');

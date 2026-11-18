@@ -1,4 +1,5 @@
-import { derived, writable } from 'svelte/store';
+import { createSubscriber } from 'svelte/reactivity';
+import { derived, get, writable } from 'svelte/store';
 import { GUIDS_URL, PUBLIC_URL } from '#lib/config.ts';
 
 // A row in guids.json is either an entity (pk = entity type, rk = entity id)
@@ -187,39 +188,34 @@ export const typeOf = (id: string) => id.split('_')[0];
 // Every entity page lives at /<type>/<id>, and its image is published as <id>.jpg
 export const hrefOf = (id: string) => `/${typeOf(id)}/${id}`;
 export const imageOf = (id: string) => `${PUBLIC_URL}/${id}.jpg`;
-export function nameOf(items: GuidRow[], id: string): string {return entityOf(items, id)?.name ?? id;}
+// Register graph reads with Svelte's current reactive context. Reading through get()
+// alone would return fresh data but would not invalidate $derived or templates.
+const trackGraph = createSubscriber((update) => {
+	let previous = get(guids).items;
+	return guids.subscribe(({ items }) => {
+		if (items !== previous) {
+			previous = items;
+			update();
+		}
+	});
+});
 
-export function entityOf(items: GuidRow[], id: string): GuidRow | undefined {return items.find((row) => row.pk === typeOf(id) && row.rk === id);}
-
-
-
-export function entitiesOfType(items: GuidRow[], type: string): GuidRow[] {
-	return items.filter((row) => row.pk === type);
+function graphItems(): GuidRow[] {
+	trackGraph();
+	return get(guids).items;
 }
 
-// Relations leaving an entity (each relation is stored in both directions).
-export function relationsOf(items: GuidRow[], id: string): GuidRow[] {
-	return items.filter((row) => row.pk === id);
+export function nameOf(id: string): string {
+	return entityOf(id)?.name ?? id;
 }
 
-// Entities connected to `id`, optionally restricted to one entity type.
-// Each result carries the relation attributes under `relation`.
-export function relatedEntities(
-	items: GuidRow[],
-	id: string,
-	type?: string
-): (GuidRow & { relation: GuidRow })[] {
-	const related: (GuidRow & { relation: GuidRow })[] = [];
+export function entityOf(id: string): GuidRow | undefined {
+	return graphItems().find(row => row.pk === typeOf(id) && row.rk === id);
+}
 
-	for (const relation of relationsOf(items, id)) {
-		if (type && typeOf(relation.rk) !== type) continue;
-
-		const entity = entityOf(items, relation.rk);
-
-		if (entity) related.push({ ...entity, relation });
-	}
-
-	return related;
+// Return raw outgoing relation rows. Entity attributes are resolved separately.
+export function relationsOf(id: string): GuidRow[] {
+	return graphItems().filter(row => row.pk === id);
 }
 
 export const entities = derived(guids, ($guids) => $guids.items.filter((row) => !isRelation(row)));
