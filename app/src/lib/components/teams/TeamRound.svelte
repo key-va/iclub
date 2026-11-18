@@ -34,12 +34,7 @@
 	<RouteLink
 		href={hrefOf(round.rk)}
 		title={round.name}
-		description={round.result +
-			' ' +
-			(round.ext_points_for ? ` ${round.ext_points_for}` : '0') +
-			' - ' +
-			(round.ext_points_against ? ` ${round.ext_points_against} ` : '0') +
-			' points'}
+		description={`${round.result} • ${round.ext_points_for ?? 0} - ${round.ext_points_against ?? 0} points`}
 	/>
 {:else}
 	{#snippet actions()}
@@ -56,6 +51,6 @@
 		colour={roundRoleColour[String(role)] ?? 'grey'}
 		children={options.length ? actions : undefined}
 	>
-		{#snippet detail()}{round.is_home ? 'home' : 'away'} {round.date}{/snippet}
+		{#snippet detail()}{round.is_home ? 'home' : 'away'}{' • '}{round.date}{/snippet}
 	</RouteLinkHiddenAction>
 {/if}

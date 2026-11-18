@@ -42,7 +42,7 @@
 					(key) =>
 						`${round[`${key}_${opponentWon ? 'against' : 'for'}`]}-${round[`${key}_${opponentWon ? 'for' : 'against'}`]} ${key}`
 				)
-				.join(' · ')
+				.join(' • ')
 		};
 	});
 	const mine = $derived(players.find((p) => p.rk === $local.caller_id));
@@ -59,7 +59,7 @@
 		</p>
 	{:else}
 		<p class="info center">
-			{round.date}{round.venue ? ` at ${round.venue}` : ''}
+			{round.date}{round.venue ? ` • ${round.venue}` : ''}
 		</p>
 	{/if}
 	{#if !complete && myAvailabilityOptions.includes('available')}

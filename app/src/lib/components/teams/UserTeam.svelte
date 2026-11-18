@@ -32,7 +32,7 @@
 			? 'pending club approval'
 			: member
 				? String(entity?.ext_section_name).toLowerCase() +
-					' rank ' +
+					' • rank ' +
 					entity?.ext_rank
 				: 'pending'
 	);

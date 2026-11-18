@@ -150,7 +150,7 @@ export function officialResult(record: GuidRow, teamRelation?: GuidRow) {
 				round[`${key}_against`] !== undefined
 		)
 		.map((key) => `${round[`${key}_for`]}–${round[`${key}_against`]} ${key}`)
-		.join(' · ');
+		.join(' • ');
 }
 export function jsonArray(value: unknown): Record<string, unknown>[] {
 	try {

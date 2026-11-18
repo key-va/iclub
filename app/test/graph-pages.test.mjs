@@ -107,7 +107,7 @@ test('match defender permissions, competitor names and messages survive the look
 test('user home resolves team details and outstanding round role/date separately', async () => {
     const html = await output('user', 'user_alice');
     assert.match(html, /Team A/);
-    assert.match(html, /division one rank 2/);
+    assert.match(html, /division one • rank 2/);
     assert.match(html, /Round 1/);
     assert.match(html, /2026-11-20/);
     assert.match(html, /selected/);

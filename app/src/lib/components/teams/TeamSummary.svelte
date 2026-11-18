@@ -108,7 +108,7 @@
 			{#each standings as standing (String(standing.name))}
 				<HiddenOptions
 					title={String(standing.name)}
-					description={`${standing.points} points ${standing.wins} wins`}
+					description={`${standing.points} points • ${standing.wins} wins`}
 					badge={String(standing.rank)}
 				></HiddenOptions>
 			{/each}

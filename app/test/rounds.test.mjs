@@ -81,7 +81,7 @@ test("role colours and result summaries match the contract, including zero score
             games_for: 17,
             games_against: 38,
         }),
-        "0–10 points · 0–6 sets · 17–38 games",
+        "0–10 points • 0–6 sets • 17–38 games",
     );
     assert.equal(rounds.officialResult({ status: "postponed" }), "postponed");
     assert.equal(rounds.isTeamMember({ state: "pending" }), false);
