@@ -184,12 +184,12 @@ Do not introduce new storage abstractions unless a real gap is proven.
   - successful mutations whose graph refresh fails expose a refresh-only retry; callback/navigation retries also retain the completed response to avoid repeating mutations
 - [apiService.svelte](./app/src/lib/components/apiService.svelte)
   - consistent action button + confirmation/execute UX
-  - mutation actions confirm by default; long-press options and message posting opt out
+  - mutation actions confirm by default; revealed quick options and message posting opt out
   - API call + `guids.refresh()` + optional redirect by `subject`
 - [actionActivity.ts](./app/src/lib/components/actionActivity.ts)
   - keeps revealed options open while an API action or its error/confirmation dialog is active
 - [routeLink.svelte](./app/src/lib/components/routeLink.svelte)
-  - standard route-list row UI: tap follows `href`; an optional children snippet holds options revealed by a long press (also right-click or Shift+Enter) that revert after 9 seconds
+  - standard route-list row UI: every normal tap (or Enter/Space) replaces the title/description/icon with optional child actions plus a named arrow link. Only that revealed link navigates, even for rows without actions. No special long-press/right-click handling. Options revert after 9 seconds of inactivity or Escape, pausing while actions/confirmation/error screens are active. Focus moves into revealed controls and returns to the row when it closes.
   - shows a right arrow only when there is no image
 - [hiddenOptions.svelte](./app/src/lib/components/hiddenOptions.svelte)
   - title/description row with no `href`; a chevron reveals hidden content (action buttons, help or process text)
