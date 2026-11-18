@@ -13,7 +13,7 @@
 <div class={isWhite ? 'group' : ''}>
 	<a class="route-link" {href}>
 		<div class="row right">
-			<p class="truncate"><strong>{title}</strong>{#if description || detail}<br />{description}{/if}{@render detail?.()}</p>
+			<p class="truncate"><strong>{title}</strong>{#if description || detail}<br />{description}{/if}{#if description && detail}{' • '}{/if}{@render detail?.()}</p>
 			<div class="round-icon-small blue" style="background-image: url('{image}');">
 				{#if !image}
 					<svg viewBox="0 0 24 24" width="1rem" height="1rem" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">

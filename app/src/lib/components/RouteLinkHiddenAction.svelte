@@ -67,7 +67,7 @@
 					</svg>
 				</button>
 			{:else}
-				<p class="truncate"><strong>{title}</strong>{#if description || detail}<br />{description}{/if}{#if detail} {@render detail()}{/if}</p>
+				<p class="truncate"><strong>{title}</strong>{#if description || detail}<br />{description}{/if}{#if description && detail}{' • '}{/if}{@render detail?.()}</p>
 				<button bind:this={dotButton} type="button" class="dot-button" aria-label={`Actions for ${title}`}
 					aria-expanded={false} aria-controls={optionsId} onclick={reveal}>
 					<span class="action-dot" style:background={colour} aria-hidden="true"></span>
