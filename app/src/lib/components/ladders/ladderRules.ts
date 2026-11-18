@@ -65,5 +65,5 @@ export function challengeDescription(target: GuidRow, competitorId: string | nul
 	if (target.rk === competitorId) return state === 'active' ? 'available' : state;
 	if (state === 'away') return 'away';
 	if (state === 'busy') return 'in a match';
-	return eligible ? (state === 'active' ? 'available' : state) : 'cannot challenge';
+	return eligible ? 'long tap to challenge' : 'cannot challenge';
 }

@@ -13,7 +13,7 @@ before(async () => {
             enforce: 'pre',
             transform(source, id) {
                 const path = id.replaceAll('\\', '/');
-                // Exercise feature logic independently of reveal/confirmation mechanics.
+                // Exercise feature logic independently of long-press/confirmation mechanics.
                 if (path.endsWith('/components/routeLink.svelte')) return `
                     <script>let { href, title, description, image, detail, children } = $props();</script>
                     <article><a {href} data-image={image}>{title}</a><p>{description}</p>

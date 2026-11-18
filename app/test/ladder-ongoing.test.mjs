@@ -60,8 +60,8 @@ test('ongoing section includes all pending and active ladder matches, but not ot
         ]);
         const ongoing = html.match(/<section aria-label="Ongoing Matches">[\s\S]*?<\/section>/)?.[0];
         assert.ok(ongoing);
-        assert.match(ongoing, /Pending players[\s\S]*?pending match/);
-        assert.match(ongoing, /Other players[\s\S]*?active match/);
+        assert.match(ongoing, /href="\/match\/match_pending"[\s\S]*?Pending players[\s\S]*?pending match/);
+        assert.match(ongoing, /href="\/match\/match_active"[\s\S]*?Other players[\s\S]*?active match/);
         assert.doesNotMatch(ongoing, /Finished players|Another ladder/);
         assert.match(html, /<section aria-label="Completed Matches">/);
         assert.ok(html.indexOf('Ongoing Matches') < html.indexOf('Completed Matches'));
@@ -75,5 +75,5 @@ test('ongoing section stays empty when no matches are pending or active', async 
     ]);
     const ongoing = html.match(/<section aria-label="Ongoing Matches">[\s\S]*?<\/section>/)?.[0];
     assert.ok(ongoing);
-    assert.doesNotMatch(ongoing, /Finished players/);
+    assert.doesNotMatch(ongoing, /href="\/match\//);
 });

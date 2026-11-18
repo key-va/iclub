@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { tick, type Snippet } from 'svelte';
+	import type { Snippet } from 'svelte';
 	import { trackActions } from './actionActivity.ts';
 
 	interface Props {
@@ -10,159 +10,162 @@
 		isWhite?: boolean;
 		// ms of inactivity before revealed options revert
 		timeout?: number;
-		// extra content after the description (eg. a status dot and rank)
+		// ms the row must be held to reveal the options
+		holdTime?: number;
+		// extra content after the description on the same line (eg. a status dot and rank)
 		detail?: Snippet;
-		// actions revealed by a normal tap, alongside the navigation link
+		// options revealed by a long press (or right click, or Shift+Enter)
 		children?: Snippet;
 	}
 
 	let {
-		href = '', title = 'Title', description = '', image = '',
-		isWhite = false, timeout = 9000, detail, children,
+		href = '',
+		title = 'Title',
+		description = '',
+		image = '',
+		isWhite = false,
+		timeout = 9000,
+		holdTime = 500,
+		detail,
+		children
 	}: Props = $props();
 
-	const optionsId = $props.id();
 	let open = $state(false);
+	// bumped on any interaction so the countdown restarts while the options are in use
 	let activity = $state(0);
 	let pendingActions = $state(0);
-	let optionsNode = $state<HTMLDivElement>();
-	let triggerButton = $state<HTMLButtonElement>();
+	let holdTimer: ReturnType<typeof setTimeout> | undefined;
+	// the click that follows a long press must not navigate
+	let held = false;
+	let openedAt = 0;
 
 	$effect(() => {
 		if (!open || pendingActions) return;
+
 		activity;
-		const timer = setTimeout(close, timeout);
+
+		const timer = setTimeout(() => (open = false), timeout);
+
 		return () => clearTimeout(timer);
 	});
 
-	async function reveal() {
+	function reveal() {
+		if (!children || open) return;
+		held = true;
+		openedAt = Date.now();
 		open = true;
-		await tick();
-		optionsNode?.querySelector<HTMLElement>('button:not(:disabled), a[href], input, select, textarea')?.focus();
+		navigator.vibrate?.(30);
 	}
 
-	async function close() {
-		if (pendingActions) return;
-		const restoreFocus = optionsNode?.contains(document.activeElement);
-		open = false;
-		if (restoreFocus) {
-			await tick();
-			triggerButton?.focus();
+	function holdStart() {
+		if (!children) return;
+		held = false;
+		clearTimeout(holdTimer);
+		holdTimer = setTimeout(reveal, holdTime);
+	}
+
+	function holdCancel() {
+		clearTimeout(holdTimer);
+	}
+
+	function onclick(event: MouseEvent) {
+		if (held) {
+			event.preventDefault();
+			held = false;
 		}
+	}
+
+	function oncontextmenu(event: MouseEvent) {
+		if (!children) return;
+		event.preventDefault();
+		reveal();
+	}
+
+	function onkeydown(event: KeyboardEvent) {
+		if (children && ((event.key === 'Enter' && event.shiftKey) || event.key === 'ContextMenu')) {
+			event.preventDefault();
+			reveal();
+		}
+	}
+
+	function close() {
+		// ignore the release of the press that opened the options
+		if (pendingActions || Date.now() - openedAt < 400) return;
+		open = false;
 	}
 
 	function onActionActivity(count: number) {
 		pendingActions = count;
 		activity++;
 	}
-
-	// Handle bubbled keys from the buttons/links; the group itself need not be focusable.
-	function trackOptions(node: HTMLElement) {
-		const tracking = trackActions(node, onActionActivity);
-		node.addEventListener('keydown', onkeydown);
-		return { destroy() {
-			tracking.destroy();
-			node.removeEventListener('keydown', onkeydown);
-		} };
-	}
-
-	function onkeydown(event: KeyboardEvent) {
-		activity++;
-		if (event.key === 'Escape' && !pendingActions) {
-			event.preventDefault();
-			close();
-		}
-	}
 </script>
 
-{#snippet arrow()}
-	<svg viewBox="0 0 24 24" width="1rem" height="1rem" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-		<path d="M5 12h14M13 5l7 7-7 7" />
-	</svg>
+{#snippet glyph()}
+	{#if image === ''}
+		<svg viewBox="0 0 24 24" width="1rem" height="1rem" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" role="img">
+			<path d="M5 12h14M13 5l7 7-7 7" />
+		</svg>
+	{/if}
 {/snippet}
 
 <div class={isWhite ? 'group' : ''}>
 	{#if open}
 		<div class="row right">
 			<div
-				bind:this={optionsNode}
-				id={optionsId}
 				class="options"
 				role="group"
 				aria-label={`${title} options`}
-				use:trackOptions
+				use:trackActions={onActionActivity}
 				onpointerdown={() => activity++}
 				onfocusin={() => activity++}
 			>
 				{@render children?.()}
-				<a class="blue navigation-button" {href} aria-disabled={pendingActions > 0}
-					onclick={(event) => { if (pendingActions) event.preventDefault(); }}>
-					<p class="truncate">{title}</p>
-					{@render arrow()}
-				</a>
 			</div>
+			<button class="blue icon-button" aria-label={`close ${title} options`} disabled={pendingActions > 0} style="background-image: url('{image}');" onclick={close}>
+				{@render glyph()}
+			</button>
 		</div>
 	{:else}
-		<button bind:this={triggerButton} type="button" class="route-link"
-			aria-label={`show ${title} options`} aria-expanded={false} aria-controls={optionsId} onclick={reveal}>
+		<a
+			class="route-link"
+			{href}
+			{onclick}
+			{oncontextmenu}
+			{onkeydown}
+			onpointerdown={holdStart}
+			onpointerup={holdCancel}
+			onpointerleave={holdCancel}
+			onpointercancel={holdCancel}
+		>
 			<div class="row right">
 				<p class="truncate"><strong>{title}</strong>{#if description || detail}<br />{description}{/if}{#if detail}{@render detail()}{/if}</p>
 				<div class="round-icon-small blue" style="background-image: url('{image}');">
-					{#if image === ''}{@render arrow()}{/if}
+					{@render glyph()}
 				</div>
 			</div>
-		</button>
+		</a>
 	{/if}
 </div>
 
 <style>
 	.route-link {
-		display: block;
-		width: 100%;
-		height: auto;
-		min-width: 0;
-		margin: 0;
-		padding: 0;
-		border: 0;
-		border-radius: 0;
-		background: none;
 		color: inherit;
-		font: inherit;
-		line-height: normal;
-		text-align: inherit;
-		cursor: pointer;
-	}
-
-	.route-link:focus-visible {
-		outline: 2px solid currentColor;
-		outline-offset: -2px;
+		text-decoration: none;
+		/* stop the browser's own long-press menu and text selection getting in the way */
+		-webkit-touch-callout: none;
+		user-select: none;
 	}
 
 	.options {
 		display: flex;
-		flex: 1;
-		min-width: 0;
 		align-items: center;
 		justify-content: flex-end;
-		flex-wrap: wrap;
+		white-space: nowrap;
 	}
 
-	.navigation-button {
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		min-width: 0;
-		max-width: 100%;
-		min-height: 3rem;
-		padding: 0.5rem;
-		margin: 0.5rem;
-		border: 2px solid white;
-		border-radius: 9rem;
-		text-decoration: none;
-	}
-
-	.navigation-button[aria-disabled='true'] {
-		opacity: 0.6;
-		cursor: wait;
+	/* the global .blue shorthand resets the button's background size and position, so restate them for the image */
+	.icon-button {
+		background-size: cover;
+		background-position: center;
 	}
 </style>
