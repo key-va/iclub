@@ -5,6 +5,7 @@ const Module = require("node:module");
 const originalLoad = Module._load;
 const rows = new Map(),
     pushes = [];
+const editedImages = [];
 let failTeamRoundMirror = false;
 let rejectSignature = false,
     failPush = false,
@@ -113,7 +114,7 @@ Module._load = function (id) {
             },
         };
     if (id.endsWith("/doAssetToPublic"))
-        return { doAssetToPublic: async () => {} };
+        return { doAssetToPublic: async (image, name) => { editedImages.push({ image, name }); } };
     if (id.endsWith("/trols")) return { providerFor: () => provider };
     return originalLoad.apply(this, arguments);
 };
@@ -189,6 +190,7 @@ beforeEach(() => {
     failPush = false;
     failFetch = false;
     exportCount = 0;
+    editedImages.length = 0;
     source = {
         rounds: [
             {
@@ -1153,4 +1155,25 @@ test("an explicit admin revocation cannot be overridden by legacy role or reques
     assert.equal(get(T, A).is_admin, false);
     get("team", T).state = "active";
     assert.equal((await call("sync", A)).status, 403);
+});
+
+
+
+test('team admins can update only the icon while name and source fields stay fixed', async () => {
+ seed();const image=Buffer.from([0xff,0xd8,0xff,0x01]);
+ const response=await call('update',A,{image:image.toString('base64')});
+ assert.equal(response.status,200);assert.equal(response.jsonBody.subject,T);
+ assert.equal(get('team',T).name,'Lobs');assert.equal(get('team',T).external_team,mapping.external_team);
+ assert.equal(editedImages.at(-1).name,`${T}.jpg`);assert.deepEqual(editedImages.at(-1).image,image);
+ source.standings[0].rank=2;assert.equal((await call('sync',A)).status,200);
+ assert.equal(get('team',T).name,'Lobs');assert.equal(get('team',T).ext_rank,2);mirrored();
+});
+test('team icon editing enforces team-admin authority and rejects name changes and invalid input', async () => {
+ seed();relation(T,U,{role:'is_member'});
+ for(const caller of [U,OUT,CLUBADMIN])assert.equal((await call('update',caller,{image:'bad'})).status,403);
+ for(const data of [{},{name:'Changed'},{name:'',image:'/9j/'},{image:'bad'},{image:3},{ext_external_team:'other'}]){
+  assert.equal((await call('update',A,data)).status,400);assert.equal(get('team',T).name,'Lobs');
+ }
+ assert.equal(editedImages.length,0);
+ rejectSignature=true;assert.equal((await call('update',A,{image:'bad'})).status,401);assert.equal(get('team',T).name,'Lobs');
 });

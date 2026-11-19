@@ -10,6 +10,7 @@ before(async () => {
  graph = (await server.ssrLoadModule('/src/lib/stores/guids.ts')).guids;
  local = (await server.ssrLoadModule('/src/lib/stores/local.ts')).local;
  views = Object.fromEntries(await Promise.all([['ladder','ladders/LadderActions'],['round','rounds/RoundActions'],['match','matches/MatchActions'],['team','teams/TeamActions'],['group','groups/GroupActions']].map(async ([key,path]) => [key,(await server.ssrLoadModule(`/src/lib/components/${path}.svelte`)).default])));
+ views.teamEdit = (await server.ssrLoadModule('/src/routes/team/[team_id]/edit/+page.svelte')).default;
 });
 after(async () => { await server?.close(); });
 const has = (html, name) => html.includes(`aria-label="${name}"`);
@@ -52,9 +53,20 @@ test('pending entity approvals follow their summaries in ungrouped foreground co
   assert.equal(has(html,name),true);assert.match(html,new RegExp(`class="pink"[^>]*aria-label="${name}"`));
   assert.doesNotMatch(html,/aria-label="Pending"|pending approval|pending club approval/);
   if(type!=='group'){
-   const summary=type==='ladder'?'singles • win points • best of three':'BRTA • Tuesday Night • Section 1 • rank 3';
+   const summary=type==='ladder'?'singles • win points • best of three':'BRTA • Section 1 • rank 3';
    assert.ok(html.indexOf(summary)<html.indexOf(`aria-label="${name}"`));
    assert.equal((html.match(/class="group"/g)??[]).length,1);
   }
  }
+});
+
+
+test('team editor shows a read-only name and limits editing to team admins',async()=>{
+ const rows=[{pk:'team',rk:'team_test',name:'Lobs',state:'active'},{pk:'team_test',rk:'user_me',is_admin:true}];
+ await loadGraph(graph,rows);local.set({caller_id:'user_me',device_id:null,connect_key:null});
+ const context=new Map([['__request__',{page:{params:{team_id:'team_test'}}}]]);
+ const html=render(views.teamEdit,{context}).body;
+ assert.match(html,/<input[^>]*aria-label="team name"[^>]*readonly/);assert.match(html,/value="Lobs"/);assert.equal(has(html,'update'),true);
+ local.set({caller_id:'user_other',device_id:null,connect_key:null});const blocked=render(views.teamEdit,{context}).body;
+ assert.match(blocked,/Only a team admin can edit this team/);assert.equal(has(blocked,'update'),false);assert.doesNotMatch(blocked,/aria-label="team name"/);
 });

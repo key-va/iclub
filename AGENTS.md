@@ -394,4 +394,9 @@ Keep shared infrastructure composable while implementing feature rules in their 
 
 - Membership mutations acquire an ETag-conditional, expiring `operation_guard` on their entity and re-read membership under it. This serializes partner changes and last-admin departures; team changes respect the existing sync lease. Busy/CAS conflicts return 409 for refresh/retry. The guard is released on success and rejection; graph writes remain sequential across mirrored rows.
 
-- `teamDescription` in `rounds/roundRules.ts` shares the association/competition/section/rank summary between team pages and user-page team sections. Preserve source display names, uppercase the association code, and omit missing fields without empty separators.
+- `teamDescription` in `rounds/roundRules.ts` shares the association/section/rank summary between team pages and user-page team sections. Preserve source display names, uppercase the association code, and omit missing fields without empty separators.
+
+- Action colour indicates interaction: enabled `ActionQuick` and `ActionLink` use background/blue; enabled `ActionConfirmation` uses foreground/pink. Disabled actions remain grey. Progress and arrow icons use a 24-unit viewBox, 1rem size, stroke width 3 and round caps/joins.
+- More Options marks its content as `action-options`; only the last button/link in each option row shows its decorative `.action-arrow`. Arrows stay available in component markup so conditional options and inline controls work without DOM mutation.
+- `ActionLink.svelte` is a navigation button styled alongside native buttons. Entity action sections may supply an options snippet for admin edit links, including a separate More Options row for an admin who has not joined the ladder.
+- Team admins can change only the icon at `/team/{id}/edit`, using signed `team/{id}/update` (also `team/update`). The name is displayed in a read-only input; the API rejects name and competition/source changes.

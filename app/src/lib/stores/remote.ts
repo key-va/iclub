@@ -226,3 +226,6 @@ export const acceptLadderMemberConfirmation = (id: string, user: string) =>
 	mutateWithSubject(`ladder/${id}/accept`, { user_id: user });
 export const acceptTeamMemberConfirmation = (id: string, user: string) =>
 	mutateWithSubject('team/accept', { team_id: id, user_id: user });
+
+export const updateTeam = (id: string, data: { image: string }) =>
+	mutateWithSubject(`team/${id}/update`, data);

@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { teamDescription } from '../rounds/roundRules.ts';
+	import ActionLink from '../ActionLink.svelte';
+	import { teamDescription, isTeamAdmin } from '../rounds/roundRules.ts';
 	import EntityActions from '../EntityActions.svelte';
 	import ActionConfirmation from '../ActionConfirmation.svelte';
 	import { local } from '#lib/stores/local.ts';
@@ -22,7 +23,13 @@
 	);
 </script>
 
+{#snippet editOption()}<ActionLink
+		href={`/team/${team.rk}/edit`}
+		name="edit"
+	/>{/snippet}
+
 <EntityActions
+	options={isTeamAdmin(mine) ? editOption : undefined}
 	summary={teamDescription(team)}
 	more={team.state === 'active' && !!mine}
 >

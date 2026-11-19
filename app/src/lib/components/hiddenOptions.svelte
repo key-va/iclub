@@ -55,7 +55,17 @@
 	{#if badge !== undefined}
 		<strong>{badge}</strong>
 	{:else}
-		<svg viewBox="0 0 24 24" width="1rem" height="1rem" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" role="img">
+		<svg
+			viewBox="0 0 24 24"
+			width="1rem"
+			height="1rem"
+			fill="none"
+			stroke="currentColor"
+			stroke-width="3"
+			stroke-linecap="round"
+			stroke-linejoin="round"
+			role="img"
+		>
 			{#if children && !open}
 				<path d="M5 12h.01M12 12h.01M19 12h.01" stroke-width="4" />
 			{:else}
@@ -68,15 +78,32 @@
 <div class={isWhite ? 'group' : ''}>
 	<div class="row right">
 		{#if open && inline}
-			<div class="content inline" role="group" aria-label={`${title} options`} use:trackActions={onActionActivity} onpointerdown={() => activity++} onfocusin={() => activity++}>
+			<div
+				class="content inline"
+				class:action-options={title === 'More Options' || title === 'More'}
+				role="group"
+				aria-label={`${title} options`}
+				use:trackActions={onActionActivity}
+				onpointerdown={() => activity++}
+				onfocusin={() => activity++}
+			>
 				{@render children?.()}
 			</div>
 		{:else}
-			<p class="truncate"><strong>{title}</strong>{#if description || detail}<br />{description}{/if}{@render detail?.()}</p>
+			<p class="truncate">
+				<strong>{title}</strong>{#if description || detail}<br
+					/>{description}{/if}{@render detail?.()}
+			</p>
 		{/if}
 
 		{#if children}
-			<button class="blue" aria-label={title} aria-expanded={open} disabled={pendingActions > 0} onclick={() => (open = !open)}>
+			<button
+				class="blue"
+				aria-label={title}
+				aria-expanded={open}
+				disabled={pendingActions > 0}
+				onclick={() => (open = !open)}
+			>
 				{@render glyph()}
 			</button>
 		{:else}
@@ -87,7 +114,15 @@
 	</div>
 
 	{#if open && !inline}
-		<div class="content details" role="group" aria-label={title} use:trackActions={onActionActivity} onpointerdown={() => activity++} onfocusin={() => activity++}>
+		<div
+			class="content details"
+			class:action-options={title === 'More Options' || title === 'More'}
+			role="group"
+			aria-label={title}
+			use:trackActions={onActionActivity}
+			onpointerdown={() => activity++}
+			onfocusin={() => activity++}
+		>
 			{@render children?.()}
 		</div>
 	{/if}
@@ -105,4 +140,11 @@
 		padding: 0.5em 2em;
 	}
 
+	.action-options :global(.action-arrow) {
+		display: none;
+	}
+	.action-options :global(button:last-child > .action-arrow),
+	.action-options :global(a:last-child > .action-arrow) {
+		display: inline-block;
+	}
 </style>

@@ -335,6 +335,26 @@ export async function teamAction(
             const graph = await teamContext(teamId);
             const team = graph.team;
             const mine = await get(teamId, caller_id);
+            if (action === "update") {
+                if (!isTeamAdmin(mine))
+                    return reply(403, "Only a team admin can edit this team");
+                if (Object.keys(data).some((key) => !["image", "team_id"].includes(key)))
+                    return reply(400, "Only the team icon can be updated");
+                if (typeof data.image !== "string")
+                    return reply(400, "Supply a JPEG icon of 1MB or less");
+                const image = Buffer.from(
+                    data.image.replace(/^data:image\/jpe?g;base64,/i, ""),
+                    "base64",
+                );
+                if (
+                    !image.length || image.length > 1024 * 1024 ||
+                    image[0] !== 0xff || image[1] !== 0xd8 || image[2] !== 0xff
+                )
+                    return reply(400, "Icon must be a JPEG of 1MB or less");
+                await doAssetToPublic(image, `${teamId}.jpg`);
+                await doGuidsToPublic();
+                return reply(200, "Team icon updated", undefined, teamId);
+            }
             if (action === "activate") {
                 const clubAdmin = graph.clubId
                     ? await get(graph.clubId, caller_id)
@@ -479,6 +499,7 @@ for (const action of [
     "join",
     "accept",
     "sync",
+    "update",
 ]) {
     app.http(`team${action}`, {
         methods: ["POST"],

@@ -5,12 +5,14 @@
 		summary = '',
 		more = false,
 		help,
-		children
+		children,
+		options
 	}: {
 		summary?: string;
 		more?: boolean;
 		help?: Snippet;
 		children?: Snippet;
+		options?: Snippet;
 	} = $props();
 	let showHelp = $state(false);
 </script>
@@ -30,10 +32,15 @@
 {/snippet}
 {#if more}
 	<HiddenOptions title="More Options">
-		<div class="row right controls">{@render controls()}</div>
+		<div class="row right controls">
+			{@render controls()}{@render options?.()}
+		</div>
 	</HiddenOptions>
 {:else}
 	<div class="row right controls">{@render controls()}</div>
+	{#if options}<HiddenOptions title="More Options">
+			<div class="row right controls">{@render options()}</div>
+		</HiddenOptions>{/if}
 {/if}
 
 <style>

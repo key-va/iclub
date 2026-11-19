@@ -167,7 +167,6 @@ export function teamDescription(team?: GuidRow): string {
 	const view = teamView(team);
 	return [
 		String(team.ext_association ?? team.association ?? '').toUpperCase(),
-		view.competition_name,
 		view.section_name,
 		view.rank != null ? `rank ${view.rank}` : null
 	]

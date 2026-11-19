@@ -1,4 +1,5 @@
 <script lang="ts">
+	import ActionLink from '../ActionLink.svelte';
 	import EntityActions from '../EntityActions.svelte';
 	import ActionConfirmation from '../ActionConfirmation.svelte';
 	import { local } from '#lib/stores/local.ts';
@@ -44,7 +45,16 @@
 	);
 </script>
 
-<EntityActions {summary} more={ladder.state === 'active' && associated}>
+{#snippet editOption()}<ActionLink
+		href={`/ladder/${ladder.rk}/edit`}
+		name="edit"
+	/>{/snippet}
+
+<EntityActions
+	options={mine?.is_admin === true ? editOption : undefined}
+	{summary}
+	more={ladder.state === 'active' && associated}
+>
 	{#snippet help()}
 		{#each Object.entries(ladderSettings) as [key, setting]}
 			{@const value = ladder[key] ?? setting.default}

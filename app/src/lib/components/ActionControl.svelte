@@ -165,7 +165,7 @@
 {#snippet trigger()}
 	<button
 		bind:this={triggerButton}
-		class={disabled ? 'grey' : confirm || !arrow ? 'pink' : 'blue'}
+		class={disabled ? 'grey' : confirm ? 'pink' : 'blue'}
 		aria-label={name}
 		aria-busy={isBusy}
 		disabled={disabled || isBusy || isExpanded}
@@ -175,8 +175,8 @@
 		{#if quiet}
 			<svg
 				viewBox="0 0 24 24"
-				width="20"
-				height="20"
+				width="1rem"
+				height="1rem"
 				fill="none"
 				stroke="currentColor"
 				stroke-width="3"
@@ -185,15 +185,15 @@
 				role="img"
 				aria-label="working"
 			>
-				<path
-					d="M6 3h12M6 21h12M7 3c0 5 5 6 5 9s-5 4-5 9M17 3c0 5-5 6-5 9s5 4 5 9"
-				/>
+				<path d="M6 3h12M6 21h12M7 3v4l5 5-5 5v4M17 3v4l-5 5 5 5v4" />
 			</svg>
-		{:else if !inline || arrow}
+		{:else}
 			<svg
+				class="action-arrow"
+				class:hidden-arrow={inline && !arrow}
 				viewBox="0 0 24 24"
-				width="20"
-				height="20"
+				width="1rem"
+				height="1rem"
 				fill="none"
 				stroke="currentColor"
 				stroke-width="3"
@@ -240,7 +240,12 @@
 		{#if isError}
 			<div class="row center">
 				{#if retryAction || completed}
-					<button class="pink" aria-label="retry" {disabled} onclick={execute}>
+					<button
+						class={confirm ? 'pink' : 'blue'}
+						aria-label="retry"
+						{disabled}
+						onclick={execute}
+					>
 						<p>retry</p>
 					</button>
 				{/if}
@@ -286,5 +291,9 @@
 		padding: 0.5rem;
 		margin: 1rem 0;
 		margin-top: 50%;
+	}
+
+	.hidden-arrow {
+		display: none;
 	}
 </style>

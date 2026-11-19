@@ -17,6 +17,7 @@ after(async () => { globalThis.fetch = originalFetch; await server?.close(); });
 
 test('named entity actions sign the right endpoint and payload, then refresh the graph', async () => {
     const cases = [
+        [() => remote.updateTeam('team_test', {image:'jpeg-data'}), '/api/team/team_test/update', {image:'jpeg-data'}],
         [() => remote.awayLadder('ladder_test'), '/api/ladder/ladder_test/away', {}],
         [() => remote.returnLadder('ladder_test'), '/api/ladder/ladder_test/return', {}],
         [() => remote.leaveLadder('ladder_test'), '/api/ladder/ladder_test/leave', {}],
