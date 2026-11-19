@@ -136,13 +136,13 @@ export const updateGroup = (id: string, data: Record<string, unknown>) =>
 export const activateGroup = (id: string) =>
 	mutateWithSubject(`group/${id}/activate`);
 export const joinGroup = (id: string) => mutateWithSubject(`group/${id}/join`);
-export const createElim = (data: Record<string, unknown>) =>
-	mutateWithSubject('elim/create', data);
-export const elimEntry = (
+export const createCompetition = (data: Record<string, unknown>) =>
+	mutateWithSubject('comp/create', data);
+export const competitionEntry = (
 	id: string,
 	action: 'activate' | 'join' | 'leave' | 'draw' | 'accept' | 'seed' | 'unseed',
 	userId?: string
-) => mutateWithSubject(`elim/${id}/${action}`, userId ? { user_id: userId } : {});
+) => mutateWithSubject(`comp/${id}/${action}`, userId ? { user_id: userId } : {});
 export const recordElimResult = (
 	id: string,
 	matchId: string,
@@ -151,7 +151,7 @@ export const recordElimResult = (
 	secondId: string,
 	result: { first_score: number; second_score: number } | { winner_id: string }
 ) =>
-	mutateWithSubject(`elim/${id}/${action}`, {
+	mutateWithSubject(`comp/${id}/${action}`, {
 		match_id: matchId,
 		first_id: firstId,
 		second_id: secondId,

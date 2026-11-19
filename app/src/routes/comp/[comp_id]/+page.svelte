@@ -2,14 +2,14 @@
 	import { page } from '$app/state';
 	import { local } from '#lib/stores/local.ts';
 	import { entityOf, guids, hrefOf, imageOf, nameOf, relationsOf, typeOf, type GuidRow } from '#lib/stores/guids.ts';
-	import { elimEntry } from '#lib/stores/remote.ts';
+	import { competitionEntry } from '#lib/stores/remote.ts';
 	import ActionConfirmation from '#lib/components/ActionConfirmation.svelte';
 	import ActionQuick from '#lib/components/ActionQuick.svelte';
 	import EntityHeader from '#lib/components/EntityHeader.svelte';
 	import RouteLink from '#lib/components/routeLink.svelte';
 	import { matchSummary } from '#lib/components/matches/matchRules.ts';
 
-	const id = $derived(page.params.elim_id ?? '');
+	const id = $derived(page.params.comp_id ?? '');
 	const elim = $derived(entityOf(id));
 	const links = $derived(relationsOf(id));
 	const caller = $derived($local.caller_id);
@@ -42,15 +42,15 @@
 </script>
 
 <div class="page">
-	{#if elim}
+	{#if elim?.competition_type === 'elimination'}
 		<EntityHeader entity={elim} subtitle={elim.state === 'pending' ? 'awaiting club approval' : open ? 'entries open' : drawing ? 'draw in progress' : elim.state === 'complete' ? 'complete' : 'draw underway'} />
 		{#if elim.state === 'pending' && canApprove}
-			<ActionConfirmation name="approve" message={`Approve ${elim.name}?`} action={() => elimEntry(id, 'activate')} />
+			<ActionConfirmation name="approve" message={`Approve ${elim.name}?`} action={() => competitionEntry(id, 'activate')} />
 		{:else if open && caller}
 			{#if mine?.is_participant === true || mine?.state === 'pending'}
-				<ActionConfirmation name={mine.state === 'pending' ? 'cancel request' : 'withdraw'} message="Withdraw your entry?" action={() => elimEntry(id, 'leave')} />
+				<ActionConfirmation name={mine.state === 'pending' ? 'cancel request' : 'withdraw'} message="Withdraw your entry?" action={() => competitionEntry(id, 'leave')} />
 			{:else}
-				<ActionConfirmation name="request to join" message={`Request to join ${elim.name}?`} action={() => elimEntry(id, 'join')} />
+				<ActionConfirmation name="request to join" message={`Request to join ${elim.name}?`} action={() => competitionEntry(id, 'join')} />
 			{/if}
 		{/if}
 
@@ -86,7 +86,7 @@
 						{#if open && admin && (seeded || seeds.length < 8)}
 							<ActionQuick inline name={seeded ? 'unseed' : 'seed'} {tone}
 								label={seeded ? `Remove seed ${row.seed} from ${nameOf(row.rk)}` : `Seed ${nameOf(row.rk)}`}
-								action={() => elimEntry(id, seeded ? 'unseed' : 'seed', row.rk)} />
+								action={() => competitionEntry(id, seeded ? 'unseed' : 'seed', row.rk)} />
 						{/if}
 					</div>
 				{/each}
@@ -97,7 +97,7 @@
 								<RouteLink href={hrefOf(row.rk)} title={nameOf(row.rk)} image={imageOf(row.rk)} description="pending" />
 							</div>
 							<ActionQuick inline name="accept" tone="orange" label={`Accept ${nameOf(row.rk)}`}
-								action={() => elimEntry(id, 'accept', row.rk)} />
+								action={() => competitionEntry(id, 'accept', row.rk)} />
 						</div>
 					{/each}
 				{/if}
@@ -106,8 +106,11 @@
 
 		{#if admin && (drawing || open)}
 			<ActionConfirmation name={drawing ? 'resume draw' : 'start draw'} message={drawMessage}
-				action={() => elimEntry(id, 'draw')} disabled={!drawing && entrants.length < 2} />
+				action={() => competitionEntry(id, 'draw')} disabled={!drawing && entrants.length < 2} />
 		{/if}
+	{:else if elim}
+		<EntityHeader entity={elim} subtitle="competition" />
+		<p>This competition type is unavailable.</p>
 	{:else}
 		<p>{$guids.loaded ? 'Not found' : 'Loading'}</p>
 	{/if}

@@ -15,7 +15,7 @@
 		relationsOf(id).find((row) => typeOf(row.rk) === 'ladder')
 	);
 	const ladder = $derived(ladderRow ? entityOf(ladderRow.rk) : undefined);
-	const elimLink = $derived(relationsOf(id).find((row) => typeOf(row.rk) === 'elim'));
+	const elimLink = $derived(relationsOf(id).find((row) => typeOf(row.rk) === 'comp'));
 	const elim = $derived(elimLink ? entityOf(elimLink.rk) : undefined);
 </script>
 

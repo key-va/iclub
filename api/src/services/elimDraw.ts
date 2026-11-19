@@ -27,10 +27,10 @@ export function elimDraw(id: string, entrants: Entrant[]) {
 }
 
 export function elimBracketId(
-    type: "round" | "match", elimId: string, round: number, position = 0,
+    type: "round" | "match", compId: string, round: number, position = 0,
 ) {
-    const timestamp = elimId.slice("elim_".length, "elim_".length + 19);
-    return `${type}_${timestamp}_${hash(elimId, type, String(round), String(position)).slice(0, 12)}`;
+    const timestamp = compId.slice("comp_".length, "comp_".length + 19);
+    return `${type}_${timestamp}_${hash(compId, type, String(round), String(position)).slice(0, 12)}`;
 }
 
 export function elimRoundName(remaining: number, round: number) {
