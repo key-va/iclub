@@ -177,7 +177,7 @@
 		/>
 		{#if isComplete && completeSummary}
 			<div class="row center">
-				<p class="info">{completeSummary}</p>
+				<p class="info description">{completeSummary}</p>
 			</div>
 		{/if}
 		{#if match.state === 'pending'}

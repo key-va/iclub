@@ -54,8 +54,6 @@
 			action={() => acceptTeamMemberConfirmation(team.rk, user.rk)}
 		/>{/if}
 
-	{#if member}
-		{#each rounds as round (round.rk)}<UserRound {user} {team} {round} />
-		{:else}<HiddenOptions title="No pending or selected rounds" />{/each}
-	{/if}
+	{#each rounds as round (round.rk)}<UserRound {user} {team} {round} />
+	{:else}<HiddenOptions title="No pending rounds" />{/each}
 </div>

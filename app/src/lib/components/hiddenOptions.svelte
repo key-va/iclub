@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { Snippet } from 'svelte';
+	import { tick, type Snippet } from 'svelte';
 	import { trackActions } from './actionActivity.ts';
 
 	interface Props {
@@ -25,9 +25,17 @@
 		badge,
 		isWhite = false,
 		inline = false,
-		timeout = inline ? 9000 : 0,
+		timeout,
 		children
 	}: Props = $props();
+
+	const moreOptions = $derived(title === 'More Options' || title === 'More');
+	const replaceRow = $derived(inline || moreOptions);
+	const revertAfter = $derived(
+		moreOptions ? 9000 : (timeout ?? (replaceRow ? 9000 : 0))
+	);
+	let toggleButton = $state<HTMLButtonElement>();
+	let contentNode = $state<HTMLDivElement>();
 
 	let open = $state(false);
 	// bumped on any interaction so the countdown restarts while the content is in use
@@ -35,14 +43,29 @@
 	let pendingActions = $state(0);
 
 	$effect(() => {
-		if (!open || !timeout || pendingActions) return;
+		if (!open || !revertAfter || pendingActions) return;
 
 		activity;
 
-		const timer = setTimeout(() => (open = false), timeout);
+		const timer = setTimeout(async () => {
+			const restoreFocus = contentNode?.contains(document.activeElement);
+			open = false;
+			await tick();
+			if (restoreFocus) toggleButton?.focus();
+		}, revertAfter);
 
 		return () => clearTimeout(timer);
 	});
+
+	async function toggle() {
+		open = !open;
+		if (open && replaceRow) {
+			await tick();
+			contentNode
+				?.querySelector<HTMLElement>('button:not(:disabled), a[href]')
+				?.focus();
+		}
+	}
 
 	function onActionActivity(count: number) {
 		pendingActions = count;
@@ -77,10 +100,11 @@
 
 <div class={isWhite ? 'group' : ''}>
 	<div class="row right">
-		{#if open && inline}
+		{#if open && replaceRow}
 			<div
+				bind:this={contentNode}
 				class="content inline"
-				class:action-options={title === 'More Options' || title === 'More'}
+				class:action-options={moreOptions}
 				role="group"
 				aria-label={`${title} options`}
 				use:trackActions={onActionActivity}
@@ -91,32 +115,36 @@
 			</div>
 		{:else}
 			<p class="truncate">
-				<strong>{title}</strong>{#if description || detail}<br
-					/>{description}{/if}{@render detail?.()}
+				<strong>{title}</strong>{#if description || detail}<br /><span
+						class="description"
+					>
+						{description}{@render detail?.()}
+					</span>{/if}
 			</p>
 		{/if}
 
-		{#if children}
+		{#if children && (!open || !replaceRow)}
 			<button
+				bind:this={toggleButton}
 				class="blue"
 				aria-label={title}
 				aria-expanded={open}
 				disabled={pendingActions > 0}
-				onclick={() => (open = !open)}
+				onclick={toggle}
 			>
 				{@render glyph()}
 			</button>
-		{:else}
+		{:else if !children}
 			<div class="round-icon-small {badge !== undefined ? 'grey' : 'blue'}">
 				{@render glyph()}
 			</div>
 		{/if}
 	</div>
 
-	{#if open && !inline}
+	{#if open && !replaceRow}
 		<div
 			class="content details"
-			class:action-options={title === 'More Options' || title === 'More'}
+			class:action-options={moreOptions}
 			role="group"
 			aria-label={title}
 			use:trackActions={onActionActivity}
@@ -133,7 +161,18 @@
 		display: flex;
 		align-items: center;
 		justify-content: flex-end;
-		white-space: nowrap;
+		flex: 1;
+		min-width: 0;
+		flex-wrap: wrap;
+	}
+
+	.action-options.inline :global(button),
+	.action-options.inline :global(.action-link) {
+		margin: 0.25rem;
+		padding: 0.25rem;
+	}
+	.action-options.inline :global(p) {
+		padding: 0.25rem;
 	}
 
 	.details > :global(p) {

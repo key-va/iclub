@@ -58,7 +58,7 @@
 	{#snippet help()}
 		{#each Object.entries(ladderSettings) as [key, setting]}
 			{@const value = ladder[key] ?? setting.default}
-			<p class="info">
+			<p class="info description">
 				<strong>{setting.label}</strong>: {setting.type === 'enum'
 					? setting.values[String(value)]?.label
 					: `${value} days`}<br />{setting.type === 'enum'

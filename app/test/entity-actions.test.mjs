@@ -9,7 +9,7 @@ before(async () => {
  render = (await server.ssrLoadModule('svelte/server')).render;
  graph = (await server.ssrLoadModule('/src/lib/stores/guids.ts')).guids;
  local = (await server.ssrLoadModule('/src/lib/stores/local.ts')).local;
- views = Object.fromEntries(await Promise.all([['ladder','ladders/LadderActions'],['round','rounds/RoundActions'],['match','matches/MatchActions'],['team','teams/TeamActions'],['group','groups/GroupActions']].map(async ([key,path]) => [key,(await server.ssrLoadModule(`/src/lib/components/${path}.svelte`)).default])));
+ views = Object.fromEntries(await Promise.all([['ladder','ladders/LadderActions'],['round','rounds/RoundActions'],['match','matches/MatchActions'],['team','teams/TeamActions'],['group','groups/GroupActions'],['userLadder','ladders/UserLadder'],['userTeam','teams/UserTeam']].map(async ([key,path]) => [key,(await server.ssrLoadModule(`/src/lib/components/${path}.svelte`)).default])));
  views.teamEdit = (await server.ssrLoadModule('/src/routes/team/[team_id]/edit/+page.svelte')).default;
 });
 after(async () => { await server?.close(); });
@@ -38,10 +38,10 @@ test('round page only offers eligible confirmed availability choices for current
 test('match page shows accept for defenders/admins and forfeit only for participating users', async () => {
  const match={pk:'match',rk:'match_test',state:'pending'};
  const rows=[{pk:match.rk,rk:'user_me',role:'defender'},{pk:match.rk,rk:'ladder_test'},{pk:'ladder_test',rk:'user_admin',is_admin:true}];
- let html=await show('match',{match},rows);assert.equal(has(html,'accept'),true);assert.equal(has(html,'forfeit'),true);assert.equal(has(html,'More Options'),false);
+ let html=await show('match',{match},rows);assert.equal(has(html,'accept'),true);assert.equal(has(html,'forfeit'),false);assert.equal(has(html,'More Options'),true);
  html=await show('match',{match},rows,'user_admin');assert.equal(has(html,'accept'),true);assert.equal(has(html,'forfeit'),false);
  html=await show('match',{match},rows,'user_other');assert.equal(has(html,'accept'),false);assert.equal(has(html,'forfeit'),false);
- html=await show('match',{match:{...match,state:'active'}},rows);assert.equal(has(html,'accept'),false);assert.equal(has(html,'forfeit'),true);
+ html=await show('match',{match:{...match,state:'active'}},rows);assert.equal(has(html,'accept'),false);assert.equal(has(html,'forfeit'),false);assert.equal(has(html,'More Options'),true);
 });
 
 
@@ -69,4 +69,28 @@ test('team editor shows a read-only name and limits editing to team admins',asyn
  assert.match(html,/<input[^>]*aria-label="team name"[^>]*readonly/);assert.match(html,/value="Lobs"/);assert.equal(has(html,'update'),true);
  local.set({caller_id:'user_other',device_id:null,connect_key:null});const blocked=render(views.teamEdit,{context}).body;
  assert.match(blocked,/Only a team admin can edit this team/);assert.equal(has(blocked,'update'),false);assert.doesNotMatch(blocked,/aria-label="team name"/);
+});
+
+
+test('ladder sections show No pending matches without live matches, except when a challenge is available',async()=>{
+ const user={pk:'user',rk:'user_me',name:'Casey'},ladder={pk:'ladder',rk:'ladder_test',name:'Ladder',format:'singles',state:'active'};
+ const rows=[user,ladder,{pk:ladder.rk,rk:user.rk,is_participant:true,state:'active',rank:1}];
+ let html=await show('userLadder',{user,ladder},rows);assert.match(html,/No pending matches/);assert.match(html,/d="M5 12h14"/);assert.equal(has(html,'No pending matches'),false);
+ assert.match(await show('userLadder',{user,ladder},rows,'user_other'),/No pending matches/);
+ const challengeRows=[...rows,{pk:'user',rk:'user_other',name:'Other'},{pk:ladder.rk,rk:'user_other',is_participant:true,state:'active',rank:2,points:2}];
+ const eligible=await show('userLadder',{user,ladder},challengeRows,'user_other');assert.equal(has(eligible,'issue challenge'),true);assert.doesNotMatch(eligible,/No pending matches|cannot challenge/);
+ for(const state of ['pending','active','complete']){
+  const matches=[{pk:'match',rk:'match_test',name:'Match',state},{pk:user.rk,rk:'match_test',role:'challenger'},{pk:'match_test',rk:user.rk,role:'challenger'},{pk:'match_test',rk:ladder.rk}];
+  html=await show('userLadder',{user,ladder},[...rows,...matches]);assert.equal(html.includes('No pending matches'),state==='complete');
+ }
+});
+test('team sections show No pending rounds when no unfinished rounds require availability or selection',async()=>{
+ const user={pk:'user',rk:'user_me',name:'Casey'},entity={pk:'team',rk:'team_test',name:'Team',state:'active'},team={pk:user.rk,rk:entity.rk,is_member:true};
+ const rows=[user,entity,{pk:entity.rk,rk:user.rk,is_member:true}];
+ let html=await show('userTeam',{user,team},rows);assert.match(html,/No pending rounds/);assert.match(html,/d="M5 12h14"/);assert.equal(has(html,'No pending rounds'),false);
+ assert.match(await show('userTeam',{user,team},rows,'user_other'),/No pending rounds/);
+ for(const role of ['pending','selected','available','unavailable']){
+  html=await show('userTeam',{user,team},[...rows,{pk:'round',rk:'round_test',name:'Round',state:'pending',ext_date:'2026-11-20'},{pk:entity.rk,rk:'round_test'},{pk:user.rk,rk:'round_test',role}]);
+  assert.equal(html.includes('No pending rounds'),!['pending','selected'].includes(role));
+ }
 });

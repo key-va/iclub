@@ -38,38 +38,37 @@
 	);
 </script>
 
-{#snippet buttons()}
-	{#if quick}
-		{#if canAccept}<ActionQuick
-				inline
-				name="accept"
-				action={() => acceptMatch(match.rk)}
-			/>{/if}
-		{#if canForfeit}<ActionQuick
-				inline
-				name="forfeit"
-				action={() => forfeitMatch(match.rk, forfeitData)}
-			/>{/if}
-	{:else}
-		{#if canAccept}<ActionConfirmation
-				inline
-				arrow
-				showLabel
-				name="accept"
-				action={() => acceptMatch(match.rk)}
-			/>{/if}
-		{#if canForfeit}<ActionConfirmation
-				inline
-				arrow
-				showLabel
-				name="forfeit"
-				message="Forfeit this match?"
-				action={() => forfeitMatch(match.rk, forfeitData)}
-			/>{/if}
-	{/if}
+{#snippet quickButtons()}
+	{#if canAccept}<ActionQuick
+			inline
+			name="accept"
+			action={() => acceptMatch(match.rk)}
+		/>{/if}
+	{#if canForfeit}<ActionQuick
+			inline
+			name="forfeit"
+			action={() => forfeitMatch(match.rk, forfeitData)}
+		/>{/if}
 {/snippet}
+{#snippet acceptButton()}<ActionConfirmation
+		inline
+		arrow
+		showLabel
+		name="accept"
+		action={() => acceptMatch(match.rk)}
+	/>{/snippet}
+{#snippet forfeitOption()}<ActionConfirmation
+		inline
+		arrow
+		showLabel
+		name="forfeit"
+		message="Forfeit this match?"
+		action={() => forfeitMatch(match.rk, forfeitData)}
+	/>{/snippet}
 {#if canAccept || canForfeit}
-	{#if quick}{@render buttons()}{:else}<EntityActions>
-			{@render buttons()}
-		</EntityActions>{/if}
+	{#if quick}{@render quickButtons()}
+	{:else}<EntityActions
+			children={canAccept ? acceptButton : undefined}
+			options={canForfeit ? forfeitOption : undefined}
+		/>{/if}
 {/if}

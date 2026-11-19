@@ -17,7 +17,9 @@
 	let showHelp = $state(false);
 </script>
 
-{#if summary}<div class="group"><p class="info center">{summary}</p></div>{/if}
+{#if summary}<div class="group">
+		<p class="info center description">{summary}</p>
+	</div>{/if}
 {#if showHelp && help}<div class="group help">{@render help()}</div>{/if}
 {#snippet controls()}
 	{#if help}<button
@@ -31,15 +33,15 @@
 	{@render children?.()}
 {/snippet}
 {#if more}
-	<HiddenOptions title="More Options">
-		<div class="row right controls">
-			{@render controls()}{@render options?.()}
-		</div>
+	<HiddenOptions inline title="More Options">
+		{@render controls()}{@render options?.()}
 	</HiddenOptions>
 {:else}
-	<div class="row right controls">{@render controls()}</div>
-	{#if options}<HiddenOptions title="More Options">
-			<div class="row right controls">{@render options()}</div>
+	{#if help || children}<div class="row right controls">
+			{@render controls()}
+		</div>{/if}
+	{#if options}<HiddenOptions inline title="More Options">
+			{@render options()}
 		</HiddenOptions>{/if}
 {/if}
 

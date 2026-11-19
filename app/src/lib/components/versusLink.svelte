@@ -16,12 +16,26 @@
 
 <div class="row versus">
 	<a class="side" href={left.href}>
-		<div class="round-icon-small blue" style="background-image: url('{left.image}');"></div>
-		<p class="truncate"><strong>{left.title}</strong><br />{left.description}</p>
+		<div
+			class="round-icon-small blue"
+			style="background-image: url('{left.image}');"
+		></div>
+		<p class="truncate">
+			<strong>{left.title}</strong><br /><span class="description">
+				{left.description}
+			</span>
+		</p>
 	</a>
 	<a class="side end" href={right.href}>
-		<p class="truncate"><strong>{right.title}</strong><br />{right.description}</p>
-		<div class="round-icon-small blue" style="background-image: url('{right.image}');"></div>
+		<p class="truncate">
+			<strong>{right.title}</strong><br /><span class="description">
+				{right.description}
+			</span>
+		</p>
+		<div
+			class="round-icon-small blue"
+			style="background-image: url('{right.image}');"
+		></div>
 	</a>
 </div>
 

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import HiddenOptions from '../hiddenOptions.svelte';
 	import {
 		relationsOf,
 		typeOf,
@@ -90,20 +91,21 @@
 		{#each matches as match (match.rk)}<UserMatch
 				match={entityOf(match.rk)!}
 			/>{/each}
-	{:else if user.rk !== $local.caller_id && userRelation.is_participant === true}
-		{#if eligible}<ActionConfirmation
-				arrow
-				showLabel
-				name="issue challenge"
-				action={() =>
-					createMatchConfirmation(
-						ladder.rk,
-						viewer.competitorId!,
-						membership.competitorId ?? user.rk
-					)}
-			/>
-		{:else}<div class="row right">
-				<button class="grey" disabled><p>cannot challenge</p></button>
-			</div>{/if}
+	{:else if eligible}
+		<ActionConfirmation
+			arrow
+			showLabel
+			name="issue challenge"
+			action={() =>
+				createMatchConfirmation(
+					ladder.rk,
+					viewer.competitorId!,
+					membership.competitorId ?? user.rk
+				)}
+		/>
 	{/if}
+
+	{#if !matches.length && !eligible}<HiddenOptions
+			title="No pending matches"
+		/>{/if}
 </div>

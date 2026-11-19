@@ -42,11 +42,10 @@
 	{#if complete}
 		<p class="info center">
 			{result.name}<br />
-			{result.outcome}
-			{result.scores}
+			<span class="description">{result.outcome} {result.scores}</span>
 		</p>
 	{:else}
-		<p class="info center">
+		<p class="info center description">
 			{round.date}{round.venue ? ` • ${round.venue}` : ''}
 		</p>
 	{/if}
