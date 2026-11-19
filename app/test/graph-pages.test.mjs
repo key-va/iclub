@@ -23,8 +23,8 @@ before(async () => {
     render = (await server.ssrLoadModule('svelte/server')).render;
     guids = (await server.ssrLoadModule('/src/lib/stores/guids.ts')).guids;
     local = await server.ssrLoadModule('/src/lib/stores/local.ts');
-    pages = Object.fromEntries(await Promise.all(['group', 'team', 'round', 'match', 'user', 'comp'].map(async type =>
-        [type, (await server.ssrLoadModule(`/src/routes/${type}/[${type}_id]/+page.svelte`)).default])));
+    pages = Object.fromEntries(await Promise.all(['group', 'team', 'round', 'match', 'user', 'comp', 'browse'].map(async type =>
+        [type, (await server.ssrLoadModule(type === 'browse' ? '/src/routes/browse/+page.svelte' : `/src/routes/${type}/[${type}_id]/+page.svelte`)).default])));
 });
 after(async () => { await server?.close(); });
 function fixture() {
@@ -144,4 +144,21 @@ test('Elim participant rows show seed status and restrict their quick actions to
     const drawn = await output('comp', 'user_admin', undefined, rows);
     assert.match(drawn, /seeded 1/);
     assert.equal(hasAction(drawn, 'Remove seed 1 from Alice'), false);
+});
+
+test('Browse shows active entities and competitions accepting entries', async () => {
+    const rows = [
+        { pk: 'ladder', rk: 'ladder_active', name: 'Open ladder', state: 'active' },
+        { pk: 'team', rk: 'team_pending', name: 'Pending team', state: 'pending' },
+        { pk: 'group', rk: 'group_pending', name: 'Pending group', state: 'pending' },
+        { pk: 'comp', rk: 'comp_pending', name: 'Pending comp', state: 'pending' },
+        { pk: 'comp', rk: 'comp_open', name: 'Open entries', state: 'open' },
+        { pk: 'comp', rk: 'comp_active', name: 'Active draw', state: 'active' },
+        { pk: 'comp', rk: 'comp_finished', name: 'Finished draw', state: 'complete' }
+    ];
+    const html = await output('browse', 'user_admin', undefined, rows);
+    assert.match(html, /Open ladder/);
+    assert.match(html, /Open entries/);
+    assert.match(html, /Active draw/);
+    assert.doesNotMatch(html, /Pending team|Pending group|Pending comp|Finished draw/);
 });

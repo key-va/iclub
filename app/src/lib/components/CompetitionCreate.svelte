@@ -99,16 +99,16 @@
 				onchange={pickImage}
 			/>
 		</div>
+		{#if imageError}
+			<div class="row right"><p class="error">{imageError}</p></div>
+		{/if}
+
 		{#if isCompetition}
 			<div class="row right">
-				<label for="competition-type">Competition type</label>
-				<select id="competition-type" bind:value={competitionType}>
+				<select aria-label="Competition type" bind:value={competitionType}>
 					<option value="elimination">Elimination</option>
 				</select>
 			</div>
-		{/if}
-		{#if imageError}
-			<div class="row right"><p class="error">{imageError}</p></div>
 		{/if}
 		{#if showHelp}
 			<div class="row left">

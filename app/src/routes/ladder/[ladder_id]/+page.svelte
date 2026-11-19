@@ -86,7 +86,7 @@
 			{#if isPending}
 				<RouteLink
 					title={nameOf(caller_id ?? '')}
-					description="waiting to join"
+					description="join request pending"
 					href={hrefOf(caller_id ?? '')}
 					image={imageOf(caller_id ?? '')}
 				/>

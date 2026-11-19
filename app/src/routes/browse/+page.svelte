@@ -15,7 +15,9 @@
 
 	const browsable = $derived(
 		$entities.filter(
-			(e) => e.pk === 'ladder' || e.pk === 'team' || e.pk === 'group' || e.pk === 'comp'
+			(entity) =>
+				['ladder', 'team', 'group', 'comp'].includes(entity.pk) &&
+				(entity.state === 'active' || (entity.pk === 'comp' && entity.state === 'open'))
 		)
 	);
 

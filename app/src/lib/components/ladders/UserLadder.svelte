@@ -48,24 +48,23 @@
 				relation
 			})
 	);
+	const pending = $derived(
+		userRelation.state === 'pending' && userRelation.is_participant !== true
+	);
+	const ownPending = $derived(pending && user.rk === $local.caller_id);
 	const canAccept = $derived(
 		!matches.length &&
 			ladder.state === 'active' &&
 			admin &&
-			userRelation.state === 'pending' &&
-			userRelation.is_participant !== true
+			pending && !ownPending
 	);
-	const stateText = $derived(
-		relation.state === 'active'
-			? 'available'
-			: relation.state === 'busy'
-				? 'in a match'
-				: relation.state === undefined
-					? userRelation.is_admin === true
-						? 'administrator'
-						: ''
-					: String(relation.state)
-	);
+	const stateText = $derived.by(() => {
+		if (ownPending) return 'join request pending';
+		if (relation.state === 'active') return 'available';
+		if (relation.state === 'busy') return 'in a match';
+		if (relation.state !== undefined) return String(relation.state);
+		return userRelation.is_admin === true ? 'administrator' : '';
+	});
 </script>
 
 <div class="group">
@@ -103,9 +102,7 @@
 					membership.competitorId ?? user.rk
 				)}
 		/>
+	{:else if !ownPending}
+		<HiddenOptions title="No pending matches" />
 	{/if}
-
-	{#if !matches.length && !eligible}<HiddenOptions
-			title="No pending matches"
-		/>{/if}
 </div>

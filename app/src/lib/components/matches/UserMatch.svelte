@@ -36,6 +36,6 @@
 	href={hrefOf(match.rk)}
 	title={nameOf(match.rk)}
 	description={`${match.state} match`}
-	colour={match.state === 'pending' ? 'orange' : 'gold'}
+	colour="orange"
 	children={actionable ? actions : undefined}
 />
