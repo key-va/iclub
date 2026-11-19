@@ -12,7 +12,10 @@
 		returnLadder,
 		leaveLadder
 	} from '#lib/stores/remote.ts';
-	let { ladder }: { ladder: GuidRow } = $props();
+	let {
+		ladder,
+		section = 'all'
+	}: { ladder: GuidRow; section?: 'all' | 'primary' | 'options' } = $props();
 	const mine = $derived(
 		relationsOf(ladder.rk).find(
 			(row) => row.rk === $local.caller_id && row.state !== 'left'
@@ -51,6 +54,7 @@
 	/>{/snippet}
 
 <EntityActions
+	{section}
 	options={mine?.is_admin === true ? editOption : undefined}
 	{summary}
 	more={ladder.state === 'active' && associated}

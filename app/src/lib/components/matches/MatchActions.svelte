@@ -8,10 +8,12 @@
 	let {
 		match,
 		quick = false,
+		section = 'all',
 		forfeitData = {}
 	}: {
 		match: GuidRow;
 		quick?: boolean;
+		section?: 'all' | 'primary' | 'options';
 		forfeitData?: Record<string, unknown>;
 	} = $props();
 	const links = $derived(relationsOf(match.rk));
@@ -68,6 +70,7 @@
 {#if canAccept || canForfeit}
 	{#if quick}{@render quickButtons()}
 	{:else}<EntityActions
+			{section}
 			children={canAccept ? acceptButton : undefined}
 			options={canForfeit ? forfeitOption : undefined}
 		/>{/if}

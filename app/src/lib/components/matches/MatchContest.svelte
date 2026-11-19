@@ -189,6 +189,7 @@
 		{/if}
 	</div>
 	<MatchActions
+		section="primary"
 		{match}
 		forfeitData={scoreValid
 			? { challenger_score: challengerSets, defender_score: defenderSets }
@@ -291,6 +292,14 @@
 	description="ladder"
 	image={imageOf(ladder?.rk ?? '')}
 ></RouteLink>
+
+<MatchActions
+	{match}
+	section="options"
+	forfeitData={scoreValid
+		? { challenger_score: challengerSets, defender_score: defenderSets }
+		: {}}
+/>
 
 <style>
 	.scores {

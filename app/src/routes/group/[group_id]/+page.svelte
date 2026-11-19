@@ -1,22 +1,15 @@
 <script lang="ts">
+	import GroupActions from '#lib/components/groups/GroupActions.svelte';
 	import GroupSummary from '#lib/components/groups/GroupSummary.svelte';
 
 	import MessageThread from '#lib/components/messages/MessageThread.svelte';
 
 	import { page } from '$app/state';
-	import { local } from '#lib/stores/local.ts';
-	import { guids, entityOf, relationsOf } from '#lib/stores/guids.ts';
-
-	import RouteLink from '#lib/components/routeLink.svelte';
+	import { guids, entityOf } from '#lib/stores/guids.ts';
 
 	import EntityHeader from '#lib/components/EntityHeader.svelte';
 	const id = $derived(page.params.group_id ?? '');
 	const group = $derived(entityOf(id));
-	const admin = $derived(
-		relationsOf(id).some(
-			(row) => row.rk === $local.caller_id && row.is_admin === true
-		)
-	);
 </script>
 
 <div class="page">
@@ -25,11 +18,7 @@
 		<GroupSummary {group} />
 
 		<MessageThread parentId={id} />
-		{#if admin}<RouteLink
-				href={`/group/${id}/edit`}
-				title="Edit Group"
-				description="name and image"
-			/>{/if}
+		<GroupActions {group} section="options" />
 	{:else}
 		<div class="row right">
 			<p class="truncate">

@@ -6,7 +6,10 @@
 	import { local } from '#lib/stores/local.ts';
 	import { relationsOf, type GuidRow } from '#lib/stores/guids.ts';
 	import { joinTeam, leaveTeam, activateTeam } from '#lib/stores/remote.ts';
-	let { team }: { team: GuidRow } = $props();
+	let {
+		team,
+		section = 'all'
+	}: { team: GuidRow; section?: 'all' | 'primary' | 'options' } = $props();
 	const mine = $derived(
 		relationsOf(team.rk).find(
 			(row) => row.rk === $local.caller_id && row.state !== 'left'
@@ -29,6 +32,7 @@
 	/>{/snippet}
 
 <EntityActions
+	{section}
 	options={isTeamAdmin(mine) ? editOption : undefined}
 	summary={teamDescription(team)}
 	more={team.state === 'active' && !!mine}

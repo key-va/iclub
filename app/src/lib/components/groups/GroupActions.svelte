@@ -1,10 +1,14 @@
 <script lang="ts">
+	import ActionLink from '../ActionLink.svelte';
 	import EntityActions from '../EntityActions.svelte';
 	import ActionConfirmation from '../ActionConfirmation.svelte';
 	import { local } from '#lib/stores/local.ts';
 	import { relationsOf, type GuidRow } from '#lib/stores/guids.ts';
 	import { joinGroup, leaveGroup, activateGroup } from '#lib/stores/remote.ts';
-	let { group }: { group: GuidRow } = $props();
+	let {
+		group,
+		section = 'all'
+	}: { group: GuidRow; section?: 'all' | 'primary' | 'options' } = $props();
 	const mine = $derived(
 		relationsOf(group.rk).find(
 			(row) => row.rk === $local.caller_id && row.state !== 'left'
@@ -21,7 +25,16 @@
 	);
 </script>
 
-<EntityActions more={group.state === 'active' && !!mine}>
+{#snippet editOption()}<ActionLink
+		href={`/group/${group.rk}/edit`}
+		name="edit"
+	/>{/snippet}
+
+<EntityActions
+	{section}
+	options={mine?.is_admin === true ? editOption : undefined}
+	more={group.state === 'active' && !!mine}
+>
 	{#if group.state === 'pending'}
 		<ActionConfirmation
 			inline

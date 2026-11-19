@@ -166,15 +166,6 @@
 		flex-wrap: wrap;
 	}
 
-	.action-options.inline :global(button),
-	.action-options.inline :global(.action-link) {
-		margin: 0.25rem;
-		padding: 0.25rem;
-	}
-	.action-options.inline :global(p) {
-		padding: 0.25rem;
-	}
-
 	.details > :global(p) {
 		padding: 0.5em 2em;
 	}

@@ -47,7 +47,7 @@
 	let syncMessage = $state('');
 </script>
 
-<TeamActions {team} />
+<TeamActions {team} section="primary" />
 {#if team.state === 'active'}
 	{#if admin}
 		<div class="group">
@@ -113,3 +113,5 @@
 		{/each}
 	</HiddenOptions>
 {/if}
+
+<TeamActions {team} section="options" />
