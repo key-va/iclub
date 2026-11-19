@@ -21,6 +21,8 @@ test('ladder visitor sees selected settings and join; membership management star
  const ladder = { pk:'ladder',rk:'ladder_test',name:'Ladder',state:'active',format:'singles',ladder_system:'half_rank',match_format:'best_of_three' };
  const visitor = await show('ladder',{ladder},[ladder]);
  assert.match(visitor,/singles • half rank • best of three/);assert.equal(has(visitor,'request to join'),true);assert.equal(has(visitor,'help'),true);
+ const adminOnly = await show('ladder',{ladder},[ladder,{pk:ladder.rk,rk:'user_me',is_admin:true}]);
+ assert.equal(has(adminOnly,'request to join'),true);
  const member = await show('ladder',{ladder},[ladder,{pk:ladder.rk,rk:'user_me',is_participant:true,state:'active'}]);
  assert.equal(has(member,'More Options'),true);assert.equal(has(member,'request to join'),false);assert.equal(has(member,'away'),false);
 });

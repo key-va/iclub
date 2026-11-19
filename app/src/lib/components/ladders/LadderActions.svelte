@@ -19,8 +19,7 @@
 	const associated = $derived(
 		!!mine &&
 			(mine.is_participant === true ||
-				mine.state === 'pending' ||
-				mine.is_admin === true)
+				mine.state === 'pending')
 	);
 	const summary = $derived(
 		['format', 'ladder_system', 'match_format']
