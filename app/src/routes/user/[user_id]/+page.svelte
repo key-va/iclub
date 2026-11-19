@@ -50,6 +50,14 @@
 				.filter((group) => entityOf(group.rk)?.state === 'pending')
 		)
 	);
+	const elims = $derived(
+		relationsOf(user_id).filter((row) => typeOf(row.rk) === 'elim' && entityOf(row.rk) &&
+			(row.is_admin === true || !['left', 'closed'].includes(String(row.state))))
+	);
+	const pendingElims = $derived(
+		adminClubs.flatMap((club) => relationsOf(club.rk)
+			.filter((row) => typeOf(row.rk) === 'elim' && entityOf(row.rk)?.state === 'pending'))
+	);
 	const teams = $derived(
 		relatedRows.filter((row) => typeOf(row.rk) === 'team' && entityOf(row.rk))
 	);
@@ -93,6 +101,10 @@
 					description="pending club approval"
 					image={imageOf(team.rk)}
 				/>{/each}
+			{#each pendingElims as elim (elim.rk)}
+				<RouteLink href={hrefOf(elim.rk)} title={nameOf(elim.rk)}
+					description="pending club approval" image={imageOf(elim.rk)} />
+			{/each}
 			{#each pendingGroups as group (group.rk)}<RouteLink
 					href={hrefOf(group.rk)}
 					title={nameOf(group.rk)}
@@ -105,12 +117,12 @@
 		{#each ladders as ladder (ladder.rk)}
 			<UserLadder user={user_entity} ladder={entityOf(ladder.rk)!} />
 		{:else}
-			{#if user_id === caller_id && ladders.length === 0 && teams.length === 0 && groups.length === 0}
+			{#if user_id === caller_id && ladders.length === 0 && teams.length === 0 && groups.length === 0 && elims.length === 0}
 				<div class="group">
 					<RouteLink
 						href="/browse"
 						title="Browse"
-						description="ladders, teams and groups"
+						description="ladders, teams, groups and elims"
 					/>
 				</div>
 			{/if}
@@ -122,6 +134,12 @@
 
 		{#each groups as group (group.rk)}
 			<UserGroup user={user_entity} {group} />
+		{/each}
+
+		{#each elims as elim (elim.rk)}
+			<RouteLink href={hrefOf(elim.rk)} title={nameOf(elim.rk)}
+				description={elim.state === 'pending' ? 'join pending' : 'elim'}
+				image={imageOf(elim.rk)} />
 		{/each}
 
 		<MatchHistory parentId={user_id} />

@@ -15,6 +15,8 @@
 		relationsOf(id).find((row) => typeOf(row.rk) === 'ladder')
 	);
 	const ladder = $derived(ladderRow ? entityOf(ladderRow.rk) : undefined);
+	const elimLink = $derived(relationsOf(id).find((row) => typeOf(row.rk) === 'elim'));
+	const elim = $derived(elimLink ? entityOf(elimLink.rk) : undefined);
 </script>
 
 <div class="page">
@@ -22,8 +24,14 @@
 		<EntityHeader
 			entity={match}
 			subtitle={match.state}
-			image={ladder ? imageOf(ladder.rk) : null}
+			image={elim ? imageOf(elim.rk) : ladder ? imageOf(ladder.rk) : null}
 		/>
-		<MatchContest {match} {ladder} />
+		{#if !elim || elim.state === 'active' || elim.state === 'complete'}
+			{#key elim ? `${match.rk}:${match.first_id}:${match.second_id}` : match.rk}
+				<MatchContest {match} {ladder} {elim} />
+			{/key}
+		{:else}
+			<p>The draw is being prepared.</p>
+		{/if}
 	{:else}<p>{$guids.loaded ? 'Not found' : 'Loading'}</p>{/if}
 </div>

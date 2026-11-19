@@ -6,7 +6,7 @@ const original = Module._load;
 const rows = new Map(),
     blobs = new Map(),
     pushes = [];
-let exportsCount, rejectSignature, failPush;
+let exportsCount, rejectSignature, failPush, failWrite;
 const key = (pk, rk) => `${pk}|${rk}`;
 const seed = (pk, rk, attrs = {}) =>
     rows.set(key(pk, rk), {
@@ -27,14 +27,27 @@ class TableClient {
         return { ...row };
     }
     async upsertEntity(row) {
+        if (key(row.partitionKey, row.rowKey) === failWrite) {
+            failWrite = undefined;
+            throw new Error("Table write interrupted");
+        }
         rows.set(key(row.partitionKey, row.rowKey), { ...row, etag: "v1" });
     }
     async updateEntity(row, mode, options) {
         assert.equal(mode, "Merge");
         const old = get(row.partitionKey, row.rowKey);
         if (!old) throw { statusCode: 404 };
-        assert.equal(options.etag, old.etag);
-        Object.assign(old, row);
+        if (options?.etag && options.etag !== old.etag) throw { statusCode: 412 };
+        Object.assign(old, row, { etag: `v${Number(old.etag.slice(1)) + 1}` });
+    }
+    async submitTransaction(updates) {
+        for (const [action, row] of updates) {
+            assert.equal(action, "upsert");
+            await this.upsertEntity(row);
+        }
+    }
+    async deleteEntity(pk, rk) {
+        if (!rows.delete(key(pk, rk))) throw { statusCode: 404 };
     }
     async *listEntities({ queryOptions: { filter } }) {
         const fields = [...filter.text.matchAll(/(PartitionKey|url) eq /g)].map(
@@ -124,6 +137,7 @@ beforeEach(() => {
     exportsCount = 0;
     rejectSignature = false;
     failPush = false;
+    failWrite = undefined;
     seed("club", "club_home", { name: "Club", url: "club.example" });
     seed("club", "club_other", { url: "other.example" });
     for (const id of [
@@ -421,4 +435,146 @@ test("persisted group messages survive notification failure, and malformed group
     for (const data of [null, [], "bad"])
         assert.equal((await call("create", "user_creator", data)).status, 400);
     assert.equal(exportsCount, count);
+});
+
+const { elimAction } = require("../dist/src/functions/elim");
+const { elimBracketId, elimDraw } = require("../dist/src/services/elimDraw");
+const elimCall = (id, action, caller, data) => elimAction({
+    ...request(caller, data, id, action), params: { elim_id: id, action },
+}, context);
+const elimAdmin = "user_creator";
+const clubAdmin = "user_clubadmin";
+async function openElim() {
+    const create = await groupAction(request(elimAdmin, { name: "Club knockout" }), context, "create", "elim");
+    assert.equal(create.status, 201);
+    const id = create.jsonBody.subject;
+    assert.equal(get("elim", id).state, "pending");
+    assert.equal((await elimCall(id, "activate", elimAdmin)).status, 403);
+    assert.equal((await elimCall(id, "activate", clubAdmin)).status, 200);
+    return id;
+}
+
+async function enterElim(id, entrants) {
+    for (const userId of entrants) {
+        assert.equal((await elimCall(id, "join", userId)).status, 200);
+        assert.equal((await elimCall(id, "accept", elimAdmin, { user_id: userId })).status, 200);
+        mirrors(id, userId);
+    }
+}
+
+function scores(matchId, a, b) {
+    const match = get("match", matchId);
+    return {
+        match_id: matchId,
+        first_id: match.first_id,
+        second_id: match.second_id,
+        first_score: a,
+        second_score: b,
+    };
+}
+
+test("Elim seeds follow tap order and a failed draw reuses match IDs and ranked byes", async () => {
+    const id = await openElim();
+    const entrants = ["user_member", "user_applicant", "user_visitor", "user_otheradmin", clubAdmin];
+    await enterElim(id, entrants);
+    assert.equal((await elimCall(id, "seed", entrants[0], { user_id: entrants[1] })).status, 403);
+    for (const user_id of entrants.slice(0, 3))
+        assert.equal((await elimCall(id, "seed", elimAdmin, { user_id })).status, 200);
+    await elimCall(id, "unseed", elimAdmin, { user_id: entrants[0] });
+    await elimCall(id, "seed", elimAdmin, { user_id: entrants[0] });
+    assert.deepEqual(entrants.slice(0, 3).map(userId => get(id, userId).seed), [3, 1, 2]);
+    for (const userId of entrants) mirrors(id, userId);
+    assert.equal((await elimCall(id, "join", elimAdmin)).status, 200);
+
+    const firstId = elimBracketId("match", id, 1, 1);
+    const secondId = elimBracketId("match", id, 1, 2);
+    failWrite = key("match", secondId);
+    await assert.rejects(elimCall(id, "draw", elimAdmin), /Table write interrupted/);
+    assert.equal(get("elim", id).state, "drawing");
+    assert.equal((await elimCall(id, "accept", elimAdmin, { user_id: elimAdmin })).status, 409);
+    const saved = { ...get("match", firstId) };
+    assert.equal((await elimCall(id, "draw", elimAdmin)).status, 200);
+    assert.deepEqual(get("match", firstId), saved);
+    assert.equal(get("elim", id).state, "active");
+    assert.equal(get(id, elimAdmin).state, "closed");
+    const matches = [...rows.values()].filter(row => row.partitionKey === "match");
+    assert.equal(matches.length, 7);
+    assert.deepEqual(matches.filter(row => row.is_bye).map(row => row.winner_id).sort(), entrants.slice(0, 3).sort());
+    for (const match of matches) mirrors(id, match.rowKey);
+    assert.equal((await elimCall(id, "draw", elimAdmin)).status, 200);
+});
+
+test("Elim score repair advances winners, notifies the right players and guards corrections", async () => {
+    const id = await openElim();
+    await enterElim(id, ["user_member", "user_applicant", "user_visitor", "user_otheradmin"]);
+    await elimCall(id, "draw", elimAdmin);
+    const firstMatch = elimBracketId("match", id, 1, 1);
+    const secondMatch = elimBracketId("match", id, 1, 2);
+    const final = elimBracketId("match", id, 2, 1);
+    const firstScore = scores(firstMatch, 8, 4);
+    assert.equal((await elimCall(id, "score", elimAdmin, scores(final, 8, 4))).status, 409);
+
+    // Interrupt propagation after the authoritative score has been persisted.
+    failWrite = key(final, firstScore.first_id);
+    await assert.rejects(elimCall(id, "score", firstScore.first_id, firstScore), /Table write interrupted/);
+    assert.equal(get("match", firstMatch).winner_id, firstScore.first_id);
+    assert.equal(get("elim", id).pending_match_id, firstMatch);
+    assert.equal((await elimCall(id, "score", firstScore.first_id, firstScore)).status, 200);
+    assert.equal(pushes.at(-1).exceptUserId, firstScore.first_id);
+    assert.deepEqual(pushes.at(-1).userIds, [firstScore.first_id, firstScore.second_id]);
+    assert.equal(get("match", final).first_id, firstScore.first_id);
+
+    const otherScore = scores(secondMatch, 8, 1);
+    assert.equal((await elimCall(id, "score", elimAdmin, otherScore)).status, 200);
+    assert.equal(pushes.at(-1).exceptUserId, undefined);
+    assert.deepEqual(pushes.at(-1).userIds, [otherScore.first_id, otherScore.second_id]);
+    const staleFinal = scores(final, 8, 4);
+    const correction = scores(firstMatch, 2, 8);
+    assert.equal((await elimCall(id, "correct", firstScore.first_id, correction)).status, 403);
+    assert.equal((await elimCall(id, "correct", elimAdmin, correction)).status, 200);
+    assert.equal(get("match", final).first_id, firstScore.second_id);
+    assert.equal(get(final, firstScore.first_id), undefined);
+    assert.equal(get(firstScore.first_id, final), undefined);
+    mirrors(final, firstScore.second_id);
+    assert.equal((await elimCall(id, "score", elimAdmin, staleFinal)).status, 409);
+
+    assert.equal((await elimCall(id, "score", elimAdmin, scores(final, 8, 5))).status, 200);
+    assert.equal(get("elim", id).champion_id, firstScore.second_id);
+    assert.equal((await elimCall(id, "correct", elimAdmin, firstScore)).status, 409);
+    assert.equal((await elimCall(id, "correct", elimAdmin, scores(final, 5, 8))).status, 200);
+    assert.equal(get("elim", id).champion_id, otherScore.first_id);
+});
+
+test("Elim shuffle is stable across roster order and across bracket sizes", () => {
+    for (const count of [2, 5, 8, 9, 16, 19]) {
+        const entrants = Array.from({ length: count }, (_, i) => ({
+            id: `user_${i + 1}`, seed: i < Math.min(8, count) ? i + 1 : 0,
+        }));
+        const id = "elim_2026-11-19_12-00-00_0123456789ab";
+        const result = elimDraw(id, entrants);
+        assert.deepEqual(result, elimDraw(id, [...entrants].reverse()));
+        assert.equal(result.slots.filter(Boolean).length, count);
+        const byeRecipients = [];
+        for (let i = 0; i < result.slots.length; i += 2) {
+            const [a, b] = result.slots.slice(i, i + 2);
+            assert.ok(a || b);
+            if (!a || !b) byeRecipients.push(a || b);
+        }
+        const seeded = entrants.filter(player => player.seed > 0);
+        assert.ok(seeded.slice(0, byeRecipients.length).every(player => byeRecipients.includes(player.id)));
+    }
+});
+
+test("Concurrent Elim results can be retried and fill both slots of the final", async () => {
+    const id = await openElim();
+    await enterElim(id, ["user_member", "user_applicant", "user_visitor", "user_otheradmin"]);
+    await elimCall(id, "draw", elimAdmin);
+    const submissions = [1, 2].map(index => scores(elimBracketId("match", id, 1, index), 8, 2));
+    const results = await Promise.all(submissions.map(data => elimCall(id, "score", elimAdmin, data)));
+    assert.deepEqual(results.map(result => result.status).sort(), [200, 409]);
+    const retry = submissions[results.findIndex(result => result.status === 409)];
+    assert.equal((await elimCall(id, "score", elimAdmin, retry)).status, 200);
+    const final = get("match", elimBracketId("match", id, 2, 1));
+    assert.deepEqual([final.first_id, final.second_id], submissions.map(data => data.first_id));
+    assert.equal(final.state, "active");
 });

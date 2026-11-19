@@ -61,6 +61,14 @@ svg {
     background: var(--brand-background, #00BFFF); color: var(--brand-background-text, white);
 }
 
+.green {
+    background: #187543; color: white;
+}
+
+.orange {
+    background: #a4470c; color: white;
+}
+
 .grey {
     background: lightgrey; color: white;
 }
