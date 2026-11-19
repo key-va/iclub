@@ -55,25 +55,25 @@ async function renderUser({ format = 'singles', relation = {}, caller = 'user_ad
 test('admin-only relations display administrator without an acceptance action', async () => {
     const html = await renderUser({ relation: { is_admin: true } });
     assert.match(html, /administrator/);
-    assert.doesNotMatch(html, /aria-label="accept"|waiting to join/);
+    assert.doesNotMatch(html, /aria-label="accept joiner"|pending pair/);
     assert.doesNotMatch(html, />pending</);
-    assert.doesNotMatch(await renderUser({ relation: { is_admin: true }, caller: 'user_viewed' }), /aria-label="accept"|waiting to join/);
-    assert.doesNotMatch(await renderUser(), />pending<|aria-label="accept"/);
+    assert.doesNotMatch(await renderUser({ relation: { is_admin: true }, caller: 'user_viewed' }), /aria-label="accept joiner"|pending pair/);
+    assert.doesNotMatch(await renderUser(), />pending<|aria-label="accept joiner"/);
 });
 
 test('only ladder admins can accept genuine pending singles requests', async () => {
     const relation = { state: 'pending', is_participant: false };
-    assert.match(await renderUser({ relation }), /aria-label="accept"/);
-    assert.doesNotMatch(await renderUser({ relation, caller: 'user_other' }), /aria-label="accept"/);
-    assert.doesNotMatch(await renderUser({ relation: { state: 'pending', is_participant: true } }), /aria-label="accept"/);
+    assert.match(await renderUser({ relation }), /aria-label="accept joiner"/);
+    assert.doesNotMatch(await renderUser({ relation, caller: 'user_other' }), /aria-label="accept joiner"/);
+    assert.doesNotMatch(await renderUser({ relation: { state: 'pending', is_participant: true } }), /aria-label="accept joiner"/);
 });
 
 test('pending doubles requests show a disabled waiting button only to admins', async () => {
     const relation = { is_admin: true, state: 'pending', is_participant: false };
     const html = await renderUser({ format: 'doubles', relation });
-    assert.match(html, /<button class="grey" disabled[^>]*><p>waiting to join<\/p><\/button>/);
-    assert.doesNotMatch(html, /aria-label="accept"/);
-    assert.doesNotMatch(await renderUser({ format: 'doubles', relation, caller: 'user_other' }), /waiting to join/);
+    assert.match(html, /<button class="grey" disabled[^>]*><p>pending pair<\/p><\/button>/);
+    assert.doesNotMatch(html, /aria-label="accept joiner"/);
+    assert.doesNotMatch(await renderUser({ format: 'doubles', relation, caller: 'user_other' }), /pending pair/);
 });
 
 test('accepted doubles keep their pair state and rank without a waiting control', async () => {
@@ -84,5 +84,5 @@ test('accepted doubles keep their pair state and rank without a waiting control'
     });
     assert.match(html, />available/);
     assert.match(html, /available[\s\S]*?3/);
-    assert.doesNotMatch(html, /aria-label="accept"|waiting to join/);
+    assert.doesNotMatch(html, /aria-label="accept joiner"|pending pair/);
 });

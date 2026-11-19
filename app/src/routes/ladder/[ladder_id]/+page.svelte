@@ -1,4 +1,6 @@
 <script lang="ts">
+	import UserMatch from '#lib/components/matches/UserMatch.svelte';
+	import LadderActions from '#lib/components/ladders/LadderActions.svelte';
 	import EntityHeader from '#lib/components/EntityHeader.svelte';
 	import { page } from '$app/state';
 	import { local } from '#lib/stores/local.ts';
@@ -20,7 +22,7 @@
 	} from '#lib/components/matches/matchRules.ts';
 
 	import ActionConfirmation from '#lib/components/ActionConfirmation.svelte';
-	import { activateLadder, joinLadder } from '#lib/stores/remote.ts';
+	import { activateLadder } from '#lib/stores/remote.ts';
 	import RouteLink from '#lib/components/routeLink.svelte';
 	import HiddenOptions from '#lib/components/hiddenOptions.svelte';
 
@@ -49,12 +51,6 @@
 			(relation) => relation.rk === caller_id && relation.is_admin === true
 		)
 	);
-	const myRelation = $derived(
-		relationsOf(ladderId)
-			.filter((row) => typeOf(row.rk) === 'user' && entityOf(row.rk))
-			.find((user) => user.rk === caller_id)
-	);
-
 	// Players who asked to join and are waiting for a ladder admin to accept
 	const pending = $derived(
 		relationsOf(ladderId)
@@ -109,6 +105,7 @@
 			</div>
 		{/if}
 
+		<LadderActions {ladder} />
 		<LadderRequests {ladder} />
 
 		<div class="group">
@@ -121,28 +118,11 @@
 				/>
 			{/if}
 
-			{#if yourMatches.length > 0}
-				{#each yourMatches as match (match.rk)}
-					<RouteLink
-						href={hrefOf(match.rk)}
-						title={nameOf(match.rk)}
-						description={String(entityOf(match.rk)?.state) + ' match'}
-					/>
-				{/each}
-			{/if}
+			{#each yourMatches as match (match.rk)}<UserMatch
+					match={entityOf(match.rk)!}
+				/>{/each}
 
-			{#if ladder.state === 'active' && myRelation?.is_participant !== true && !isPending}
-				<ActionConfirmation
-					name="request to join"
-					message={`join the ladder ${ladder.name}?`}
-					action={() => joinLadder(ladderId)}
-					disabled={!caller_id}
-				/>
-			{/if}
-
-			<HiddenOptions
-				title="Leaderboard"
-				badge={leaderboard.length}
+			<HiddenOptions title="Leaderboard" badge={leaderboard.length}
 			></HiddenOptions>
 
 			{#each leaderboard as player (player.rk)}

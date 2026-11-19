@@ -29,7 +29,16 @@ before(async () => {
                     export const joinLadder = id => ({ endpoint: 'ladder/' + id + '/join', data: {} });
                     export const acceptLadderMember = (id, user) => ({ endpoint: 'ladder/' + id + '/accept', data: { user_id: user } });
                     export const acceptLadderPair = (id, users) => ({ endpoint: 'ladder/' + id + '/accept', data: { user_ids: users } });
-                    export const createMatch = (id, challenger, defender) => ({ endpoint: 'match/create', data: { ladder_id: id, challenger_id: challenger, defender_id: defender } });`;
+                    export const createMatch = (id, challenger, defender) => ({ endpoint: 'match/create', data: { ladder_id: id, challenger_id: challenger, defender_id: defender } });
+                    export const createMatchConfirmation = createMatch;
+                    export const acceptLadderMemberConfirmation = acceptLadderMember;
+                    export const acceptTeamMemberConfirmation = acceptTeamMember;
+                    export const awayLadder = id => ({ endpoint: 'ladder/' + id + '/away', data: {} });
+                    export const returnLadder = id => ({ endpoint: 'ladder/' + id + '/return', data: {} });
+                    export const leaveLadder = id => ({ endpoint: 'ladder/' + id + '/leave', data: {} });
+                    export const acceptMatch = id => ({ endpoint: 'match/' + id + '/accept', data: {} });
+                    export const forfeitMatch = id => ({ endpoint: 'match/' + id + '/forfeit', data: {} });
+                    `;
                 // Resolve callbacks against synchronous endpoint descriptors in this
                 // fixture only; real components must never invoke actions on render.
                 if (/\/components\/Action(?:Quick|Confirmation)\.svelte$/.test(path)) return `
@@ -156,7 +165,7 @@ test('user ladder sections isolate ongoing matches to the viewed user and ladder
     const output = html('UserLadder', { user, ladder });
     assert.match(output, /href="\/match\/match_live"/);
     assert.doesNotMatch(output, /href="\/match\/match_(done|elsewhere)"/);
-    assert.equal(action(output, 'challenge'), undefined);
+    assert.equal(action(output, 'issue challenge'), undefined);
 });
 
 test('pending application controls are limited to ladder admins and honour ladder format', async () => {
@@ -186,7 +195,7 @@ test('user doubles section displays the pair standing instead of the user member
     const output = html('UserLadder', { ladder, user: graph.entityOf( 'user_other') });
     assert.match(output, /cooling[\s\S]*?2/);
     assert.doesNotMatch(output, /<\/span>88/);
-    assert.equal(action(output, 'challenge'), undefined);
+    assert.equal(action(output, 'issue challenge').data.challenger_id, 'pair_mine');
 });
 
 test('ladder page chooses users or pairs and orders competitive standings by rank', async () => {

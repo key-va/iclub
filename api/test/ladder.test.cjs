@@ -5,13 +5,19 @@ const Module = require('node:module');
 const originalLoad = Module._load;
 const rows = new Map();
 const pushes = [];
+const versions = new Map();
 let rejectSignature = false;
 const key = (pk, rk) => `${pk}|${rk}`;
 const entity = (pk, rk, attributes = {}) => rows.set(key(pk,rk), { partitionKey: pk, rowKey: rk, timestamp: new Date(), ...attributes });
 const relation = (a,b,attributes={}) => { entity(a,b,attributes); entity(b,a,attributes); };
 const get = (pk,rk) => rows.get(key(pk,rk));
 class TableClient {
-    async getEntity(pk,rk) { const row = get(pk,rk); if (!row) throw Object.assign(new Error('Missing'),{statusCode:404}); return {...row}; }
+    async getEntity(pk,rk) { const row = get(pk,rk); if (!row) throw Object.assign(new Error('Missing'),{statusCode:404}); return {...row, etag: String(versions.get(key(pk,rk)) ?? 0)}; }
+    async updateEntity(row, mode, options) {
+        const id=key(row.partitionKey,row.rowKey), current=get(row.partitionKey,row.rowKey);
+        if(options?.etag !== undefined && options.etag !== String(versions.get(id) ?? 0)) throw {statusCode:412};
+        versions.set(id,(versions.get(id) ?? 0)+1);rows.set(id,{...current,...row});
+    }
     async upsertEntity(row) { entity(row.partitionKey,row.rowKey,row); }
     async *listEntities({queryOptions:{filter}}) {
         const fields = [...filter.text.matchAll(/(PartitionKey|state) eq /g)].map(m => m[1] === 'PartitionKey' ? 'partitionKey' : m[1]);
@@ -60,7 +66,7 @@ function mirrored() {
         assert.deepEqual(attrs(row),attrs(opposite));
     }
 }
-beforeEach(()=>{rows.clear();pushes.length=0;rejectSignature=false;});
+beforeEach(()=>{rows.clear();versions.clear();pushes.length=0;rejectSignature=false;});
 after(()=>{Module._load=originalLoad;});
 
 test('individual requests stay pending; only admin can pair two distinct pending users',async()=>{
@@ -237,12 +243,12 @@ test('retirement handles every unresolved match but preserves already completed 
     assert.equal(get('match',id).state,'complete');assert.equal(get('match','match_extra').state,'complete');assert.equal(get(L,'pair_bottom').rank,1);mirrored();
 });
 
-test('singles deadline processing and away still work; doubles away is excluded',async()=>{
+test('singles deadline processing and away still work; doubles away is pair-aware',async()=>{
     const away=load('ladderAway');seed('singles');relation(L,A,{is_participant:true,rank:1,points:1,state:'active'});relation(L,C,{is_participant:true,rank:2,points:2,state:'active'});
     const r=await call(create,C,{ladder_id:L,challenger_id:C,defender_id:A});const id=r.jsonBody.subject;
     get('match',id).timestamp=new Date(Date.now()-3*86400000);await batch({},context);assert.equal(get('match',id).state,'complete');
     assert.equal((await call(away,A,undefined,{ladder_id:L})).status,200);
-    rows.clear();doubles();assert.equal((await call(away,A,undefined,{ladder_id:L})).status,409);assert.equal(get(L,'pair_top').state,'active');
+    rows.clear();doubles();assert.equal((await call(away,A,undefined,{ladder_id:L})).status,200);assert.equal(get(L,'pair_top').state,'away');
 });
 
 
@@ -286,4 +292,72 @@ test('missing cooldown settings cool a losing competitor for three days',async()
  await batch({},context);assert.equal(get(L,'pair_top').state,'cooling');
  get(L,'pair_top').timestamp=new Date(Date.now()-3.5*86400000);
  await batch({},context);assert.equal(get(L,'pair_top').state,'active');
+});
+
+
+const {membershipAction}=require('../dist/src/functions/membership.js');
+const membership=(type,action,caller,id=L)=>membershipAction(req(caller,undefined,{[`${type}_id`]:id}),context,type,action);
+test('doubles away forfeits matches, preserves partner status, and only cools when both return',async()=>{
+ doubles();const id=await challenge();await call(matchAccept,A,undefined,{match_id:id});
+ assert.equal((await membership('ladder','away',A)).status,200);
+ assert.equal(get('match',id).state,'complete');assert.equal(get(id,'pair_top').result,'forfeiter');
+ assert.equal(get(L,A).state,'away');assert.equal(get(L,B).state,'active');assert.equal(get(L,'pair_top').state,'away');
+ assert.equal((await membership('ladder','away',B)).status,200);
+ assert.equal((await membership('ladder','return',A)).status,200);
+ assert.equal(get(L,A).state,'active');assert.equal(get(L,B).state,'away');assert.equal(get(L,'pair_top').state,'away');
+ assert.equal((await membership('ladder','return',B)).status,200);assert.equal(get(L,'pair_top').state,'cooling');
+ assert.equal((await membership('ladder','return',B)).status,409);mirrored();
+});
+test('leave checks the last admin before forfeiture; doubles withdrawal removes both memberships and closes rank gaps',async()=>{
+ doubles();relation(L,ADMIN,{is_admin:false});relation(L,A,{is_participant:true,state:"active",is_admin:true});const id=await challenge();
+ assert.equal((await membership('ladder','leave',B)).status,409);assert.equal(get('match',id).state,'pending');assert.equal(get(L,'pair_top').is_participant,true);
+ relation(L,ADMIN,{is_admin:true});assert.equal((await membership('ladder','leave',B)).status,200);
+ assert.equal(get('match',id).state,'complete');assert.equal(get(L,'pair_top').is_participant,false);assert.equal(get(L,'pair_top').rank,undefined);
+ for(const user of [A,B]){assert.equal(get(L,user).state,'left');assert.equal(get(L,user).is_participant,false);}
+ assert.equal(get(L,'pair_bottom').rank,1);mirrored();
+});
+test('singles away forfeits pending matches and return enters cooling; leaving then closes ranks',async()=>{
+ seed('singles');relation(L,A,{is_participant:true,rank:1,state:'active'});relation(L,C,{is_participant:true,rank:2,state:'active',points:2});
+ const match=await call(create,C,{ladder_id:L,challenger_id:C,defender_id:A});
+ assert.equal((await membership('ladder','away',C)).status,200);assert.equal(get('match',match.jsonBody.subject).state,'complete');assert.equal(get(L,C).state,'away');
+ assert.equal((await membership('ladder','return',C)).status,200);assert.equal(get(L,C).state,'cooling');
+ assert.equal((await membership('ladder','leave',C)).status,200);assert.equal(get(L,C).state,'left');assert.equal(get(L,A).rank,1);mirrored();
+});
+test('team and group leave reject the last admin, preserve history, and withdraw future availability',async()=>{
+ for(const type of ['team','group']){
+  rows.clear();const id=`${type}_test`;entity(type,id,{state:'active'});relation(id,A,{is_admin:true,is_participant:true,is_member:true});
+  entity('round','round_future',{state:'pending'});relation(id,'round_future',{});relation('round_future',A,{role:'selected'});
+  entity('round','round_past',{state:'complete'});relation(id,'round_past',{});relation('round_past',A,{role:'selected'});
+  assert.equal((await membership(type,'leave',A,id)).status,409);
+  relation(id,B,{is_admin:true});assert.equal((await membership(type,'leave',A,id)).status,200);
+  assert.equal(get(id,A).state,'left');assert.equal(get(id,A).is_admin,false);
+  if(type==='team'){assert.equal(get('round_future',A).role,'unavailable');assert.equal(get('round_past',A).role,'selected');}
+  assert.equal((await membership(type,'leave',A,id)).status,409);mirrored();
+ }
+});
+test('membership changes reject invalid signatures and unrelated users without graph writes',async()=>{
+ doubles();const before=JSON.stringify([...rows]);rejectSignature=true;
+ assert.equal((await membership('ladder','away',A)).status,401);assert.equal(JSON.stringify([...rows]),before);
+ rejectSignature=false;assert.equal((await membership('ladder','away','user_outsider')).status,409);assert.equal(JSON.stringify([...rows]),before);
+});
+
+
+test('membership guard prevents simultaneous partner changes from losing the pair state',async()=>{
+ doubles();
+ let results=await Promise.all([membership('ladder','away',A),membership('ladder','away',B)]);
+ assert.deepEqual(results.map(result=>result.status).sort(),[200,409]);
+ const second=get(L,A).state==='away'?B:A;assert.equal((await membership('ladder','away',second)).status,200);
+ results=await Promise.all([membership('ladder','return',A),membership('ladder','return',B)]);
+ assert.deepEqual(results.map(result=>result.status).sort(),[200,409]);
+ const remaining=get(L,A).state==='away'?A:B;assert.equal(get(L,'pair_top').state,'away');
+ assert.equal((await membership('ladder','return',remaining)).status,200);assert.equal(get(L,'pair_top').state,'cooling');
+ assert.equal(get('ladder',L).operation_guard,0);mirrored();
+});
+test('simultaneous admin departures leave an administrator and busy operations reject without membership writes',async()=>{
+ const id='group_test';entity('group',id,{state:'active'});relation(id,A,{is_admin:true,is_participant:true});relation(id,B,{is_admin:true,is_participant:true});
+ const results=await Promise.all([membership('group','leave',A,id),membership('group','leave',B,id)]);
+ assert.deepEqual(results.map(result=>result.status).sort(),[200,409]);
+ const remaining=get(id,A).is_admin?A:B;assert.equal((await membership('group','leave',remaining,id)).status,409);
+ rows.clear();doubles();get('ladder',L).operation_guard=Date.now()+60000;
+ assert.equal((await membership('ladder','away',A)).status,409);assert.equal(get(L,A).state,'active');assert.equal(get(L,'pair_top').state,'active');
 });

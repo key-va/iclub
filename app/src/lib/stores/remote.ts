@@ -196,3 +196,33 @@ export function navigationHref(subject: string): string {
 	}
 	return hrefOf(subject);
 }
+
+export const awayLadder = (id: string) =>
+	mutateWithSubject(`ladder/${id}/away`);
+export const returnLadder = (id: string) =>
+	mutateWithSubject(`ladder/${id}/return`);
+export const leaveLadder = (id: string) =>
+	mutateWithSubject(`ladder/${id}/leave`);
+export const leaveTeam = (id: string) => mutateWithSubject(`team/${id}/leave`);
+export const leaveGroup = (id: string) =>
+	mutateWithSubject(`group/${id}/leave`);
+
+export const confirmRoundRole = (
+	id: string,
+	role: 'available' | 'unavailable'
+) => mutateWithSubject('round/role', { round_id: id, role });
+
+export const createMatchConfirmation = (
+	id: string,
+	challenger: string,
+	defender: string
+) =>
+	mutateWithSubject('match/create', {
+		ladder_id: id,
+		challenger_id: challenger,
+		defender_id: defender
+	});
+export const acceptLadderMemberConfirmation = (id: string, user: string) =>
+	mutateWithSubject(`ladder/${id}/accept`, { user_id: user });
+export const acceptTeamMemberConfirmation = (id: string, user: string) =>
+	mutateWithSubject('team/accept', { team_id: id, user_id: user });

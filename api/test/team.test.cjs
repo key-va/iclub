@@ -301,7 +301,9 @@ test("membership requests require active team; only team admin accepts and all e
     assert.equal((await call("join", U)).status, 409);
     assert.equal((await call("accept", CLUBADMIN, { user_id: U })).status, 403);
     assert.equal((await call("accept", A, { user_id: OUT })).status, 409);
-    assert.equal((await call("accept", A, { user_id: U })).status, 200);
+    const accepted = await call("accept", A, { user_id: U });
+    assert.equal(accepted.status, 200);
+    assert.equal(accepted.jsonBody.subject, T);
     assert.equal(get(T, U).role, "is_member");
     assert.equal(get(T, U).state, undefined);
     assert.deepEqual(
@@ -345,7 +347,9 @@ test("own availability transitions allow revisions but selected players can only
         }
     relation("round_r", U, { role: "selected" });
     pushes.length = 0;
-    assert.equal((await role(U, U, "unavailable")).status, 200);
+    const updated = await role(U, U, "unavailable");
+    assert.equal(updated.status, 200);
+    assert.equal(updated.jsonBody.subject, "round_r");
     assert.equal((await role(U, U, "unavailable")).status, 200);
     assert.equal(pushes.length, 1);
     mirrored();

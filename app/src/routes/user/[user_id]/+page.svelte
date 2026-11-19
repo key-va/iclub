@@ -24,7 +24,9 @@
 
 	const user_id = $derived(page.params.user_id ?? '');
 	const user_entity = $derived(entityOf(user_id));
-	const relatedRows = $derived(relationsOf(user_id));
+	const relatedRows = $derived(
+		relationsOf(user_id).filter((row) => row.state !== 'left')
+	);
 	const adminClubs = $derived(
 		relatedRows.filter(
 			(row) => typeOf(row.rk) === 'club' && row.is_admin === true

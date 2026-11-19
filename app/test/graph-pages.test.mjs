@@ -117,6 +117,7 @@ test('pending team/group memberships on user pages retain admin acceptance actio
     const html = await output('user', 'user_admin', 'user_bob');
     assert.match(html, /Social group/);
     assert.match(html, /Team A/);
-    assert.equal((html.match(/aria-label="accept"/g) ?? []).length, 2);
+    assert.equal((html.match(/aria-label="accept"/g) ?? []).length, 1);
+    assert.equal((html.match(/aria-label="accept joiner"/g) ?? []).length, 1);
     assert.equal(hasAction(await output('user', 'user_bob', 'user_bob'), 'accept'), false);
 });

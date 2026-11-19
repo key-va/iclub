@@ -1,3 +1,4 @@
+import { membershipAction } from "./membership";
 import {
     app,
     HttpRequest,
@@ -55,6 +56,7 @@ export async function groupAction(
     context: InvocationContext,
     action = request.params.action,
 ): Promise<HttpResponseInit> {
+    if (action === "leave") return membershipAction(request, context, "group", "leave");
     let body;
     try {
         body = (await request.json()) as {
@@ -240,7 +242,7 @@ export async function groupAction(
     }
     if (group.state !== "active") return reply(409, "The group must be active");
     if (action === "join") {
-        if (mine)
+        if (mine && mine.state !== "left")
             return reply(
                 409,
                 "You already belong to this group or have a pending request",

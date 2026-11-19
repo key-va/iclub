@@ -8,16 +8,16 @@
 		imageOf,
 		type GuidRow
 	} from '#lib/stores/guids.ts';
-	import { acceptTeamMember } from '#lib/stores/remote.ts';
+	import { acceptTeamMemberConfirmation } from '#lib/stores/remote.ts';
 	import {
 		isTeamAdmin,
 		isTeamMember,
 		outstandingTeamRounds
 	} from '../rounds/roundRules.ts';
 	import UserRound from '../rounds/UserRound.svelte';
-	import RouteLinkHiddenAction from '../RouteLinkHiddenAction.svelte';
+	import RouteLink from '../routeLink.svelte';
 	import HiddenOptions from '../hiddenOptions.svelte';
-	import ActionQuick from '../ActionQuick.svelte';
+	import ActionConfirmation from '../ActionConfirmation.svelte';
 	let { user, team }: { user: GuidRow; team: GuidRow } = $props();
 	const entity = $derived(entityOf(team.rk));
 	const member = $derived(isTeamMember(team));
@@ -42,19 +42,19 @@
 </script>
 
 <div class="group">
-	{#snippet actions()}<ActionQuick
-			inline
-			name="accept"
-			action={() => acceptTeamMember(team.rk, user.rk)}
-		/>{/snippet}
-	<RouteLinkHiddenAction
+	<RouteLink
 		href={hrefOf(team.rk)}
 		title={nameOf(team.rk)}
 		{description}
 		image={imageOf(team.rk)}
-		colour="orange"
-		children={canAccept ? actions : undefined}
 	/>
+	{#if canAccept}<ActionConfirmation
+			arrow
+			showLabel
+			name="accept joiner"
+			action={() => acceptTeamMemberConfirmation(team.rk, user.rk)}
+		/>{/if}
+
 	{#if member}
 		{#each rounds as round (round.rk)}<UserRound {user} {team} {round} />
 		{:else}<HiddenOptions title="No pending or selected rounds" />{/each}

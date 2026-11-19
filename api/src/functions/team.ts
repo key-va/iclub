@@ -386,7 +386,7 @@ export async function teamAction(
                     ? await get("user", caller_id)
                     : undefined;
                 if (!requester) return reply(403, "A user account is required");
-                if (mine)
+                if (mine && mine.state !== "left")
                     return reply(
                         409,
                         "You already belong to this team or have a pending request",
@@ -442,7 +442,7 @@ export async function teamAction(
                     `team/${teamId}`,
                     context,
                 );
-                return reply(200, "Player accepted");
+                return reply(200, "Player accepted", undefined, teamId);
             }
             if (action === "sync") {
                 try {
@@ -621,7 +621,7 @@ export async function roundRole(
                     `round/${id}`,
                     context,
                 );
-            return reply(200, "Round role updated");
+            return reply(200, "Round role updated", undefined, id);
         });
     } catch (error: any) {
         context.error("Round role update failed", error);

@@ -17,6 +17,15 @@ after(async () => { globalThis.fetch = originalFetch; await server?.close(); });
 
 test('named entity actions sign the right endpoint and payload, then refresh the graph', async () => {
     const cases = [
+        [() => remote.awayLadder('ladder_test'), '/api/ladder/ladder_test/away', {}],
+        [() => remote.returnLadder('ladder_test'), '/api/ladder/ladder_test/return', {}],
+        [() => remote.leaveLadder('ladder_test'), '/api/ladder/ladder_test/leave', {}],
+        [() => remote.leaveTeam('team_test'), '/api/team/team_test/leave', {}],
+        [() => remote.leaveGroup('group_test'), '/api/group/group_test/leave', {}],
+        [() => remote.confirmRoundRole('round_test', 'available'), '/api/round/role', { round_id: 'round_test', role: 'available' }],
+        [() => remote.createMatchConfirmation('ladder_test', 'user_a', 'user_b'), '/api/match/create', { ladder_id: 'ladder_test', challenger_id: 'user_a', defender_id: 'user_b' }],
+        [() => remote.acceptLadderMemberConfirmation('ladder_test','user_a'), '/api/ladder/ladder_test/accept', { user_id: 'user_a' }],
+        [() => remote.acceptTeamMemberConfirmation('team_test','user_a'), '/api/team/accept', { team_id: 'team_test', user_id: 'user_a' }],
         [() => remote.createLadder({ name: 'New' }), '/api/ladder/create', { name: 'New' }],
         [() => remote.updateLadder('ladder_test', { name: 'Changed' }), '/api/ladder/ladder_test/update', { name: 'Changed' }],
         [() => remote.deleteLadder('ladder_test'), '/api/ladder/ladder_test/delete', {}],

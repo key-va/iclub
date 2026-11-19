@@ -1,4 +1,5 @@
 <script lang="ts">
+	import GroupActions from './GroupActions.svelte';
 	import GroupUser from '#lib/components/groups/GroupUser.svelte';
 
 	import ActionConfirmation from '#lib/components/ActionConfirmation.svelte';
@@ -11,9 +12,7 @@
 		type GuidRow
 	} from '#lib/stores/guids.ts';
 
-	import { activateGroup, joinGroup } from '#lib/stores/remote.ts';
-
-	import RouteLink from '#lib/components/routeLink.svelte';
+	import { activateGroup } from '#lib/stores/remote.ts';
 
 	import HiddenOptions from '#lib/components/hiddenOptions.svelte';
 
@@ -21,7 +20,8 @@
 	const id = $derived(group.rk);
 	const users = $derived(
 		relationsOf(id).filter(
-			(row) => typeOf(row.rk) === 'user' && entityOf(row.rk)
+			(row) =>
+				typeOf(row.rk) === 'user' && row.state !== 'left' && entityOf(row.rk)
 		)
 	);
 	const mine = $derived(users.find((user) => user.rk === $local.caller_id));
@@ -34,7 +34,12 @@
 	const clubAdmin = $derived(
 		!!club &&
 			relationsOf(club.rk)
-				.filter((row) => typeOf(row.rk) === 'user' && entityOf(row.rk))
+				.filter(
+					(row) =>
+						typeOf(row.rk) === 'user' &&
+						row.state !== 'left' &&
+						entityOf(row.rk)
+				)
 				.some((user) => user.rk === $local.caller_id && user.is_admin === true)
 	);
 	const participants = $derived(
@@ -59,6 +64,7 @@
 				description="pending club approval"
 			/>{/if}
 	{:else if group.state === 'active'}
+		<GroupActions {group} />
 		{#if admin}
 			{#each pending as user (user.rk)}
 				<GroupUser {group} {user} />
@@ -66,14 +72,6 @@
 		{/if}
 		{#if mine?.state === 'pending'}
 			<HiddenOptions title="Pending" description="waiting to join" />
-		{:else if !mine}
-			{#if $local.caller_id}
-				<ActionConfirmation
-					name="join request"
-					message={`Request to join ${group.name}?`}
-					action={() => joinGroup(id)}
-				/>
-			{:else}<RouteLink href="/login" title="Log in to join" />{/if}
 		{/if}
 	{/if}
 	<HiddenOptions title="Participants">

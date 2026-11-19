@@ -9,6 +9,7 @@
 		disabled?: boolean;
 		inline?: boolean;
 		arrow?: boolean;
+		showLabel?: boolean;
 		onsuccess?: (result: ApiResponse) => void | Promise<void>;
 		children?: Snippet;
 	}
@@ -28,6 +29,7 @@
 		disabled = false,
 		inline = false,
 		arrow = false,
+		showLabel = false,
 		onsuccess,
 		children
 	}: ActionProps & { confirm: boolean; navigate: boolean } = $props();
@@ -169,7 +171,7 @@
 		disabled={disabled || isBusy || isExpanded}
 		onclick={start}
 	>
-		{#if !arrow && !quiet}<p>{name}</p>{/if}
+		{#if (!arrow || showLabel) && !quiet}<p>{name}</p>{/if}
 		{#if quiet}
 			<svg
 				viewBox="0 0 24 24"

@@ -1,12 +1,9 @@
 <script lang="ts">
+	import MatchActions from './MatchActions.svelte';
 	import MessageThread from '#lib/components/messages/MessageThread.svelte';
 	import ActionConfirmation from '#lib/components/ActionConfirmation.svelte';
 
-	import {
-		acceptMatch,
-		completeMatch,
-		forfeitMatch
-	} from '#lib/stores/remote.ts';
+	import { completeMatch } from '#lib/stores/remote.ts';
 
 	import { local } from '#lib/stores/local.ts';
 	import { ladderSettings } from '#lib/components/ladders/ladderSettings.ts';
@@ -21,7 +18,7 @@
 	} from '#lib/stores/guids.ts';
 
 	import VersusLink from '#lib/components/versusLink.svelte';
-	import HiddenOptions from '#lib/components/hiddenOptions.svelte';
+
 	import RouteLink from '#lib/components/routeLink.svelte';
 
 	let { match, ladder }: { match: GuidRow; ladder?: GuidRow } = $props();
@@ -58,14 +55,6 @@
 				['challenger', 'defender', 'participant'].includes(String(user.role))
 		)
 	);
-	const isDefender = $derived(
-		caller_id === defender?.rk ||
-			(!!defender &&
-				relationsOf(defender.rk)
-					.filter((row) => typeOf(row.rk) === 'user' && entityOf(row.rk))
-					.some((user) => user.rk === caller_id))
-	);
-
 	// One row of inputs per set, labelled by match format
 	const setLabels: Record<string, string[]> = {
 		super_set: ['super set'],
@@ -89,7 +78,8 @@
 			ladder?.match_format ?? ladderSettings.match_format.default
 		);
 		const setting = ladderSettings.match_format;
-		const rules = setting.type === 'enum' ? setting.values[format]?.description : '';
+		const rules =
+			setting.type === 'enum' ? setting.values[format]?.description : '';
 		return rules ? `Match format: ${rules}.` : '';
 	});
 	const isComplete = $derived(match?.state === 'complete');
@@ -167,9 +157,6 @@
 				: [defender, defenderSets, challengerSets];
 		return `${nameOf(winner?.rk ?? '')} wins ${mine.map((games, i) => `${games}-${theirs[i]}`).join('  ')}`;
 	});
-	const canAccept = $derived(
-		match?.state === 'pending' && (isDefender || isLadderAdmin)
-	);
 </script>
 
 {#if challenger && defender}
@@ -193,7 +180,23 @@
 				<p class="info">{completeSummary}</p>
 			</div>
 		{/if}
-		{#if match.state === 'active'}
+		{#if match.state === 'pending'}
+			<div class="row center">
+				<p class="info">
+					waiting for <strong>{nameOf(defender.rk)}</strong> to accept
+				</p>
+			</div>
+		{/if}
+	</div>
+	<MatchActions
+		{match}
+		forfeitData={scoreValid
+			? { challenger_score: challengerSets, defender_score: defenderSets }
+			: {}}
+	/>
+
+	{#if match.state === 'active'}
+		<div class="group">
 			{#each labels as label, i (label)}
 				<div class="row scores">
 					<input
@@ -240,23 +243,8 @@
 					<p>{formatRules}</p>
 				</div>
 			{/if}
-		{/if}
-		{#if match.state === 'pending'}
-			<div class="row center">
-				<p class="info">
-					waiting for <strong>{nameOf(defender.rk)}</strong> to accept
-				</p>
-			</div>
-		{/if}
-		{#if match.state === 'pending' && canAccept}
-			<ActionConfirmation
-				name="accept"
-				message={`accept the challenge from ${nameOf(challenger?.rk ?? '')}?`}
-				action={() => acceptMatch(matchId)}
-				disabled={!canAccept}
-			/>
-		{/if}
-	</div>
+		</div>
+	{/if}
 {/if}
 
 {#if match.state === 'active'}
@@ -303,26 +291,6 @@
 	description="ladder"
 	image={imageOf(ladder?.rk ?? '')}
 ></RouteLink>
-
-<HiddenOptions
-	inline
-	title="More Options"
-	description="match is {String(match.state)}"
->
-	<ActionConfirmation
-		inline
-		name="forfeit"
-		message="forfeit this match? your opponent will be awarded the win"
-		action={() =>
-			forfeitMatch(matchId, {
-				...(scoreValid
-					? { challenger_score: challengerSets, defender_score: defenderSets }
-					: {})
-			})}
-		disabled={!isPlayer ||
-			(match.state !== 'pending' && match.state !== 'active')}
-	/>
-</HiddenOptions>
 
 <style>
 	.scores {

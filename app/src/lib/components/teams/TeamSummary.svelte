@@ -1,4 +1,5 @@
 <script lang="ts">
+	import TeamActions from './TeamActions.svelte';
 	import TeamRound from '#lib/components/teams/TeamRound.svelte';
 	import TeamUser from '#lib/components/teams/TeamUser.svelte';
 	import ActionConfirmation from '#lib/components/ActionConfirmation.svelte';
@@ -20,7 +21,7 @@
 		roundView
 	} from '#lib/components/rounds/roundRules.ts';
 	import ActionQuick from '#lib/components/ActionQuick.svelte';
-	import { activateTeam, joinTeam, syncTeam } from '#lib/stores/remote.ts';
+	import { activateTeam, syncTeam } from '#lib/stores/remote.ts';
 
 	import RouteLink from '#lib/components/routeLink.svelte';
 
@@ -29,7 +30,8 @@
 	const id = $derived(team.rk);
 	const users = $derived(
 		relationsOf(id).filter(
-			(row) => typeOf(row.rk) === 'user' && entityOf(row.rk)
+			(row) =>
+				typeOf(row.rk) === 'user' && row.state !== 'left' && entityOf(row.rk)
 		)
 	);
 	const mine = $derived(users.find((u) => u.rk === $local.caller_id));
@@ -42,7 +44,12 @@
 	const clubAdmin = $derived(
 		!!club &&
 			relationsOf(club.rk)
-				.filter((row) => typeOf(row.rk) === 'user' && entityOf(row.rk))
+				.filter(
+					(row) =>
+						typeOf(row.rk) === 'user' &&
+						row.state !== 'left' &&
+						entityOf(row.rk)
+				)
 				.some((u) => u.rk === $local.caller_id && u.is_admin === true)
 	);
 	const rounds = $derived(
@@ -70,6 +77,7 @@
 		</HiddenOptions>
 	</div>
 {:else if team.state === 'active'}
+	<TeamActions {team} />
 	{#if admin}
 		<div class="group">
 			{#each pending as user (user.rk)}
@@ -86,13 +94,6 @@
 				title={nameOf(viewer?.rk ?? '')}
 				description="waiting to join"
 				image={imageOf(viewer?.rk ?? '')}
-			/>
-		{:else if !mine}
-			<ActionConfirmation
-				name="join request"
-				message={`Request to join ${team.name}?`}
-				action={() => joinTeam(id)}
-				disabled={!$local.caller_id}
 			/>
 		{/if}
 		<HiddenOptions

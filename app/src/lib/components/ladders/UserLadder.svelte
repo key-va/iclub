@@ -9,15 +9,15 @@
 		type GuidRow
 	} from '#lib/stores/guids.ts';
 	import { local } from '#lib/stores/local.ts';
-	import { createMatch, acceptLadderMember } from '#lib/stores/remote.ts';
 	import {
-		canChallenge,
-		ladderMembership,
-		ladderStateColours
-	} from './ladderRules.ts';
+		createMatchConfirmation,
+		acceptLadderMemberConfirmation
+	} from '#lib/stores/remote.ts';
+	import { canChallenge, ladderMembership } from './ladderRules.ts';
 	import RouteLink from '../routeLink.svelte';
-	import RouteLinkHiddenAction from '../RouteLinkHiddenAction.svelte';
-	import ActionQuick from '../ActionQuick.svelte';
+
+	import ActionConfirmation from '../ActionConfirmation.svelte';
+	import UserMatch from '../matches/UserMatch.svelte';
 	let { user, ladder }: { user: GuidRow; ladder: GuidRow } = $props();
 	const membership = $derived(ladderMembership(ladder, user.rk));
 	const userRelation: Record<string, unknown> = $derived(
@@ -41,15 +41,15 @@
 	const eligible = $derived(
 		!matches.length &&
 			user.rk !== $local.caller_id &&
-			ladder.format !== 'doubles' &&
 			canChallenge(ladder, viewer.relation, viewer.competitorId, {
-				rk: user.rk,
+				rk: membership.competitorId ?? user.rk,
 				rank,
 				relation
 			})
 	);
 	const canAccept = $derived(
 		!matches.length &&
+			ladder.state === 'active' &&
 			admin &&
 			userRelation.state === 'pending' &&
 			userRelation.is_participant !== true
@@ -68,36 +68,42 @@
 </script>
 
 <div class="group">
-	{#snippet actions()}
-		{#if eligible}<ActionQuick
-				inline
-				name="challenge"
-				action={() => createMatch(ladder.rk, $local.caller_id!, user.rk)}
-			/>{/if}
-		{#if canAccept}
-			{#if ladder.format === 'doubles'}<button class="grey" disabled>
-					<p>waiting to join</p>
-				</button>
-			{:else}<ActionQuick
-					inline
-					name="accept"
-					action={() => acceptLadderMember(ladder.rk, user.rk)}
-				/>{/if}
-		{/if}
-	{/snippet}
-	<RouteLinkHiddenAction
+	<RouteLink
 		href={hrefOf(ladder.rk)}
 		title={nameOf(ladder.rk)}
 		description={stateText}
 		image={imageOf(ladder.rk)}
-		colour={ladderStateColours[String(relation.state)] ?? 'grey'}
-		children={eligible || canAccept ? actions : undefined}
 	>
 		{#snippet detail()}{Number.isFinite(rank) ? rank : 0}{/snippet}
-	</RouteLinkHiddenAction>
-	{#each matches as match (match.rk)}<RouteLink
-			href={hrefOf(match.rk)}
-			title={nameOf(match.rk)}
-			description={String(entityOf(match.rk)?.state) + ' match'}
-		/>{/each}
+	</RouteLink>
+	{#if canAccept}
+		{#if ladder.format === 'doubles'}<div class="row right">
+				<button class="grey" disabled><p>pending pair</p></button>
+			</div>
+		{:else}<ActionConfirmation
+				arrow
+				showLabel
+				name="accept joiner"
+				action={() => acceptLadderMemberConfirmation(ladder.rk, user.rk)}
+			/>{/if}
+	{:else if matches.length}
+		{#each matches as match (match.rk)}<UserMatch
+				match={entityOf(match.rk)!}
+			/>{/each}
+	{:else if user.rk !== $local.caller_id && userRelation.is_participant === true}
+		{#if eligible}<ActionConfirmation
+				arrow
+				showLabel
+				name="issue challenge"
+				action={() =>
+					createMatchConfirmation(
+						ladder.rk,
+						viewer.competitorId!,
+						membership.competitorId ?? user.rk
+					)}
+			/>
+		{:else}<div class="row right">
+				<button class="grey" disabled><p>cannot challenge</p></button>
+			</div>{/if}
+	{/if}
 </div>
