@@ -184,12 +184,14 @@ Do not introduce new storage abstractions unless a real gap is proven.
   - accepts an entity (defaults to its name, type and `imageOf(rk)`), with title/subtitle/image overrides for branded pages, forms and related-entity images
   - `image={null}` omits the image and install guidance; form previews remain reactive through the image prop
 
+- [CompetitionCreate.svelte](./app/src/lib/components/CompetitionCreate.svelte)
+  - shared group and elimination creation form, including image preparation and club-origin checks
 - [ActionConfirmation.svelte](./app/src/lib/components/ActionConfirmation.svelte)
   - accepts a deferred `action` callback returning `NavigationResponse`, confirms before execution, then always navigates using the API response subject on success (an entity ID or validated local path); no destination/endpoint/data props
 - [ActionQuick.svelte](./app/src/lib/components/ActionQuick.svelte)
   - executes its deferred `action` callback immediately, displays a timer while busy and never navigates, even if the response has a subject
   - both public action components share `ActionControl.svelte` internally for confirmation/error UI, duplicate-submission guards and `api-action-state` events used by revealed options
-  - shared display props include name/disabled/inline/arrow/children/onsuccess; confirmation also accepts message
+  - shared display props include name/disabled/inline/arrow/children/onsuccess and an optional accessible label. Immediate actions may override the default blue tone with green or orange.
   - named functions in `remote.ts` own payloads, signed HTTP requests and graph refresh: `activateLadder`, `joinLadder`, `acceptLadderMember`, `acceptLadderPair`, `createMatch`
   - successful mutations whose graph refresh fails expose a refresh-only retry; callback/navigation retries also retain the completed response to avoid repeating mutations
 - [actionActivity.ts](./app/src/lib/components/actionActivity.ts)

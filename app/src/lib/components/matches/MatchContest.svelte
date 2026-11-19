@@ -3,7 +3,8 @@
 	import MessageThread from '#lib/components/messages/MessageThread.svelte';
 	import ActionConfirmation from '#lib/components/ActionConfirmation.svelte';
 
-	import { completeMatch } from '#lib/stores/remote.ts';
+	import ActionQuick from '#lib/components/ActionQuick.svelte';
+	import { completeMatch, recordElimResult } from '#lib/stores/remote.ts';
 
 	import { local } from '#lib/stores/local.ts';
 	import { ladderSettings } from '#lib/components/ladders/ladderSettings.ts';
@@ -21,7 +22,7 @@
 
 	import RouteLink from '#lib/components/routeLink.svelte';
 
-	let { match, ladder }: { match: GuidRow; ladder?: GuidRow } = $props();
+	let { match, ladder, elim }: { match: GuidRow; ladder?: GuidRow; elim?: GuidRow } = $props();
 	const caller_id = $derived($local.caller_id);
 	const matchId = $derived(match.rk);
 	const players = $derived(
@@ -48,12 +49,28 @@
 				(relation) => relation.rk === caller_id && relation.is_admin === true
 			)
 	);
+	const isElimAdmin = $derived(!!elim && relationsOf(elim.rk)
+		.some((row) => row.rk === caller_id && row.is_admin === true));
+	const canCorrect = $derived(isElimAdmin && match.state === 'complete' &&
+		!relationsOf(elim?.rk ?? '').some((row) => {
+			if (typeOf(row.rk) !== 'match') return false;
+			const next = entityOf(row.rk);
+			return next?.bracket_round === Number(match.bracket_round) + 1 &&
+				next?.bracket_match === Math.ceil(Number(match.bracket_match) / 2) && !!next.winner_id;
+		}));
+	let correcting = $state(false);
+	let walkingOver = $state(false);
+	let walkoverWinner = $state('');
 	const isPlayer = $derived(
 		matchUsers.some(
 			(user) =>
 				user.rk === caller_id &&
 				['challenger', 'defender', 'participant'].includes(String(user.role))
 		)
+	);
+	const showScores = $derived(
+		(match.state === 'active' && (!elim || isElimAdmin || isPlayer)) ||
+		(canCorrect && correcting)
 	);
 	// One row of inputs per set, labelled by match format
 	const setLabels: Record<string, string[]> = {
@@ -102,6 +119,7 @@
 		const theirs =
 			winner === challenger ? recordedDefender : recordedChallenger;
 		const sets = mine.map((games, i) => `${games}-${theirs[i] ?? 0}`).join(' ');
+		if (match.is_walkover) return `${nameOf(winner.rk)} wins by walkover`;
 		return loser?.result === 'forfeiter'
 			? `${nameOf(winner.rk)} wins by forfeit${sets ? ` ${sets}` : ''}`
 			: `${nameOf(winner.rk)} wins${sets ? ` ${sets}` : ''}`;
@@ -109,6 +127,19 @@
 	let challengerScores = $state<string[]>(['', '', '']);
 	let defenderScores = $state<string[]>(['', '', '']);
 	let showHelp = $state(false);
+
+	function editResult() {
+		challengerScores = [recordedChallenger[0] ?? '', '', ''];
+		defenderScores = [recordedDefender[0] ?? '', '', ''];
+		correcting = true;
+	}
+
+	function submitElimScore() {
+		return recordElimResult(elim!.rk, matchId, correcting ? 'correct' : 'score',
+			challenger!.rk, defender!.rk,
+			{ first_score: challengerSets[0], second_score: defenderSets[0] });
+	}
+
 
 	// A set counts once either side has a score; unplayed trailing sets stay empty
 	const isGames = (text: string) =>
@@ -188,15 +219,17 @@
 			</div>
 		{/if}
 	</div>
-	<MatchActions
-		section="primary"
-		{match}
-		forfeitData={scoreValid
-			? { challenger_score: challengerSets, defender_score: defenderSets }
-			: {}}
-	/>
+	{#if !elim}
+		<MatchActions
+			section="primary"
+			{match}
+			forfeitData={scoreValid
+				? { challenger_score: challengerSets, defender_score: defenderSets }
+				: {}}
+		/>
+	{/if}
 
-	{#if match.state === 'active'}
+	{#if showScores}
 		<div class="group">
 			{#each labels as label, i (label)}
 				<div class="row scores">
@@ -248,7 +281,43 @@
 	{/if}
 {/if}
 
-{#if match.state === 'active'}
+{#if elim && challenger && defender}
+	{#if showScores && (isPlayer || isElimAdmin)}
+		<ActionQuick name={correcting ? 'save correction' : 'submit score'}
+			action={submitElimScore} disabled={!scoreValid || challengerSets[0] === defenderSets[0]}
+			onsuccess={() => { correcting = false; walkingOver = false; }}
+		/>
+	{/if}
+	{#if canCorrect}
+		<div class="row right">
+			<button class="blue" onclick={() => correcting ? (correcting = false) : editResult()}>
+				{correcting ? 'cancel correction' : 'correct score'}
+			</button>
+		</div>
+	{/if}
+	{#if isElimAdmin && match.state === 'active'}
+		<div class="row right">
+			<button class="blue" onclick={() => { walkingOver = !walkingOver; walkoverWinner = ''; }}>
+				{walkingOver ? 'cancel walkover' : 'walkover'}
+			</button>
+		</div>
+		{#if walkingOver}
+			<div class="group">
+				<div class="row right">
+					<select aria-label="Player who advances" bind:value={walkoverWinner}>
+						<option value="">Player who advances</option>
+						<option value={challenger.rk}>{nameOf(challenger.rk)}</option>
+						<option value={defender.rk}>{nameOf(defender.rk)}</option>
+					</select>
+				</div>
+				<ActionConfirmation name="record walkover" message={`Advance ${nameOf(walkoverWinner)} by walkover?`}
+					disabled={!walkoverWinner}
+					action={() => recordElimResult(elim.rk, matchId, 'walkover', challenger.rk, defender.rk, { winner_id: walkoverWinner })}
+				/>
+			</div>
+		{/if}
+	{/if}
+{:else if !elim && match.state === 'active'}
 	<ActionConfirmation
 		name="submit"
 		message={`${scoreSummary}?`}
@@ -284,22 +353,31 @@
 	</ActionConfirmation>
 {/if}
 
-<MessageThread parentId={matchId} showTime />
+{#if !elim || challenger && defender}
+	<MessageThread parentId={matchId} showTime />
+{/if}
+{#if elim && match.state === 'bye'}
+	<p class="info">{nameOf(String(match.winner_id))} advances with a bye.</p>
+{:else if elim && match.state === 'waiting'}
+	<p class="info">Waiting for earlier results.</p>
+{/if}
 
 <RouteLink
-	href={hrefOf(ladder?.rk ?? '')}
-	title={ladder?.name ?? 'someone'}
-	description="ladder"
-	image={imageOf(ladder?.rk ?? '')}
+	href={hrefOf((elim ?? ladder)?.rk ?? '')}
+	title={(elim ?? ladder)?.name ?? 'someone'}
+	description={elim ? 'elim' : 'ladder'}
+	image={imageOf((elim ?? ladder)?.rk ?? '')}
 ></RouteLink>
 
-<MatchActions
-	{match}
-	section="options"
-	forfeitData={scoreValid
-		? { challenger_score: challengerSets, defender_score: defenderSets }
-		: {}}
-/>
+{#if !elim}
+	<MatchActions
+		{match}
+		section="options"
+		forfeitData={scoreValid
+			? { challenger_score: challengerSets, defender_score: defenderSets }
+			: {}}
+	/>
+{/if}
 
 <style>
 	.scores {

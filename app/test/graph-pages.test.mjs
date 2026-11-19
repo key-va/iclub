@@ -23,7 +23,7 @@ before(async () => {
     render = (await server.ssrLoadModule('svelte/server')).render;
     guids = (await server.ssrLoadModule('/src/lib/stores/guids.ts')).guids;
     local = await server.ssrLoadModule('/src/lib/stores/local.ts');
-    pages = Object.fromEntries(await Promise.all(['group', 'team', 'round', 'match', 'user'].map(async type =>
+    pages = Object.fromEntries(await Promise.all(['group', 'team', 'round', 'match', 'user', 'elim'].map(async type =>
         [type, (await server.ssrLoadModule(`/src/routes/${type}/[${type}_id]/+page.svelte`)).default])));
 });
 after(async () => { await server?.close(); });
@@ -60,11 +60,11 @@ function fixture() {
     link('message_test', 'user_alice', { role: 'sender' });
     return items;
 }
-async function output(type, caller = 'user_admin', viewedUser = 'user_alice') {
-    await loadGraph(guids, fixture());
+async function output(type, caller = 'user_admin', viewedId, items = fixture()) {
+    await loadGraph(guids, items);
     local.setLocalData({ caller_id: caller, device_id: null, connect_key: null });
     return render(pages[type], {
-        context: new Map([['__request__', { page: { params: { [`${type}_id`]: type === 'user' ? viewedUser : `${type}_test` } } }]])
+        context: new Map([['__request__', { page: { params: { [`${type}_id`]: viewedId ?? (type === 'user' ? 'user_alice' : `${type}_test`) } } }]])
     }).body;
 }
 function hasAction(html, name) { return html.includes(`aria-label="${name}"`); }
@@ -120,4 +120,28 @@ test('pending team/group memberships on user pages retain admin acceptance actio
     assert.equal((html.match(/aria-label="accept"/g) ?? []).length, 1);
     assert.equal((html.match(/aria-label="accept joiner"/g) ?? []).length, 1);
     assert.equal(hasAction(await output('user', 'user_bob', 'user_bob'), 'accept'), false);
+});
+
+test('Elim participant rows show seed status and restrict their quick actions to admins before the draw', async () => {
+    const rows = [
+        ...fixture(),
+        { pk: 'elim', rk: 'elim_test', name: 'Club knockout', state: 'open' },
+        { pk: 'elim_test', rk: 'user_admin', is_admin: true, is_participant: true },
+        { pk: 'elim_test', rk: 'user_alice', is_participant: true, seed: 1 },
+        { pk: 'elim_test', rk: 'user_bob', state: 'pending' }
+    ];
+    const admin = await output('elim', 'user_admin', undefined, rows);
+    assert.match(admin, /class="blue green"[^>]*aria-label="Remove seed 1 from Alice"/);
+    assert.match(admin, /class="blue orange"[^>]*aria-label="Accept Bob"/);
+    assert.equal(hasAction(admin, 'Seed Administrator'), true);
+    assert.match(admin, /seeded 1/);
+    assert.match(admin, /unseeded/);
+    const player = await output('elim', 'user_alice', undefined, rows);
+    assert.match(player, /seeded 1/);
+    assert.equal(hasAction(player, 'Remove seed 1 from Alice'), false);
+    assert.equal(hasAction(player, 'Accept Bob'), false);
+    rows.find(row => row.rk === 'elim_test').state = 'active';
+    const drawn = await output('elim', 'user_admin', undefined, rows);
+    assert.match(drawn, /seeded 1/);
+    assert.equal(hasAction(drawn, 'Remove seed 1 from Alice'), false);
 });

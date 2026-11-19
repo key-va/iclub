@@ -23,6 +23,7 @@ export function matchSummary(matchId: string): string {
 	const sets = gamesOf(winner)
 		.map((games, i) => `${games}-${theirs[i] ?? 0}`)
 		.join(' ');
+	if (entityOf(matchId)?.is_walkover) return `${nameOf(winner.rk)} wins by walkover`;
 	const how = loser?.result === 'forfeiter' ? 'wins by forfeit' : 'wins';
 	return `${nameOf(winner.rk)} ${how}${sets ? ` ${sets}` : ''}`;
 }
@@ -32,5 +33,7 @@ export const pastMatches = (matches: GuidRow[]) =>
 	matches.filter(
 		(match) =>
 			entityOf(match.rk)?.state !== 'pending' &&
-			entityOf(match.rk)?.state !== 'active'
+			entityOf(match.rk)?.state !== 'active' &&
+			entityOf(match.rk)?.state !== 'waiting' &&
+			entityOf(match.rk)?.state !== 'bye'
 	);
