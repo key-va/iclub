@@ -13,6 +13,7 @@
 	let name = $state(page.url.searchParams.get('name') ?? '');
 	let image = $state('');
 	let imageError = $state('');
+	let showHelp = $state(false);
 	let fileInput = $state<HTMLInputElement>();
 
 	const cleanName = $derived(name.trim());
@@ -92,6 +93,11 @@
 		{#if imageError}
 			<div class="row right"><p class="error">{imageError}</p></div>
 		{/if}
+		{#if showHelp}
+			<div class="row left">
+				<p class="info"><strong>group</strong>: create a group to facilitate a chat space to arrange social hits and activities</p>
+			</div>
+		{/if}
 	</div>
 
 	<ActionConfirmation
@@ -99,7 +105,30 @@
 		message={`create the group ${cleanName}?`}
 		action={() => createGroup(createData)}
 		disabled={cleanName === '' || !$branding.clubId}
-	/>
+	>
+		<button
+			class="blue"
+			aria-label="help"
+			aria-pressed={showHelp}
+			onclick={() => (showHelp = !showHelp)}
+		>
+			<svg
+				viewBox="0 0 24 24"
+				width="1rem"
+				height="1rem"
+				fill="none"
+				stroke="currentColor"
+				stroke-width="3"
+				stroke-linecap="round"
+				stroke-linejoin="round"
+				role="img"
+				aria-label="Help"
+			>
+				<path d="M9 9a3 3 0 1 1 4.5 2.6c-1 .6-1.5 1.2-1.5 2.4" />
+				<path d="M12 18h.01" />
+			</svg>
+		</button>
+	</ActionConfirmation>
 </div>
 
 <style>
