@@ -365,7 +365,7 @@
 <RouteLink
 	href={hrefOf((elim ?? ladder)?.rk ?? '')}
 	title={(elim ?? ladder)?.name ?? 'someone'}
-	description={elim ? 'elim' : 'ladder'}
+	description={elim ? 'competition' : 'ladder'}
 	image={imageOf((elim ?? ladder)?.rk ?? '')}
 ></RouteLink>
 

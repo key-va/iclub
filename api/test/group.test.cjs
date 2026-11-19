@@ -437,18 +437,20 @@ test("persisted group messages survive notification failure, and malformed group
     assert.equal(exportsCount, count);
 });
 
-const { elimAction } = require("../dist/src/functions/elim");
+const { compAction } = require("../dist/src/functions/comp");
 const { elimBracketId, elimDraw } = require("../dist/src/services/elimDraw");
-const elimCall = (id, action, caller, data) => elimAction({
-    ...request(caller, data, id, action), params: { elim_id: id, action },
+const elimCall = (id, action, caller, data) => compAction({
+    ...request(caller, data, id, action), params: { comp_id: id, action },
 }, context);
 const elimAdmin = "user_creator";
 const clubAdmin = "user_clubadmin";
 async function openElim() {
-    const create = await groupAction(request(elimAdmin, { name: "Club knockout" }), context, "create", "elim");
+    const create = await groupAction(request(elimAdmin, { name: "Club knockout", competition_type: "elimination" }), context, "create", "comp");
     assert.equal(create.status, 201);
     const id = create.jsonBody.subject;
-    assert.equal(get("elim", id).state, "pending");
+    assert.equal(get("comp", id).state, "pending");
+    assert.equal(get("comp", id).competition_type, "elimination");
+    assert.match(id, /^comp_/);
     assert.equal((await elimCall(id, "activate", elimAdmin)).status, 403);
     assert.equal((await elimCall(id, "activate", clubAdmin)).status, 200);
     return id;
@@ -490,12 +492,12 @@ test("Elim seeds follow tap order and a failed draw reuses match IDs and ranked 
     const secondId = elimBracketId("match", id, 1, 2);
     failWrite = key("match", secondId);
     await assert.rejects(elimCall(id, "draw", elimAdmin), /Table write interrupted/);
-    assert.equal(get("elim", id).state, "drawing");
+    assert.equal(get("comp", id).state, "drawing");
     assert.equal((await elimCall(id, "accept", elimAdmin, { user_id: elimAdmin })).status, 409);
     const saved = { ...get("match", firstId) };
     assert.equal((await elimCall(id, "draw", elimAdmin)).status, 200);
     assert.deepEqual(get("match", firstId), saved);
-    assert.equal(get("elim", id).state, "active");
+    assert.equal(get("comp", id).state, "active");
     assert.equal(get(id, elimAdmin).state, "closed");
     const matches = [...rows.values()].filter(row => row.partitionKey === "match");
     assert.equal(matches.length, 7);
@@ -518,7 +520,7 @@ test("Elim score repair advances winners, notifies the right players and guards 
     failWrite = key(final, firstScore.first_id);
     await assert.rejects(elimCall(id, "score", firstScore.first_id, firstScore), /Table write interrupted/);
     assert.equal(get("match", firstMatch).winner_id, firstScore.first_id);
-    assert.equal(get("elim", id).pending_match_id, firstMatch);
+    assert.equal(get("comp", id).pending_match_id, firstMatch);
     assert.equal((await elimCall(id, "score", firstScore.first_id, firstScore)).status, 200);
     assert.equal(pushes.at(-1).exceptUserId, firstScore.first_id);
     assert.deepEqual(pushes.at(-1).userIds, [firstScore.first_id, firstScore.second_id]);
@@ -539,10 +541,10 @@ test("Elim score repair advances winners, notifies the right players and guards 
     assert.equal((await elimCall(id, "score", elimAdmin, staleFinal)).status, 409);
 
     assert.equal((await elimCall(id, "score", elimAdmin, scores(final, 8, 5))).status, 200);
-    assert.equal(get("elim", id).champion_id, firstScore.second_id);
+    assert.equal(get("comp", id).champion_id, firstScore.second_id);
     assert.equal((await elimCall(id, "correct", elimAdmin, firstScore)).status, 409);
     assert.equal((await elimCall(id, "correct", elimAdmin, scores(final, 5, 8))).status, 200);
-    assert.equal(get("elim", id).champion_id, otherScore.first_id);
+    assert.equal(get("comp", id).champion_id, otherScore.first_id);
 });
 
 test("Elim shuffle is stable across roster order and across bracket sizes", () => {
@@ -550,7 +552,7 @@ test("Elim shuffle is stable across roster order and across bracket sizes", () =
         const entrants = Array.from({ length: count }, (_, i) => ({
             id: `user_${i + 1}`, seed: i < Math.min(8, count) ? i + 1 : 0,
         }));
-        const id = "elim_2026-11-19_12-00-00_0123456789ab";
+        const id = "comp_2026-11-19_12-00-00_0123456789ab";
         const result = elimDraw(id, entrants);
         assert.deepEqual(result, elimDraw(id, [...entrants].reverse()));
         assert.equal(result.slots.filter(Boolean).length, count);
@@ -577,4 +579,14 @@ test("Concurrent Elim results can be retried and fill both slots of the final", 
     const final = get("match", elimBracketId("match", id, 2, 1));
     assert.deepEqual([final.first_id, final.second_id], submissions.map(data => data.first_id));
     assert.equal(final.state, "active");
+});
+
+test("Competition creation requires a supported type", async () => {
+    for (const competition_type of [undefined, "league"]) {
+        const response = await groupAction(
+            request(elimAdmin, { name: "Club event", competition_type }), context, "create", "comp"
+        );
+        assert.equal(response.status, 400);
+    }
+    assert.equal([...rows.values()].some(row => row.partitionKey === "comp"), false);
 });

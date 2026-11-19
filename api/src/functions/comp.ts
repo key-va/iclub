@@ -162,7 +162,7 @@ async function startDraw(elim: Row, entrants: Row[], renewGuard: () => Promise<v
         }
     }
     await client.updateEntity({
-        partitionKey: "elim", rowKey: id, state: "active", rounds,
+        partitionKey: "comp", rowKey: id, state: "active", rounds,
     }, "Merge");
 }
 
@@ -173,7 +173,7 @@ async function finishResult(elim: Row, match: Row) {
     await projectMatch(match, String(match.first_id), String(match.second_id));
     if (round === elim.rounds) {
         await client.updateEntity({
-            partitionKey: "elim", rowKey: id, state: "complete",
+            partitionKey: "comp", rowKey: id, state: "complete",
             champion_id: String(match.winner_id),
         }, "Merge");
     } else {
@@ -196,15 +196,15 @@ async function score(
     if (!["active", "complete"].includes(String(elim.state)))
         return reply(409, "The draw has to be ready before scoring");
     if (!matchId.startsWith("match_") || !(await get(id, matchId)))
-        return reply(404, "Elim match not found");
+        return reply(404, "competition match not found");
     const match = await get("match", matchId);
-    if (!match) return reply(404, "Elim match not found");
+    if (!match) return reply(404, "competition match not found");
     const first = String(match.first_id ?? "");
     const second = String(match.second_id ?? "");
     if (action !== "score" && !admin)
-        return reply(403, "Only an Elim admin can correct scores or record a walkover");
+        return reply(403, "Only a competition admin can correct scores or record a walkover");
     if (!admin && caller !== first && caller !== second)
-        return reply(403, "Only a player or an Elim admin can submit the score");
+        return reply(403, "Only a player or a competition admin can submit the score");
     if (match.is_bye || !first || !second)
         return reply(409, "This match is not ready for a result");
     if (data.first_id !== first || data.second_id !== second)
@@ -242,7 +242,7 @@ async function score(
     // Record the match to repair before writing the authoritative result.
     // If the result write never happened, recovery simply clears the pointer.
     await client.updateEntity({
-        partitionKey: "elim", rowKey: id, pending_match_id: matchId,
+        partitionKey: "comp", rowKey: id, pending_match_id: matchId,
     }, "Merge");
     await client.updateEntity({
         partitionKey: "match", rowKey: matchId, ...attributes,
@@ -272,15 +272,15 @@ async function repairResult(elim: Row, matchId: string, context: InvocationConte
         }, "Merge");
     }
     await client.updateEntity({
-        partitionKey: "elim", rowKey: elim.rowKey, pending_match_id: "",
+        partitionKey: "comp", rowKey: elim.rowKey, pending_match_id: "",
     }, "Merge");
 }
 
-export async function elimAction(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
+export async function compAction(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
     const action = request.params.action;
-    if (action === "activate") return groupAction(request, context, action, "elim");
+    if (action === "activate") return groupAction(request, context, action, "comp");
     if (!["join", "accept", "leave", "seed", "unseed", "draw", "score", "correct", "walkover"].includes(action))
-        return reply(404, "Unknown Elim action");
+        return reply(404, "Unknown competition action");
     let body;
     try {
         body = (await request.json()) as {
@@ -301,32 +301,34 @@ export async function elimAction(request: HttpRequest, context: InvocationContex
     }
     const user = caller.startsWith("user_") ? await get("user", caller) : undefined;
     if (!user) return reply(403, "A user account is required");
-    const id = request.params.elim_id;
-    if (!id?.startsWith("elim_")) return reply(400, "elim_id is required");
-    const elim = await get("elim", id);
-    if (!elim) return reply(404, "Elim not found");
-    if (elim.state === "pending") return reply(409, "The Elim is awaiting club approval");
+    const id = request.params.comp_id;
+    if (!id?.startsWith("comp_")) return reply(400, "comp_id is required");
+    const elim = await get("comp", id);
+    if (!elim) return reply(404, "Competition not found");
+    if (elim.competition_type !== "elimination")
+        return reply(409, "This action requires an elimination competition");
+    if (elim.state === "pending") return reply(409, "The competition is awaiting club approval");
     const leaseLength = 300_000;
     let guard = Date.now() + leaseLength;
     if (Number(elim.operation_guard ?? 0) > Date.now())
-        return reply(409, "Another Elim action is in progress. Try again shortly");
+        return reply(409, "Another competition action is in progress. Try again shortly");
     try {
         await client.updateEntity({
-            partitionKey: "elim", rowKey: id, operation_guard: guard,
+            partitionKey: "comp", rowKey: id, operation_guard: guard,
         }, "Merge", { etag: elim.etag });
     } catch (error) {
-        if (hasStatus(error, 412)) return reply(409, "The Elim changed. Please retry");
+        if (hasStatus(error, 412)) return reply(409, "The competition changed. Please retry");
         throw error;
     }
 
     async function renewGuard() {
         if (guard - Date.now() > 60_000) return;
-        const current = await get("elim", id);
+        const current = await get("comp", id);
         if (current?.operation_guard !== guard)
-            throw new Error("The Elim operation expired. Please retry");
+            throw new Error("The competition operation expired. Please retry");
         const renewed = Date.now() + leaseLength;
         await client.updateEntity({
-            partitionKey: "elim", rowKey: id, operation_guard: renewed,
+            partitionKey: "comp", rowKey: id, operation_guard: renewed,
         }, "Merge", { etag: current.etag });
         guard = renewed;
     }
@@ -338,13 +340,13 @@ export async function elimAction(request: HttpRequest, context: InvocationContex
         const entrants = members.filter(row => row.is_participant === true);
         if (["score", "correct", "walkover"].includes(action)) {
             if (!admin && mine?.is_participant !== true)
-                return reply(403, "Only an entrant or an Elim admin can submit scores");
+                return reply(403, "Only an entrant or a competition admin can submit scores");
             if (typeof elim.pending_match_id === "string" && elim.pending_match_id)
                 await repairResult(elim, elim.pending_match_id, context);
             return await score(elim, String(data.match_id ?? ""), caller, admin, action, data, context);
         }
         if (!["join", "leave"].includes(action) && !admin)
-            return reply(403, "Only an Elim admin can do this");
+            return reply(403, "Only a competition admin can do this");
         if (action === "draw") {
             if (elim.state === "active" || elim.state === "complete") {
                 await doGuidsToPublic();
@@ -354,7 +356,7 @@ export async function elimAction(request: HttpRequest, context: InvocationContex
             if (elim.state === "drawing" && elim.draw_version !== 1)
                 return reply(409, "This draw version is unavailable");
             await client.updateEntity({
-                partitionKey: "elim", rowKey: id, state: "drawing", draw_version: 1,
+                partitionKey: "comp", rowKey: id, state: "drawing", draw_version: 1,
             }, "Merge");
             for (const member of members) {
                 await renewGuard();
@@ -417,23 +419,23 @@ export async function elimAction(request: HttpRequest, context: InvocationContex
         if (recipients.length)
             await notify(context, recipients, caller, String(elim.name),
                 action === "join" ? `${user.name ?? "A player"} has requested to join` : message,
-                `elim/${id}`, id);
+                `comp/${id}`, id);
         return reply(200, message, id);
     } finally {
-        const current = await get("elim", id);
+        const current = await get("comp", id);
         if (current?.operation_guard === guard) {
             await client.updateEntity({
-                partitionKey: "elim", rowKey: id, operation_guard: 0,
+                partitionKey: "comp", rowKey: id, operation_guard: 0,
             }, "Merge", { etag: current.etag });
         }
     }
 }
 
-app.http("elimCreate", {
-    methods: ["POST"], route: "elim/create", authLevel: "anonymous",
-    handler: (request, context) => groupAction(request, context, "create", "elim"),
+app.http("compCreate", {
+    methods: ["POST"], route: "comp/create", authLevel: "anonymous",
+    handler: (request, context) => groupAction(request, context, "create", "comp"),
 });
-app.http("elimAction", {
-    methods: ["POST"], route: "elim/{elim_id}/{action}", authLevel: "anonymous",
-    handler: elimAction,
+app.http("compAction", {
+    methods: ["POST"], route: "comp/{comp_id}/{action}", authLevel: "anonymous",
+    handler: compAction,
 });

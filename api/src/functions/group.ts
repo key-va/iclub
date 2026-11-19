@@ -55,7 +55,7 @@ export async function groupAction(
     request: HttpRequest,
     context: InvocationContext,
     action = request.params.action,
-    type: "group" | "elim" = "group",
+    type: "group" | "comp" = "group",
 ): Promise<HttpResponseInit> {
     if (type === "group" && action === "leave") return membershipAction(request, context, "group", "leave");
     let body;
@@ -104,11 +104,16 @@ export async function groupAction(
     if (!(type === "group" ? ["create", "activate", "join", "accept", "update"] : ["create", "activate"]).includes(action))
         return reply(404, "Unknown group action");
 
+    const isCompetitionCreate = type === "comp" && action === "create";
+    if (isCompetitionCreate && data.competition_type !== "elimination")
+        return reply(400, "Choose a supported competition type");
+
     let image: Buffer | undefined;
     let name: string | undefined;
     if (action === "create" || action === "update") {
-        if (Object.keys(data).some((key) => !["name", "image"].includes(key)))
-            return reply(400, "Only name and image can be supplied");
+        const fields = isCompetitionCreate ? ["name", "image", "competition_type"] : ["name", "image"];
+        if (Object.keys(data).some((key) => !fields.includes(key)))
+            return reply(400, isCompetitionCreate ? "Unexpected competition fields" : "Only name and image can be supplied");
         if (action === "create" || data.name !== undefined) {
             name = typeof data.name === "string" ? data.name.trim() : "";
             if (!name) return reply(400, "name is required");
@@ -158,7 +163,7 @@ export async function groupAction(
     if (action === "create") {
         const club = await doClubForOrigin(request.headers.get("origin") ?? "");
         if (!club)
-            return reply(400, `Open your club website to create a ${type}`);
+            return reply(400, `Open your club website to create a ${type === "comp" ? "competition" : type}`);
         const id = doNewGuid(type);
         if (image) await doAssetToPublic(image, `${id}.jpg`);
         else {
@@ -177,7 +182,10 @@ export async function groupAction(
             is_admin: true,
             is_participant: type === "group",
         });
-        await doUpsertEntity(type, id, { name, state: "pending" });
+        await doUpsertEntity(type, id, {
+            name, state: "pending",
+            ...(isCompetitionCreate ? { competition_type: data.competition_type } : {}),
+        });
         await doGuidsToPublic();
         const admins = (await relations(club.clubId))
             .filter(
@@ -188,16 +196,16 @@ export async function groupAction(
         await notify(
             admins,
             name!,
-            `${caller.name || "A player"} has requested to create this ${type}`,
+            `${caller.name || "A player"} has requested to create this ${type === "comp" ? "competition" : type}`,
             id,
         );
-        return reply(201, `${type === "group" ? "Group" : "Elim"} requested; waiting for club approval`, id);
+        return reply(201, `${type === "group" ? "Group" : "Competition"} requested; waiting for club approval`, id);
     }
     const id = request.params[`${type}_id`];
     if (typeof id !== "string" || !id.startsWith(`${type}_`))
         return reply(400, `${type}_id is required`);
     const group = await get(type, id);
-    if (!group) return reply(404, `${type === "group" ? "Group" : "Elim"} not found`);
+    if (!group) return reply(404, `${type === "group" ? "Group" : "Competition"} not found`);
     const links = await relations(id);
     const mine = links.find((row) => row.rowKey === caller_id);
     if (action === "activate") {
@@ -210,7 +218,7 @@ export async function groupAction(
         if (group.state !== "pending")
             return reply(409, `Only a pending ${type} can be approved`);
         await client.updateEntity(
-            { partitionKey: type, rowKey: id, state: type === "elim" ? "open" : "active" },
+            { partitionKey: type, rowKey: id, state: type === "comp" ? "open" : "active" },
             "Merge",
             { etag: group.etag },
         );
@@ -223,10 +231,10 @@ export async function groupAction(
                 )
                 .map((row) => row.rowKey),
             String(group.name),
-            `Your ${type} has been accepted and is now live`,
+            `Your ${type === "comp" ? "competition" : type} has been accepted and is now live`,
             id,
         );
-        return reply(200, `${type === "group" ? "Group" : "Elim"} approved`, id);
+        return reply(200, `${type === "group" ? "Group" : "Competition"} approved`, id);
     }
     if (action === "update") {
         if (mine?.is_admin !== true)

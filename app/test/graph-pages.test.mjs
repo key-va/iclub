@@ -23,7 +23,7 @@ before(async () => {
     render = (await server.ssrLoadModule('svelte/server')).render;
     guids = (await server.ssrLoadModule('/src/lib/stores/guids.ts')).guids;
     local = await server.ssrLoadModule('/src/lib/stores/local.ts');
-    pages = Object.fromEntries(await Promise.all(['group', 'team', 'round', 'match', 'user', 'elim'].map(async type =>
+    pages = Object.fromEntries(await Promise.all(['group', 'team', 'round', 'match', 'user', 'comp'].map(async type =>
         [type, (await server.ssrLoadModule(`/src/routes/${type}/[${type}_id]/+page.svelte`)).default])));
 });
 after(async () => { await server?.close(); });
@@ -125,23 +125,23 @@ test('pending team/group memberships on user pages retain admin acceptance actio
 test('Elim participant rows show seed status and restrict their quick actions to admins before the draw', async () => {
     const rows = [
         ...fixture(),
-        { pk: 'elim', rk: 'elim_test', name: 'Club knockout', state: 'open' },
-        { pk: 'elim_test', rk: 'user_admin', is_admin: true, is_participant: true },
-        { pk: 'elim_test', rk: 'user_alice', is_participant: true, seed: 1 },
-        { pk: 'elim_test', rk: 'user_bob', state: 'pending' }
+        { pk: 'comp', rk: 'comp_test', name: 'Club knockout', competition_type: 'elimination', state: 'open' },
+        { pk: 'comp_test', rk: 'user_admin', is_admin: true, is_participant: true },
+        { pk: 'comp_test', rk: 'user_alice', is_participant: true, seed: 1 },
+        { pk: 'comp_test', rk: 'user_bob', state: 'pending' }
     ];
-    const admin = await output('elim', 'user_admin', undefined, rows);
+    const admin = await output('comp', 'user_admin', undefined, rows);
     assert.match(admin, /class="blue green"[^>]*aria-label="Remove seed 1 from Alice"/);
     assert.match(admin, /class="blue orange"[^>]*aria-label="Accept Bob"/);
     assert.equal(hasAction(admin, 'Seed Administrator'), true);
     assert.match(admin, /seeded 1/);
     assert.match(admin, /unseeded/);
-    const player = await output('elim', 'user_alice', undefined, rows);
+    const player = await output('comp', 'user_alice', undefined, rows);
     assert.match(player, /seeded 1/);
     assert.equal(hasAction(player, 'Remove seed 1 from Alice'), false);
     assert.equal(hasAction(player, 'Accept Bob'), false);
-    rows.find(row => row.rk === 'elim_test').state = 'active';
-    const drawn = await output('elim', 'user_admin', undefined, rows);
+    rows.find(row => row.rk === 'comp_test').state = 'active';
+    const drawn = await output('comp', 'user_admin', undefined, rows);
     assert.match(drawn, /seeded 1/);
     assert.equal(hasAction(drawn, 'Remove seed 1 from Alice'), false);
 });

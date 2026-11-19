@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { prepareSquareImage } from '#lib/components/images/prepareSquareImage.ts';
 	import ActionConfirmation from '#lib/components/ActionConfirmation.svelte';
-	import { createElim, createGroup } from '#lib/stores/remote.ts';
+	import { createCompetition, createGroup } from '#lib/stores/remote.ts';
 
 	import { branding } from '#lib/stores/branding.ts';
 	import EntityHeader from '#lib/components/EntityHeader.svelte';
@@ -10,9 +10,10 @@
 	import { onMount } from 'svelte';
 	import { local } from '#lib/stores/local.ts';
 
-	let { type }: { type: 'group' | 'elim' } = $props();
-	const isElim = $derived(type === 'elim');
-	const title = $derived(isElim ? 'Elim' : 'Group');
+	let { type }: { type: 'group' | 'comp' } = $props();
+	const isCompetition = $derived(type === 'comp');
+	let competitionType = $state('elimination');
+	const title = $derived(isCompetition ? 'Competition' : 'Group');
 
 	let name = $state(page.url.searchParams.get('name') ?? '');
 	let image = $state('');
@@ -38,7 +39,11 @@
 		}
 	}
 
-	const createData = $derived({ name: cleanName, ...(image ? { image } : {}) });
+	const createData = $derived({
+		name: cleanName,
+		...(image ? { image } : {}),
+		...(isCompetition ? { competition_type: competitionType } : {})
+	});
 
 	onMount(() => {
 		if (!$local.caller_id || !$local.device_id)
@@ -54,13 +59,13 @@
 	/>
 
 	{#if !$branding.clubId}<p class="info">
-			Open your club website to create a {type}.
+			Open your club website to create a {isCompetition ? 'competition' : 'group'}.
 		</p>{/if}
 	<div class="group">
 		<div class="row right">
 			<input
 				type="text"
-				placeholder="{type} name"
+				placeholder="{title.toLowerCase()} name"
 				autocomplete="off"
 				bind:value={name}
 			/>
@@ -88,26 +93,34 @@
 			<input
 				type="file"
 				accept="image/*"
-				aria-label="{type} image"
+				aria-label="{title.toLowerCase()} image"
 				hidden
 				bind:this={fileInput}
 				onchange={pickImage}
 			/>
 		</div>
+		{#if isCompetition}
+			<div class="row right">
+				<label for="competition-type">Competition type</label>
+				<select id="competition-type" bind:value={competitionType}>
+					<option value="elimination">Elimination</option>
+				</select>
+			</div>
+		{/if}
 		{#if imageError}
 			<div class="row right"><p class="error">{imageError}</p></div>
 		{/if}
 		{#if showHelp}
 			<div class="row left">
-				<p class="info">{#if isElim}Create a singles knockout competition using super set scoring.{:else}<strong>group</strong>: create a group to facilitate a chat space to arrange social hits and activities{/if}</p>
+				<p class="info">{#if isCompetition}Create a singles knockout competition using super set scoring.{:else}<strong>group</strong>: create a group to facilitate a chat space to arrange social hits and activities{/if}</p>
 			</div>
 		{/if}
 	</div>
 
 	<ActionConfirmation
 		name="create"
-		message={`create the ${type} ${cleanName}?`}
-		action={() => (isElim ? createElim : createGroup)(createData)}
+		message={`create the ${title.toLowerCase()} ${cleanName}?`}
+		action={() => (isCompetition ? createCompetition : createGroup)(createData)}
 		disabled={cleanName === '' || !$branding.clubId}
 	>
 		<button

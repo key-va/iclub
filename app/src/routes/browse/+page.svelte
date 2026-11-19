@@ -15,7 +15,7 @@
 
 	const browsable = $derived(
 		$entities.filter(
-			(e) => e.pk === 'ladder' || e.pk === 'team' || e.pk === 'group' || e.pk === 'elim'
+			(e) => e.pk === 'ladder' || e.pk === 'team' || e.pk === 'group' || e.pk === 'comp'
 		)
 	);
 
@@ -80,11 +80,11 @@
 		/>
 	{/each}
 
-	{#each filtered.filter((entity) => ['group', 'elim'].includes(entity.pk)) as entity (entity.rk)}
+	{#each filtered.filter((entity) => ['group', 'comp'].includes(entity.pk)) as entity (entity.rk)}
 		<RouteLink
 			href={hrefOf(entity.rk)}
 			title={entity.name ?? 'no name'}
-			description={entity.pk}
+			description={entity.pk === 'comp' ? (entity.competition_type === 'elimination' ? 'elimination' : 'competition') : entity.pk}
 			image={imageOf(entity.rk)}
 		/>
 	{/each}
@@ -106,8 +106,8 @@
 			description="create a new group"
 		/>
 		<RouteLink
-			href={`/elim/create?name=${encodeURIComponent(filter.trim())}`}
-			title="New Elim"
+			href={`/comp/create?name=${encodeURIComponent(filter.trim())}`}
+			title="New Competition"
 			description="create an elimination competition"
 		/>
 	{/if}

@@ -2,4 +2,4 @@
 	import CompetitionCreate from '#lib/components/CompetitionCreate.svelte';
 </script>
 
-<CompetitionCreate type="elim" />
+<CompetitionCreate type="comp" />
