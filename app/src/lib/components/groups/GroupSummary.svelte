@@ -28,7 +28,7 @@
 	const pending = $derived(users.filter((user) => user.state === 'pending'));
 </script>
 
-<GroupActions {group} section="primary" />
+{#if group.state !== 'active'}<GroupActions {group} section="primary" />{/if}
 <div class="group">
 	{#if group.state === 'active'}
 		{#if admin}
@@ -46,3 +46,5 @@
 		{/each}
 	</HiddenOptions>
 </div>
+
+{#if group.state === 'active'}<GroupActions {group} section="primary" />{/if}
