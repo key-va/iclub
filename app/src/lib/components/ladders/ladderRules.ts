@@ -30,8 +30,13 @@ export function inReach(
 		ladder?.ladder_system ?? ladderSettingDefaults.ladder_system
 	);
 	if (system === 'win_points') return Number(me.points) >= steps;
-	if (system === 'ten_percent_sliding')
-		return target.rank >= Math.floor(myRank * 0.9);
+	if (system === 'the_percent_fixed') {
+		const competitorType = ladder?.format === 'doubles' ? 'pair' : 'user';
+		const count = relationsOf(String(ladder?.rk ?? '')).filter(
+			(row) => typeOf(row.rk) === competitorType && row.is_participant === true
+		).length;
+		return steps <= Math.floor(count / 10);
+	}
 	if (system === 'half_rank') return steps <= Math.floor(myRank / 2);
 	return system === 'static_1' && steps <= 1;
 }

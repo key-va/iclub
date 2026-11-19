@@ -196,8 +196,8 @@ test('singles joining, acceptance, challenges, scoring, messaging and forfeit re
 });
 
 test('doubles completion uses the supported rank-based rules, including rank shifts',async()=>{
-    for(const system of ['half_rank','ten_percent_sliding','static_1']){
-        rows.clear();doubles(system);const id=await challenge();await call(matchAccept,A,undefined,{match_id:id});
+    for(const system of ['half_rank','the_percent_fixed','static_1']){
+        rows.clear();doubles(system);if(system==='the_percent_fixed')for(let i=0;i<8;i++)pair(`pair_filler_${i}`,[`user_filler_${i}_a`,`user_filler_${i}_b`],i+3);const id=await challenge();await call(matchAccept,A,undefined,{match_id:id});
         await call(complete,D,{challenger_score:6,defender_score:0},{match_id:id});
         assert.equal(get(L,'pair_bottom').rank,1);assert.equal(get(L,'pair_bottom').points,2);assert.equal(get(L,'pair_top').rank,2);
     }
@@ -252,14 +252,21 @@ test('singles deadline processing and away still work; doubles away is pair-awar
 });
 
 
-test('ten percent sliding enforces the rounded target-rank boundary for singles and doubles',async()=>{
- for(const format of ['singles','doubles']) for(const [rank,target,expected] of [[20,18,201],[20,17,409],[11,9,201],[11,8,409],[2,1,201],[20,20,409],[20,21,409]]){
-  rows.clear();seed(format,'ten_percent_sliding');
+
+test('fixed ten percent enforces the same ladder-size range for singles and doubles',async()=>{
+ for(const format of ['singles','doubles']) for(const [count,rank,target,expected] of [[60,20,14,201],[60,20,13,409],[60,50,44,201],[60,50,43,409],[69,20,13,409],[70,20,13,201],[70,20,12,409],[9,9,8,409],[10,9,8,201]]){
+  rows.clear();seed(format,'the_percent_fixed');
   const challenger=format==='doubles'?'pair_bottom':C,defender=format==='doubles'?'pair_top':A;
   if(format==='doubles'){pair(challenger,[C,D],rank);pair(defender,[A,B],target);}
   else {relation(L,challenger,{is_participant:true,rank,state:'active'});relation(L,defender,{is_participant:true,rank:target,state:'active'});}
+  for(let i=0;i<count-2;i++){
+   if(format==='doubles')pair(`pair_extra_${i}`,[`user_extra_${i}_a`,`user_extra_${i}_b`],i+100,i%2?'away':'cooling');
+   else relation(L,`user_extra_${i}`,{is_participant:true,rank:i+100,state:i%2?'away':'cooling'});
+  }
+  relation(L,`${format==='doubles'?'pair':'user'}_pending`,{state:'pending'});
+  relation(L,`${format==='doubles'?'pair':'user'}_left`,{is_participant:false});
   const response=await call(create,C,{ladder_id:L,challenger_id:challenger,defender_id:defender});
-  assert.equal(response.status,expected,`${format}: rank ${rank} targeting ${target}`);
+  assert.equal(response.status,expected,`${format}: ${count} entries, rank ${rank} targeting ${target}`);
  }
 });
 

@@ -24,7 +24,7 @@ const settingRules: Record<string, SettingRule> = {
     match_format: { default: "super_set", values: ["super_set", "best_of_three", "fast_four"] },
     ladder_system: {
         default: "win_points",
-        values: ["win_points", "half_rank", "ten_percent_sliding", "static_1"]
+        values: ["win_points", "half_rank", "the_percent_fixed", "static_1"]
     },
     cool_period: { default: 3, min: 1, max: 9 },
     play_period: { default: 9, min: 1, max: 28 }

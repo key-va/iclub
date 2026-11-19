@@ -1,7 +1,7 @@
 import { doCompetitorUsers } from "../services/doCompetitorUsers";
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
 import { DefaultAzureCredential } from "@azure/identity";
-import { TableClient } from "@azure/data-tables";
+import { TableClient, odata } from "@azure/data-tables";
 import { doSignatureVerification } from "../services/doSignatureVerification";
 import { doNewGuid } from "../services/doNewGuid";
 import { doUpsertEntity } from "../services/doUpsertEntity";
@@ -136,8 +136,12 @@ export async function matchCreate(request: HttpRequest, context: InvocationConte
 
         if (system === "win_points") {
             inReach = Number(challenger.points) >= steps;
-        } else if (system === "ten_percent_sliding") {
-            inReach = Number(defender.rank) >= Math.floor(challengerRank * 0.9);
+        } else if (system === "the_percent_fixed") {
+            let count = 0;
+            for await (const row of guidsClient.listEntities({ queryOptions: { filter: odata`PartitionKey eq ${ladderId}` } })) {
+                if (row.rowKey.startsWith(`${competitorType}_`) && row.is_participant === true) count++;
+            }
+            inReach = steps <= Math.floor(count / 10);
         } else if (system === "half_rank") {
             inReach = steps <= Math.floor(challengerRank / 2);
         } else {

@@ -378,8 +378,8 @@ Keep shared infrastructure composable while implementing feature rules in their 
 ## Ladder setting definitions
 
 - Keep frontend labels/help/options in `app/src/lib/components/ladders/ladderSettings.ts` and API validation in `api/src/functions/ladderCreate.ts`; definitions remain separate by design and must be kept in step.
-- Creation supports `win_points`, `half_rank`, `ten_percent_sliding`, `static_1`; do not offer `open` or any `static_range_*` option. No backwards compatibility for the removed setting keys is required.
-- `ten_percent_sliding` allows higher-ranked targets down to `floor(callerRank * 0.9)` (rank 20 can challenge ranks 18–19). Apply the same boundary to user and pair competitors, in both frontend eligibility and API enforcement. Existing half-rank behaviour is unchanged.
+- Creation supports `win_points`, `half_rank`, `the_percent_fixed`, `static_1`; do not offer `open` or any `static_range_*` option. No backwards compatibility for the removed setting keys is required.
+- `the_percent_fixed` allows a climb of `floor(rankedCompetitorCount / 10)` places for every participant, independent of their own rank (60–69 entries: 6 places; 70 entries: 7). Count all current `is_participant: true` competitors, including away/busy/cooling, but exclude pending/left/retired/admin-only links. Doubles count ranked pairs, not individual partner memberships. Apply the same rule in frontend eligibility and API enforcement; no compatibility with the former sliding option. Existing half-rank behaviour is unchanged.
 - Cool period defaults to 3 days with allowed creation range 1–9. Missing-setting deadline/cooling/notification fallbacks use 3 days; explicit settings on existing ladders remain in effect.
 - Enum options contain separate display `label` and `description`; stored keys remain unchanged. `ladderStates` was unused and removed. Keep settings fields in the creation page for now.
 
