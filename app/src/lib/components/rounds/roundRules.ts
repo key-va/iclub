@@ -160,3 +160,17 @@ export function jsonArray(value: unknown): Record<string, unknown>[] {
 		return [];
 	}
 }
+
+// Shared summary for team pages and team sections on user pages.
+export function teamDescription(team?: GuidRow): string {
+	if (!team) return '';
+	const view = teamView(team);
+	return [
+		String(team.ext_association ?? team.association ?? '').toUpperCase(),
+		view.competition_name,
+		view.section_name,
+		view.rank != null ? `rank ${view.rank}` : null
+	]
+		.filter((value) => value != null && value !== '')
+		.join(' • ');
+}

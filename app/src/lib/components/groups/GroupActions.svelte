@@ -3,17 +3,36 @@
 	import ActionConfirmation from '../ActionConfirmation.svelte';
 	import { local } from '#lib/stores/local.ts';
 	import { relationsOf, type GuidRow } from '#lib/stores/guids.ts';
-	import { joinGroup, leaveGroup } from '#lib/stores/remote.ts';
+	import { joinGroup, leaveGroup, activateGroup } from '#lib/stores/remote.ts';
 	let { group }: { group: GuidRow } = $props();
 	const mine = $derived(
 		relationsOf(group.rk).find(
 			(row) => row.rk === $local.caller_id && row.state !== 'left'
 		)
 	);
+	const club = $derived(
+		relationsOf(group.rk).find((row) => row.rk.startsWith('club_'))
+	);
+	const clubAdmin = $derived(
+		!!club &&
+			relationsOf(club.rk).some(
+				(row) => row.rk === $local.caller_id && row.is_admin === true
+			)
+	);
 </script>
 
-{#if group.state === 'active'}
-	<EntityActions more={!!mine}>
+<EntityActions more={group.state === 'active' && !!mine}>
+	{#if group.state === 'pending'}
+		<ActionConfirmation
+			inline
+			arrow
+			showLabel
+			name="approve group"
+			message={`Approve ${group.name}?`}
+			action={() => activateGroup(group.rk)}
+			disabled={!clubAdmin}
+		/>
+	{:else if group.state === 'active'}
 		{#if mine}<ActionConfirmation
 				inline
 				arrow
@@ -30,5 +49,5 @@
 				action={() => joinGroup(group.rk)}
 				disabled={!$local.caller_id}
 			/>{/if}
-	</EntityActions>
-{/if}
+	{/if}
+</EntityActions>

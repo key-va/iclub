@@ -2,7 +2,6 @@
 	import TeamActions from './TeamActions.svelte';
 	import TeamRound from '#lib/components/teams/TeamRound.svelte';
 	import TeamUser from '#lib/components/teams/TeamUser.svelte';
-	import ActionConfirmation from '#lib/components/ActionConfirmation.svelte';
 
 	import { local } from '#lib/stores/local.ts';
 	import {
@@ -21,7 +20,7 @@
 		roundView
 	} from '#lib/components/rounds/roundRules.ts';
 	import ActionQuick from '#lib/components/ActionQuick.svelte';
-	import { activateTeam, syncTeam } from '#lib/stores/remote.ts';
+	import { syncTeam } from '#lib/stores/remote.ts';
 
 	import RouteLink from '#lib/components/routeLink.svelte';
 
@@ -36,22 +35,6 @@
 	);
 	const mine = $derived(users.find((u) => u.rk === $local.caller_id));
 	const admin = $derived(isTeamAdmin(mine));
-	const club = $derived(
-		relationsOf(id).filter(
-			(row) => typeOf(row.rk) === 'club' && entityOf(row.rk)
-		)[0]
-	);
-	const clubAdmin = $derived(
-		!!club &&
-			relationsOf(club.rk)
-				.filter(
-					(row) =>
-						typeOf(row.rk) === 'user' &&
-						row.state !== 'left' &&
-						entityOf(row.rk)
-				)
-				.some((u) => u.rk === $local.caller_id && u.is_admin === true)
-	);
 	const rounds = $derived(
 		relationsOf(id)
 			.filter((row) => typeOf(row.rk) === 'round' && entityOf(row.rk))
@@ -64,20 +47,8 @@
 	let syncMessage = $state('');
 </script>
 
-{#if team.state === 'pending'}
-	<div class="group">
-		<HiddenOptions inline title="Pending" description="pending club approval">
-			<ActionConfirmation
-				inline
-				name="approve team"
-				message={`Approve ${team.name} and import its rounds?`}
-				action={() => activateTeam(id)}
-				disabled={!clubAdmin}
-			/>
-		</HiddenOptions>
-	</div>
-{:else if team.state === 'active'}
-	<TeamActions {team} />
+<TeamActions {team} />
+{#if team.state === 'active'}
 	{#if admin}
 		<div class="group">
 			{#each pending as user (user.rk)}

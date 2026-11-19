@@ -10,6 +10,7 @@
 	} from '#lib/stores/guids.ts';
 	import { acceptTeamMemberConfirmation } from '#lib/stores/remote.ts';
 	import {
+		teamDescription,
 		isTeamAdmin,
 		isTeamMember,
 		outstandingTeamRounds
@@ -31,9 +32,7 @@
 		entity?.state === 'pending'
 			? 'pending club approval'
 			: member
-				? String(entity?.ext_section_name).toLowerCase() +
-					' • rank ' +
-					entity?.ext_rank
+				? teamDescription(entity)
 				: 'pending'
 	);
 	const rounds = $derived(

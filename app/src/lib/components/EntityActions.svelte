@@ -16,6 +16,7 @@
 </script>
 
 {#if summary}<div class="group"><p class="info center">{summary}</p></div>{/if}
+{#if showHelp && help}<div class="group help">{@render help()}</div>{/if}
 {#snippet controls()}
 	{#if help}<button
 			class="blue"
@@ -32,11 +33,8 @@
 		<div class="row right controls">{@render controls()}</div>
 	</HiddenOptions>
 {:else}
-	<div class="group">
-		<div class="row right controls">{@render controls()}</div>
-	</div>
+	<div class="row right controls">{@render controls()}</div>
 {/if}
-{#if showHelp && help}<div class="group help">{@render help()}</div>{/if}
 
 <style>
 	.controls {

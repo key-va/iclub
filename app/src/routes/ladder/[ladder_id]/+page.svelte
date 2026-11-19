@@ -21,8 +21,6 @@
 		pastMatches
 	} from '#lib/components/matches/matchRules.ts';
 
-	import ActionConfirmation from '#lib/components/ActionConfirmation.svelte';
-	import { activateLadder } from '#lib/stores/remote.ts';
 	import RouteLink from '#lib/components/routeLink.svelte';
 	import HiddenOptions from '#lib/components/hiddenOptions.svelte';
 
@@ -41,16 +39,6 @@
 			.sort((a, b) => Number(a.rank) - Number(b.rank))
 	);
 
-	const clubId = $derived(
-		relationsOf(ladderId).filter(
-			(row) => typeOf(row.rk) === 'club' && entityOf(row.rk)
-		)[0]?.rk ?? ''
-	);
-	const isClubAdmin = $derived(
-		relationsOf(clubId).some(
-			(relation) => relation.rk === caller_id && relation.is_admin === true
-		)
-	);
 	// Players who asked to join and are waiting for a ladder admin to accept
 	const pending = $derived(
 		relationsOf(ladderId)
@@ -90,20 +78,6 @@
 <div class="page">
 	{#if ladder}
 		<EntityHeader entity={ladder} />
-
-		{#if ladder.state === 'pending'}
-			<div class="group">
-				<HiddenOptions inline title="Pending" description="pending approval">
-					<ActionConfirmation
-						inline
-						name="approve this ladder"
-						message={`approve the ladder ${ladder.name} to make it active?`}
-						action={() => activateLadder(ladderId)}
-						disabled={!isClubAdmin}
-					/>
-				</HiddenOptions>
-			</div>
-		{/if}
 
 		<LadderActions {ladder} />
 		<LadderRequests {ladder} />

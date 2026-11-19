@@ -261,3 +261,10 @@ test("availability controls offer only valid choices for each round role", () =>
     assert.deepEqual(rounds.availabilityOptions("selected"), ["unavailable"]);
     assert.deepEqual(rounds.availabilityOptions(undefined), []);
 });
+
+
+test('team summaries include association, competition, section and rank without empty separators',()=>{
+ assert.equal(rounds.teamDescription({pk:'team',rk:'team_test',ext_association:'brta',ext_competition_name:'Tuesday Night',ext_section_name:'Section 1',ext_rank:3}), 'BRTA • Tuesday Night • Section 1 • rank 3');
+ assert.equal(rounds.teamDescription({pk:'team',rk:'team_test',ext_section_name:'Section 1',ext_rank:0}), 'Section 1 • rank 0');
+ assert.equal(rounds.teamDescription(), '');
+});

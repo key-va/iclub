@@ -9,7 +9,7 @@ before(async () => {
  render = (await server.ssrLoadModule('svelte/server')).render;
  graph = (await server.ssrLoadModule('/src/lib/stores/guids.ts')).guids;
  local = (await server.ssrLoadModule('/src/lib/stores/local.ts')).local;
- views = Object.fromEntries(await Promise.all([['ladder','ladders/LadderActions'],['round','rounds/RoundActions'],['match','matches/MatchActions']].map(async ([key,path]) => [key,(await server.ssrLoadModule(`/src/lib/components/${path}.svelte`)).default])));
+ views = Object.fromEntries(await Promise.all([['ladder','ladders/LadderActions'],['round','rounds/RoundActions'],['match','matches/MatchActions'],['team','teams/TeamActions'],['group','groups/GroupActions']].map(async ([key,path]) => [key,(await server.ssrLoadModule(`/src/lib/components/${path}.svelte`)).default])));
 });
 after(async () => { await server?.close(); });
 const has = (html, name) => html.includes(`aria-label="${name}"`);
@@ -41,4 +41,20 @@ test('match page shows accept for defenders/admins and forfeit only for particip
  html=await show('match',{match},rows,'user_admin');assert.equal(has(html,'accept'),true);assert.equal(has(html,'forfeit'),false);
  html=await show('match',{match},rows,'user_other');assert.equal(has(html,'accept'),false);assert.equal(has(html,'forfeit'),false);
  html=await show('match',{match:{...match,state:'active'}},rows);assert.equal(has(html,'accept'),false);assert.equal(has(html,'forfeit'),true);
+});
+
+
+test('pending entity approvals follow their summaries in ungrouped foreground controls', async () => {
+ for(const [type,name] of [['ladder','approve this ladder'],['team','approve team'],['group','approve group']]) {
+  const entity={pk:type,rk:`${type}_test`,name:'Pending entity',state:'pending',format:'singles',ladder_system:'win_points',match_format:'best_of_three',ext_association:'brta',ext_competition_name:'Tuesday Night',ext_section_name:'Section 1',ext_rank:3};
+  const rows=[entity,{pk:entity.rk,rk:'club_test'},{pk:'club_test',rk:'user_me',is_admin:true}];
+  const html=await show(type,{[type]:entity},rows);
+  assert.equal(has(html,name),true);assert.match(html,new RegExp(`class="pink"[^>]*aria-label="${name}"`));
+  assert.doesNotMatch(html,/aria-label="Pending"|pending approval|pending club approval/);
+  if(type!=='group'){
+   const summary=type==='ladder'?'singles • win points • best of three':'BRTA • Tuesday Night • Section 1 • rank 3';
+   assert.ok(html.indexOf(summary)<html.indexOf(`aria-label="${name}"`));
+   assert.equal((html.match(/class="group"/g)??[]).length,1);
+  }
+ }
 });

@@ -6,6 +6,7 @@
 	import { ladderSettings } from './ladderSettings.ts';
 	import {
 		joinLadder,
+		activateLadder,
 		awayLadder,
 		returnLadder,
 		leaveLadder
@@ -16,10 +17,18 @@
 			(row) => row.rk === $local.caller_id && row.state !== 'left'
 		)
 	);
+	const club = $derived(
+		relationsOf(ladder.rk).find((row) => row.rk.startsWith('club_'))
+	);
+	const clubAdmin = $derived(
+		!!club &&
+			relationsOf(club.rk).some(
+				(row) => row.rk === $local.caller_id && row.is_admin === true
+			)
+	);
+
 	const associated = $derived(
-		!!mine &&
-			(mine.is_participant === true ||
-				mine.state === 'pending')
+		!!mine && (mine.is_participant === true || mine.state === 'pending')
 	);
 	const summary = $derived(
 		['format', 'ladder_system', 'match_format']
@@ -35,7 +44,7 @@
 	);
 </script>
 
-<EntityActions {summary} more={associated}>
+<EntityActions {summary} more={ladder.state === 'active' && associated}>
 	{#snippet help()}
 		{#each Object.entries(ladderSettings) as [key, setting]}
 			{@const value = ladder[key] ?? setting.default}
@@ -48,7 +57,17 @@
 			</p>
 		{/each}
 	{/snippet}
-	{#if associated}
+	{#if ladder.state === 'pending'}
+		<ActionConfirmation
+			inline
+			arrow
+			showLabel
+			name="approve this ladder"
+			message={`Approve ${ladder.name} to make it active?`}
+			action={() => activateLadder(ladder.rk)}
+			disabled={!clubAdmin}
+		/>
+	{:else if associated}
 		{#if mine?.is_participant === true}
 			{#if mine.state === 'away'}<ActionConfirmation
 					inline

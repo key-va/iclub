@@ -165,7 +165,7 @@
 {#snippet trigger()}
 	<button
 		bind:this={triggerButton}
-		class={disabled ? 'grey' : arrow ? 'blue' : 'pink'}
+		class={disabled ? 'grey' : confirm || !arrow ? 'pink' : 'blue'}
 		aria-label={name}
 		aria-busy={isBusy}
 		disabled={disabled || isBusy || isExpanded}
