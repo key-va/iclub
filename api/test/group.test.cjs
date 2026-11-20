@@ -590,3 +590,36 @@ test("Competition creation requires a supported type", async () => {
     }
     assert.equal([...rows.values()].some(row => row.partitionKey === "comp"), false);
 });
+
+test("Competition round names, pending slots and player forfeits follow the draw", async () => {
+    const id = await openElim();
+    await enterElim(id, ["user_member", "user_applicant", "user_visitor", "user_otheradmin"]);
+    await elimCall(id, "draw", elimAdmin);
+    assert.equal(get("round", elimBracketId("round", id, 1)).name, "Club knockout R1");
+    assert.equal(get("round", elimBracketId("round", id, 2)).name, "Club knockout Final");
+
+    const firstMatch = elimBracketId("match", id, 1, 1);
+    const secondMatch = elimBracketId("match", id, 1, 2);
+    const final = elimBracketId("match", id, 2, 1);
+    const first = get("match", firstMatch);
+    const second = get("match", secondMatch);
+    seed("user", first.first_id, { name: "Taylor Smith" });
+    seed("user", first.second_id, { name: "Jordan Jones" });
+    seed("user", second.first_id, { name: "Alex Green" });
+    assert.equal(get("match", final).name, "Final Pending");
+
+    const forfeit = { ...scores(firstMatch, 0, 0), winner_id: first.first_id };
+    assert.equal((await elimCall(id, "forfeit", second.first_id, forfeit)).status, 403);
+    assert.equal((await elimCall(id, "forfeit", first.first_id, forfeit)).status, 200);
+    assert.equal(get("match", firstMatch).name, "Taylor vs Jordan");
+    assert.equal(get(first.first_id, firstMatch).result, "forfeiter");
+    assert.equal(get("match", final).name, "Final Pending");
+
+    assert.equal((await elimCall(id, "score", second.first_id, scores(secondMatch, 8, 1))).status, 200);
+    assert.equal(get("match", final).name, "Jordan vs Alex");
+
+    assert.equal((await elimCall(id, "forfeit", elimAdmin, {
+        ...scores(final, 0, 0), winner_id: second.first_id,
+    })).status, 200);
+    assert.equal(get("comp", id).champion_id, second.first_id);
+});

@@ -9,8 +9,8 @@ before(async () => {
         plugins: [{ name: 'expose-page-actions', enforce: 'pre', transform(source, id) {
             const path = id.replaceAll('\\', '/');
             if (path.endsWith('/components/routeLink.svelte') || path.endsWith('/components/RouteLinkHiddenAction.svelte')) return `
-                <script>let { href, title, description, detail, children, colour } = $props();</script>
-                <article data-colour={colour}><a {href}>{title}</a><p>{description}</p>{@render detail?.()}{@render children?.()}</article>`;
+                <script>let { href, title, description, detail, children, colour, isWhite } = $props();</script>
+                <article data-colour={colour} data-white={isWhite}><a {href}>{title}</a><p>{description}</p>{@render detail?.()}{@render children?.()}</article>`;
             if (path.endsWith('/components/hiddenOptions.svelte')) return `
                 <script>let { title, children } = $props();</script><section aria-label={title}>{@render children?.()}</section>`;
             if (path.endsWith('/components/apiService.svelte')) return `
@@ -186,4 +186,41 @@ test('Browse shows active entities and competitions accepting entries', async ()
     assert.match(html, /Open entries/);
     assert.match(html, /Active draw/);
     assert.doesNotMatch(html, /Pending team|Pending group|Pending comp|Finished draw/);
+});
+
+test('Competition rounds and user profiles show active matches and elimination status', async () => {
+    const rows = [
+        ...fixture(),
+        { pk: 'comp', rk: 'comp_test', name: 'Club knockout', competition_type: 'elimination', state: 'active' },
+        { pk: 'round', rk: 'round_final', name: 'Club knockout Final', bracket_round: 2 },
+        { pk: 'match', rk: 'match_final', name: 'Alice vs Administrator', state: 'active', bracket_match: 1 },
+        { pk: 'match', rk: 'match_waiting', name: 'R1 Pending', state: 'waiting', bracket_match: 2 },
+        { pk: 'match', rk: 'match_result', name: 'Alice vs Bob', state: 'complete' },
+        { pk: 'comp_test', rk: 'round_final' },
+        { pk: 'round_final', rk: 'match_final' },
+        { pk: 'round_final', rk: 'match_waiting' },
+        { pk: 'match_final', rk: 'comp_test' },
+        { pk: 'match_result', rk: 'comp_test' },
+        { pk: 'match_final', rk: 'user_alice', role: 'challenger' },
+        { pk: 'match_final', rk: 'user_admin', role: 'defender' },
+        { pk: 'user_alice', rk: 'match_final', role: 'challenger' },
+        { pk: 'user_bob', rk: 'match_result', result: 'loser' },
+        { pk: 'comp_test', rk: 'user_alice', is_participant: true, seed: 1 },
+        { pk: 'comp_test', rk: 'user_bob', is_participant: true, seed: 2 },
+        { pk: 'user_alice', rk: 'comp_test', is_participant: true, seed: 1 },
+        { pk: 'user_bob', rk: 'comp_test', is_participant: true, seed: 2 }
+    ];
+    const comp = await output('comp', 'user_alice', undefined, rows);
+    assert.match(comp, /data-colour="red"[^>]*><a [^>]*>Bob<\/a><p>eliminated/);
+    assert.match(comp, /aria-label="Club knockout Final"[\s\S]*data-white="true"[^>]*><a [^>]*>Alice vs Administrator/);
+    assert.match(comp, /data-white="false"[^>]*><a [^>]*>R1 Pending/);
+
+    const alice = await output('user', 'user_alice', 'user_alice', rows);
+    assert.match(alice, /Club knockout<\/a><p>ranked 1[\s\S]*Alice vs Administrator/);
+    const bob = await output('user', 'user_bob', 'user_bob', rows);
+    assert.match(bob, /Club knockout<\/a><p>eliminated[\s\S]*No pending matches/);
+
+    const match = await output('match', 'user_alice', 'match_final', rows);
+    assert.match(match, /aria-label="help"[\s\S]*aria-label="submit"/);
+    assert.match(match, /aria-label="More Options"[\s\S]*aria-label="forfeit"/);
 });

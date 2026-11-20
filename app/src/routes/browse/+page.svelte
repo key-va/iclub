@@ -86,6 +86,7 @@
 		<RouteLink
 			href={hrefOf(entity.rk)}
 			title={entity.name ?? 'no name'}
+			isWhite={entity.pk === 'comp'}
 			description={entity.pk === 'comp' ? (entity.competition_type === 'elimination' ? 'elimination' : 'competition') : entity.pk}
 			image={imageOf(entity.rk)}
 		/>
@@ -110,7 +111,7 @@
 		<RouteLink
 			href={`/comp/create?name=${encodeURIComponent(filter.trim())}`}
 			title="New Competition"
-			description="create an elimination competition"
+			description="create a new comp"
 		/>
 	{/if}
 </div>

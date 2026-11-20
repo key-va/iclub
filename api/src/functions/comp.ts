@@ -81,16 +81,7 @@ async function notify(
     }
 }
 
-function matchProperties(rounds: number, round: number, position: number) {
-    const label = elimRoundName(rounds - round + 1, round);
-    return {
-        label: round === rounds ? label : `${label} match ${position}`,
-        bracket_round: round,
-        bracket_match: position,
-    };
-}
-
-async function projectMatch(match: Record<string, unknown> & { rowKey: string }, first: string, second: string) {
+async function projectMatch(match: Record<string, unknown> & { rowKey: string }, first: string, second: string, rounds: number) {
     const id = match.rowKey;
     const players = [first, second].filter(Boolean);
     for (const previous of await users(id)) {
@@ -106,16 +97,18 @@ async function projectMatch(match: Record<string, unknown> & { rowKey: string },
         const score = isFirst ? match.first_score : match.second_score;
         await doUpsertRelation(id, userId, {
             role: isFirst ? "challenger" : "defender",
-            ...(winner ? { result: match.is_bye ? "bye" : winner === userId ? "winner" : "loser" } : {}),
+            ...(winner ? { result: match.is_bye ? "bye" : winner === userId ? "winner" : match.is_forfeit ? "forfeiter" : "loser" } : {}),
             ...(typeof score === "number" ? { score } : {}),
         });
     }
-    let name = String(match.label);
-    if (players.length) {
-        const names = await Promise.all(players.map(async userId =>
-            String((await get("user", userId))?.name ?? "Player")
-        ));
-        name += match.is_bye ? ` · ${names[0]} (bye)` : ` · ${names.join(" vs ")}`;
+    const label = elimRoundName(Number(match.bracket_round), rounds);
+    let name = `${label} Pending`;
+    if (players.length === 2 || match.is_bye) {
+        const firstNames = await Promise.all(players.map(async userId => {
+            const user = await get("user", userId);
+            return String(user?.name ?? "").trim().split(/\s+/)[0] || "Player";
+        }));
+        name = match.is_bye ? `${firstNames[0]} (bye)` : firstNames.join(" vs ");
     }
     await client.updateEntity({
         partitionKey: "match", rowKey: id, name,
@@ -133,14 +126,14 @@ async function startDraw(elim: Row, entrants: Row[], renewGuard: () => Promise<v
     for (let round = 1; round <= rounds; round++) {
         const roundId = elimBracketId("round", id, round);
         const positions = 2 ** (rounds - round);
+        const label = elimRoundName(round, rounds);
         await doUpsertEntity("round", roundId, {
-            name: elimRoundName(rounds - round + 1, round), bracket_round: round,
+            name: `${elim.name} ${label}`, bracket_round: round,
         });
         await doUpsertRelation(id, roundId);
         for (let position = 1; position <= positions; position++) {
             await renewGuard();
             const matchId = elimBracketId("match", id, round, position);
-            const attributes = matchProperties(rounds, round, position);
             const [first, second] = round === 1
                 ? [slots[2 * position - 2], slots[2 * position - 1]]
                 : [2 * position - 1, 2 * position].map(feeder =>
@@ -152,13 +145,14 @@ async function startDraw(elim: Row, entrants: Row[], renewGuard: () => Promise<v
             // can skip completed positions while retaining the same bye winners.
             if ((await get("match", matchId))?.draw_ready === true) continue;
             const fields = {
-                ...attributes, name: attributes.label, is_bye: bye, winner_id: winner,
+                name: `${label} Pending`, bracket_round: round, bracket_match: position,
+                is_bye: bye, winner_id: winner,
                 first_id: first, second_id: second, state: "waiting",
             };
             await doUpsertEntity("match", matchId, fields);
             await doUpsertRelation(id, matchId);
             await doUpsertRelation(roundId, matchId);
-            await projectMatch({ rowKey: matchId, ...fields }, first, second);
+            await projectMatch({ rowKey: matchId, ...fields }, first, second, rounds);
         }
     }
     await client.updateEntity({
@@ -170,7 +164,7 @@ async function finishResult(elim: Row, match: Row) {
     const id = elim.rowKey;
     const round = Number(match.bracket_round);
     const position = Number(match.bracket_match);
-    await projectMatch(match, String(match.first_id), String(match.second_id));
+    await projectMatch(match, String(match.first_id), String(match.second_id), Number(elim.rounds));
     if (round === elim.rounds) {
         await client.updateEntity({
             partitionKey: "comp", rowKey: id, state: "complete",
@@ -184,7 +178,7 @@ async function finishResult(elim: Row, match: Row) {
             [2 * nextPosition - 1, 2 * nextPosition].map(feeder =>
                 get("match", elimBracketId("match", id, round, feeder)))
         );
-        await projectMatch(next, String(feeders[0]?.winner_id ?? ""), String(feeders[1]?.winner_id ?? ""));
+        await projectMatch(next, String(feeders[0]?.winner_id ?? ""), String(feeders[1]?.winner_id ?? ""), Number(elim.rounds));
     }
 }
 
@@ -201,7 +195,7 @@ async function score(
     if (!match) return reply(404, "competition match not found");
     const first = String(match.first_id ?? "");
     const second = String(match.second_id ?? "");
-    if (action !== "score" && !admin)
+    if (["correct", "walkover"].includes(action) && !admin)
         return reply(403, "Only a competition admin can correct scores or record a walkover");
     if (!admin && caller !== first && caller !== second)
         return reply(403, "Only a player or a competition admin can submit the score");
@@ -215,19 +209,22 @@ async function score(
     const next = round < Number(elim.rounds)
         ? await get("match", elimBracketId("match", id, round + 1, Math.ceil(position / 2)))
         : undefined;
+    const forfeit = action === "forfeit";
     const walkover = action === "walkover";
+    const unplayed = walkover || forfeit;
+    const awardedWinner = forfeit && !admin ? (caller === first ? second : first) : data.winner_id;
     const a = data.first_score;
     const b = data.second_score;
-    if (walkover ? data.winner_id !== first && data.winner_id !== second
+    if (unplayed ? awardedWinner !== first && awardedWinner !== second
         : typeof a !== "number" || typeof b !== "number" || !Number.isInteger(a)
             || !Number.isInteger(b) || a < 0 || a > 8 || b < 0 || b > 8 || a === b)
-        return reply(400, walkover ? "Select the player who advances" : "Enter two different whole-number scores from 0 to 8");
-    const winner = walkover ? String(data.winner_id) : Number(a) > Number(b) ? first : second;
+        return reply(400, unplayed ? "Select the player who advances" : "Enter two different whole-number scores from 0 to 8");
+    const winner = unplayed ? String(awardedWinner) : Number(a) > Number(b) ? first : second;
     const attributes = {
-        winner_id: winner, is_walkover: walkover,
-        first_score: walkover ? "" : Number(a), second_score: walkover ? "" : Number(b),
+        winner_id: winner, is_walkover: walkover, is_forfeit: forfeit,
+        first_score: unplayed ? "" : Number(a), second_score: unplayed ? "" : Number(b),
     };
-    const same = Object.entries(attributes).every(([key, value]) => match[key] === value);
+    const same = Object.entries(attributes).every(([key, value]) => (match[key] ?? false) === value);
     if (same) {
         await doGuidsToPublic();
         return reply(200, "Result already recorded", matchId);
@@ -258,7 +255,8 @@ async function repairResult(elim: Row, matchId: string, context: InvocationConte
     if (match?.result_pending === true) {
         await finishResult(elim, match);
         await doGuidsToPublic();
-        const notice = match.result_action === "walkover" ? "A walkover was recorded"
+        const notice = match.result_action === "forfeit" ? "The match was forfeited"
+            : match.result_action === "walkover" ? "A walkover was recorded"
             : match.result_action === "correct" ? "The match score was corrected"
             : "Match scores have been submitted";
         await notify(
@@ -279,7 +277,7 @@ async function repairResult(elim: Row, matchId: string, context: InvocationConte
 export async function compAction(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
     const action = request.params.action;
     if (action === "activate") return groupAction(request, context, action, "comp");
-    if (!["join", "accept", "leave", "seed", "unseed", "draw", "score", "correct", "walkover"].includes(action))
+    if (!["join", "accept", "leave", "seed", "unseed", "draw", "score", "correct", "walkover", "forfeit"].includes(action))
         return reply(404, "Unknown competition action");
     let body;
     try {
@@ -338,7 +336,7 @@ export async function compAction(request: HttpRequest, context: InvocationContex
         const mine = members.find(row => row.rowKey === caller);
         const admin = mine?.is_admin === true;
         const entrants = members.filter(row => row.is_participant === true);
-        if (["score", "correct", "walkover"].includes(action)) {
+        if (["score", "correct", "walkover", "forfeit"].includes(action)) {
             if (!admin && mine?.is_participant !== true)
                 return reply(403, "Only an entrant or a competition admin can submit scores");
             if (typeof elim.pending_match_id === "string" && elim.pending_match_id)

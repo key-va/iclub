@@ -3,7 +3,7 @@
 	import MessageThread from '#lib/components/messages/MessageThread.svelte';
 	import ActionConfirmation from '#lib/components/ActionConfirmation.svelte';
 
-	import ActionQuick from '#lib/components/ActionQuick.svelte';
+	import EntityActions from '#lib/components/EntityActions.svelte';
 	import { completeMatch, recordElimResult } from '#lib/stores/remote.ts';
 
 	import { local } from '#lib/stores/local.ts';
@@ -59,8 +59,7 @@
 				next?.bracket_match === Math.ceil(Number(match.bracket_match) / 2) && !!next.winner_id;
 		}));
 	let correcting = $state(false);
-	let walkingOver = $state(false);
-	let walkoverWinner = $state('');
+	let forfeitWinner = $state('');
 	const isPlayer = $derived(
 		matchUsers.some(
 			(user) =>
@@ -69,7 +68,7 @@
 		)
 	);
 	const showScores = $derived(
-		(match.state === 'active' && (!elim || isElimAdmin || isPlayer)) ||
+		match.state === 'active' ||
 		(canCorrect && correcting)
 	);
 	// One row of inputs per set, labelled by match format
@@ -281,52 +280,21 @@
 	{/if}
 {/if}
 
-{#if elim && challenger && defender}
-	{#if showScores && (isPlayer || isElimAdmin)}
-		<ActionQuick name={correcting ? 'save correction' : 'submit score'}
-			action={submitElimScore} disabled={!scoreValid || challengerSets[0] === defenderSets[0]}
-			onsuccess={() => { correcting = false; walkingOver = false; }}
-		/>
-	{/if}
-	{#if canCorrect}
-		<div class="row right">
-			<button class="blue" onclick={() => correcting ? (correcting = false) : editResult()}>
-				{correcting ? 'cancel correction' : 'correct score'}
-			</button>
-		</div>
-	{/if}
-	{#if isElimAdmin && match.state === 'active'}
-		<div class="row right">
-			<button class="blue" onclick={() => { walkingOver = !walkingOver; walkoverWinner = ''; }}>
-				{walkingOver ? 'cancel walkover' : 'walkover'}
-			</button>
-		</div>
-		{#if walkingOver}
-			<div class="group">
-				<div class="row right">
-					<select aria-label="Player who advances" bind:value={walkoverWinner}>
-						<option value="">Player who advances</option>
-						<option value={challenger.rk}>{nameOf(challenger.rk)}</option>
-						<option value={defender.rk}>{nameOf(defender.rk)}</option>
-					</select>
-				</div>
-				<ActionConfirmation name="record walkover" message={`Advance ${nameOf(walkoverWinner)} by walkover?`}
-					disabled={!walkoverWinner}
-					action={() => recordElimResult(elim.rk, matchId, 'walkover', challenger.rk, defender.rk, { winner_id: walkoverWinner })}
-				/>
-			</div>
-		{/if}
-	{/if}
-{:else if !elim && match.state === 'active'}
+{#if showScores && (!elim || challenger && defender)}
 	<ActionConfirmation
-		name="submit"
+		arrow
+		showLabel
+		name={correcting ? 'save correction' : 'submit'}
 		message={`${scoreSummary}?`}
-		action={() =>
-			completeMatch(matchId, {
+		action={() => elim
+			? submitElimScore()
+			: completeMatch(matchId, {
 				challenger_score: challengerSets,
 				defender_score: defenderSets
 			})}
-		disabled={!scoreValid || !(isPlayer || isLadderAdmin)}
+		disabled={!scoreValid || !(isPlayer || isLadderAdmin || isElimAdmin)
+			|| (!!elim && challengerSets[0] === defenderSets[0])}
+		onsuccess={() => { correcting = false; }}
 	>
 		<button
 			class="blue"
@@ -334,21 +302,7 @@
 			aria-pressed={showHelp}
 			onclick={() => (showHelp = !showHelp)}
 		>
-			<svg
-				viewBox="0 0 24 24"
-				width="1rem"
-				height="1rem"
-				fill="none"
-				stroke="currentColor"
-				stroke-width="3"
-				stroke-linecap="round"
-				stroke-linejoin="round"
-				role="img"
-				aria-label="Help"
-			>
-				<path d="M9 9a3 3 0 1 1 4.5 2.6c-1 .6-1.5 1.2-1.5 2.4" />
-				<path d="M12 18h.01" />
-			</svg>
+			<p>?</p>
 		</button>
 	</ActionConfirmation>
 {/if}
@@ -369,7 +323,31 @@
 	image={imageOf((elim ?? ladder)?.rk ?? '')}
 ></RouteLink>
 
-{#if !elim}
+{#if elim && challenger && defender && (canCorrect || (match.state === 'active' && (isPlayer || isElimAdmin)))}
+	<EntityActions section="options">
+		{#snippet options()}
+			{#if canCorrect}
+				<button class="blue" onclick={() => correcting ? (correcting = false) : editResult()}>
+					<p>{correcting ? 'cancel correction' : 'correct score'}</p>
+				</button>
+			{:else}
+				{#if isElimAdmin}
+					<select aria-label="Player who advances" bind:value={forfeitWinner}>
+						<option value="">{isPlayer ? 'Forfeit own match' : 'Player who advances'}</option>
+						<option value={challenger.rk}>{nameOf(challenger.rk)}</option>
+						<option value={defender.rk}>{nameOf(defender.rk)}</option>
+					</select>
+				{/if}
+				<ActionConfirmation inline arrow showLabel name="forfeit"
+					message={forfeitWinner ? `Advance ${nameOf(forfeitWinner)} by forfeit?` : 'Forfeit this match?'}
+					disabled={!isPlayer && !forfeitWinner}
+					action={() => recordElimResult(elim.rk, matchId, 'forfeit', challenger.rk, defender.rk, {
+						winner_id: forfeitWinner || (caller_id === challenger.rk ? defender.rk : challenger.rk)
+					})} />
+			{/if}
+		{/snippet}
+	</EntityActions>
+{:else if !elim}
 	<MatchActions
 		{match}
 		section="options"

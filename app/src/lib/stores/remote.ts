@@ -146,7 +146,7 @@ export const competitionEntry = (
 export const recordElimResult = (
 	id: string,
 	matchId: string,
-	action: 'score' | 'correct' | 'walkover',
+	action: 'score' | 'correct' | 'walkover' | 'forfeit',
 	firstId: string,
 	secondId: string,
 	result: { first_score: number; second_score: number } | { winner_id: string }

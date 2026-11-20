@@ -33,7 +33,6 @@ export function elimBracketId(
     return `${type}_${timestamp}_${hash(compId, type, String(round), String(position)).slice(0, 12)}`;
 }
 
-export function elimRoundName(remaining: number, round: number) {
-    return ({ 1: "Final", 2: "Semifinal", 3: "Quarterfinal" } as Record<number, string>)[remaining]
-        ?? `Round ${round}`;
+export function elimRoundName(round: number, rounds: number) {
+    return round === rounds ? "Final" : `R${round}`;
 }

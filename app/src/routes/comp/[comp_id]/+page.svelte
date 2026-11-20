@@ -10,6 +10,7 @@
 	import RouteLinkHiddenAction from '#lib/components/RouteLinkHiddenAction.svelte';
 	import EntityHeader from '#lib/components/EntityHeader.svelte';
 	import RouteLink from '#lib/components/routeLink.svelte';
+	import { competitionPlayerMatches, competitionPlayerStatus } from '#lib/components/competitions/competitionPlayers.ts';
 	import { matchSummary } from '#lib/components/matches/matchRules.ts';
 
 	const id = $derived(page.params.comp_id ?? '');
@@ -58,10 +59,10 @@
 		<EntityHeader entity={elim} />
 		<EntityActions section="primary" summary={`elimination • singles • super set • ${status}`}>
 			{#if elim.state === 'pending' && canApprove}
-				<ActionConfirmation inline name="approve" message={`Approve ${elim.name}?`}
+				<ActionConfirmation inline arrow showLabel name="approve" message={`Approve ${elim.name}?`}
 					action={() => competitionEntry(id, 'activate')} />
 			{:else if canJoin}
-				<ActionConfirmation inline name="request to join" message={`Request to join ${elim.name}?`}
+				<ActionConfirmation inline arrow showLabel name="request to join" message={`Request to join ${elim.name}?`}
 					action={() => competitionEntry(id, 'join')} />
 			{/if}
 		</EntityActions>
@@ -88,16 +89,16 @@
 			{#each entrants as row (row.rk)}
 				{@const ranked = Number(row.seed) > 0}
 				{@const canRank = open && admin && (ranked || seeds.length < 8)}
-				{@const description = ranked ? `ranked ${row.seed}` : 'unranked'}
+				{@const description = competitionPlayerStatus(row, competitionPlayerMatches(id, row.rk))}
 				<RouteLinkHiddenAction href={hrefOf(row.rk)} title={nameOf(row.rk)}
 					image={imageOf(row.rk)} {description}
-					colour={ranked ? 'green' : 'blue'}>
+					colour={description === 'eliminated' ? 'red' : ranked ? 'green' : 'blue'}>
 					{#if canRank}
 						<ActionQuick inline name={ranked ? 'unrank' : 'rank'}
 							label={ranked ? `Unrank ${nameOf(row.rk)}` : `Rank ${nameOf(row.rk)}`}
 							action={() => competitionEntry(id, ranked ? 'unseed' : 'seed', row.rk)} />
 					{:else}
-						<button type="button" class="grey" disabled><p>{ranked ? 'ranked' : 'unranked'}</p></button>
+						<button type="button" class="grey" disabled><p>{description}</p></button>
 					{/if}
 				</RouteLinkHiddenAction>
 			{/each}
@@ -108,14 +109,13 @@
 				<RouteLink href={hrefOf(elim.champion_id)} title={nameOf(elim.champion_id)} description="champion" image={imageOf(elim.champion_id)} />
 			{/if}
 			{#each rounds as round (round.rk)}
-				<section class="group">
-					<h2>{round.name}</h2>
+				<HiddenOptions title={round.name}>
 					{#each matchesOf(round.rk) as match (match.rk)}
-						<RouteLink href={hrefOf(match.rk)} title={match.name}
+						<RouteLink href={hrefOf(match.rk)} title={match.name} isWhite={match.state === 'active'}
 							description={match.state === 'bye' ? 'bye' : matchSummary(match.rk) || (match.state === 'waiting' ? 'awaiting players' : 'ready to play')}
 						/>
 					{/each}
-				</section>
+				</HiddenOptions>
 			{/each}
 		{/if}
 
@@ -141,7 +141,3 @@
 		<p>{$guids.loaded ? 'Not found' : 'Loading'}</p>
 	{/if}
 </div>
-
-<style>
-	h2 { font-size: 1rem; margin: 0; padding: 0.85rem 1rem 0.35rem; }
-</style>

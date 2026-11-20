@@ -1,4 +1,5 @@
 <script lang="ts">
+	import UserCompetition from '#lib/components/competitions/UserCompetition.svelte';
 	import MatchHistory from '#lib/components/matches/MatchHistory.svelte';
 	import UserGroup from '#lib/components/groups/UserGroup.svelte';
 	import UserTeam from '#lib/components/teams/UserTeam.svelte';
@@ -103,14 +104,13 @@
 				/>{/each}
 			{#each pendingCompetitions as elim (elim.rk)}
 				<RouteLink href={hrefOf(elim.rk)} title={nameOf(elim.rk)}
-					description="pending club approval" image={imageOf(elim.rk)} />
+					description="pending club approval" image={imageOf(elim.rk)} isWhite />
 			{/each}
 			{#each pendingGroups as group (group.rk)}<RouteLink
 					href={hrefOf(group.rk)}
 					title={nameOf(group.rk)}
 					description="pending club approval"
 					image={imageOf(group.rk)}
-					isWhite={true}
 				/>{/each}
 		{/if}
 
@@ -136,10 +136,8 @@
 			<UserGroup user={user_entity} {group} />
 		{/each}
 
-		{#each competitions as elim (elim.rk)}
-			<RouteLink href={hrefOf(elim.rk)} title={nameOf(elim.rk)}
-				description={elim.state === 'pending' ? 'join pending' : 'competition'}
-				image={imageOf(elim.rk)} />
+		{#each competitions as competition (competition.rk)}
+			<UserCompetition user={user_entity} {competition} />
 		{/each}
 
 		<MatchHistory parentId={user_id} />
