@@ -85,8 +85,12 @@ const provider = {
         return structuredClone(source);
     },
 };
+const routes = new Map();
 Module._load = function (id) {
-    if (id === "@azure/functions") return { app: { http() {} } };
+    if (id === "@azure/functions") return { app: { http(name, options) {
+        assert.equal(routes.has(options.route), false, `Duplicate route: ${options.route}`);
+        routes.set(options.route, { name, ...options });
+    } } };
     if (id === "@azure/identity") return { DefaultAzureCredential: class {} };
     if (id === "@azure/data-tables")
         return {
@@ -118,7 +122,10 @@ Module._load = function (id) {
     if (id.endsWith("/trols")) return { providerFor: () => provider };
     return originalLoad.apply(this, arguments);
 };
-const { teamAction, roundRole } = require("../dist/src/functions/team");
+const teamActions = ["options", "create", "activate", "join", "accept", "sync", "update", "leave"];
+for (const action of teamActions)
+    require(`../dist/src/functions/team${action[0].toUpperCase()}${action.slice(1)}`);
+require("../dist/src/functions/roundRole");
 const { messageCreate } = require("../dist/src/functions/messageCreate");
 const { doSyncTeam } = require("../dist/src/services/doSyncTeam");
 const context = { log() {}, warn() {}, error() {} };
@@ -141,9 +148,9 @@ const request = (caller, data, params = {}) => ({
     }),
 });
 const call = (action, caller, data = {}) =>
-    teamAction(action, request(caller, { team_id: T, ...data }), context);
+    routes.get(`team/${action}`).handler(request(caller, { team_id: T, ...data }), context);
 const role = (caller, user, next, id = "round_r") =>
-    roundRole(
+    routes.get("round/role").handler(
         request(caller, { round_id: id, user_id: user, role: next }),
         context,
     );
@@ -1176,4 +1183,29 @@ test('team icon editing enforces team-admin authority and rejects name changes a
  }
  assert.equal(editedImages.length,0);
  rejectSignature=true;assert.equal((await call('update',A,{image:'bad'})).status,401);assert.equal(get('team',T).name,'Lobs');
+});
+
+test("Team actions and round role keep their explicit POST routes and compatibility aliases", () => {
+    const aliases = ["activate", "join", "accept", "sync", "update"];
+    const expected = [
+        ...teamActions.filter(action => action !== "leave").map(action => `team/${action}`),
+        ...[...aliases, "leave"].map(action => `team/{team_id}/${action}`),
+        "round/role", "round/{round_id}/role",
+    ];
+    const registered = [...routes.keys()].filter(route => /^(team|round)\//.test(route));
+    assert.deepEqual(registered.sort(), expected.sort());
+    for (const route of expected) assert.deepEqual(routes.get(route).methods, ["POST"]);
+    for (const action of aliases)
+        assert.equal(routes.get(`team/${action}`).handler, routes.get(`team/{team_id}/${action}`).handler);
+    assert.equal(routes.get("round/role").handler, routes.get("round/{round_id}/role").handler);
+});
+
+test("The team join alias takes its team ID from the route", async () => {
+    seed();
+    const result = await routes.get("team/{team_id}/join").handler(
+        request(U, { team_id: "team_wrong" }, { team_id: T }),
+        context,
+    );
+    assert.equal(result.status, 200);
+    assert.equal(result.jsonBody.subject, T);
 });
