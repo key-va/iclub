@@ -1,7 +1,6 @@
 import { app, HttpRequest, InvocationContext } from "@azure/functions";
-import { doGuidsToPublic } from "../services/doGuidsToPublic";
 import { doUpsertRelation } from "../services/doUpsertRelation";
-import { withComp, client, get, migrateComp, mirrorUser, props, repairResult, reply, startDraw } from "../services/compActions";
+import { withComp, client, get, migrateComp, mirrorUser, props, publishDraw, repairResult, reply, startDraw } from "../services/compActions";
 
 export async function compDraw(request: HttpRequest, context: InvocationContext) {
     return withComp(request, context, async ({ id, elim, admin, members, renewGuard }) => {
@@ -12,7 +11,7 @@ export async function compDraw(request: HttpRequest, context: InvocationContext)
             const current = await get("comp", id);
             if (typeof current?.pending_result === "string")
                 await repairResult(id, JSON.parse(current.pending_result), context);
-            await doGuidsToPublic();
+            await publishDraw(id, context, renewGuard);
             return reply(200, "Draw already started", id);
         }
         if (entrants.length < 2) return reply(400, "At least two accepted entrants are required");
@@ -29,7 +28,7 @@ export async function compDraw(request: HttpRequest, context: InvocationContext)
                 await mirrorUser(member);
         }
         await startDraw(elim, entrants, renewGuard);
-        await doGuidsToPublic();
+        await publishDraw(id, context, renewGuard);
         return reply(200, "Draw started", id);
     });
 }

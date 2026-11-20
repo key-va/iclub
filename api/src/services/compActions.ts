@@ -181,7 +181,27 @@ export async function startDraw(elim: Row, entrants: Row[], renewGuard: () => Pr
             await projectMatch(matchId, label, players);
         }
     }
-    await updateComp(id, { state: "active" }, ["draw_version"]);
+    await updateComp(id, { state: "active", draw_notifications_pending: true }, ["draw_version"]);
+}
+
+async function notifyDrawnMatch(matchId: string, context: InvocationContext) {
+    const match = await get("match", matchId);
+    if (match?.state !== "active") return;
+    const players = competitors(await users(matchId));
+    if (players.length !== 2) return;
+    await notify(context, players.map(player => player.id), undefined, String(match.name),
+        "Get ready, your next comp match is drawn", `match/${matchId}`, matchId);
+}
+
+export async function publishDraw(id: string, context: InvocationContext, renewGuard: () => Promise<void>) {
+    await doGuidsToPublic();
+    const comp = await get("comp", id);
+    if (comp?.draw_notifications_pending !== true) return;
+    for (const match of await links(id, "match")) {
+        await renewGuard();
+        await notifyDrawnMatch(match.rowKey, context);
+    }
+    await updateComp(id, {}, ["draw_notifications_pending"]);
 }
 
 async function updateComp(id: string, changes: Record<string, unknown>, removeFields: string[]) {
@@ -211,6 +231,7 @@ type PendingResult = {
     players: Competitor[];
     action: string;
     excludeUser?: string;
+    drawnMatchId?: string;
 };
 
 function legacyPlayers(match: Row): Competitor[] {
@@ -279,9 +300,18 @@ export async function repairResult(id: string, pending: PendingResult, context: 
         const feeders = await Promise.all([2 * nextPosition - 1, 2 * nextPosition].map(async feeder =>
             winnerOf(competitors(await users(elimBracketId("match", id, round, feeder))))
         ));
-        await projectMatch(nextId, elimRoundName(round + 1, rounds), assignedPlayers(feeders[0], feeders[1]));
+        const nextPlayers = assignedPlayers(feeders[0], feeders[1]);
+        if (nextPlayers.length === 2 && !pending.drawnMatchId &&
+            (await get("match", nextId))?.state !== "active") {
+            // Record the transition before writing the active match. If
+            // publishing is interrupted, recovery still knows what to notify.
+            pending.drawnMatchId = nextId;
+            await updateComp(id, { pending_result: JSON.stringify(pending) }, []);
+        }
+        await projectMatch(nextId, elimRoundName(round + 1, rounds), nextPlayers);
     }
     await doGuidsToPublic();
+    if (pending.drawnMatchId) await notifyDrawnMatch(pending.drawnMatchId, context);
     const match = await get("match", matchId);
     const notice = pending.action === "forfeit" ? "The match was forfeited"
         : pending.action === "walkover" ? "A walkover was recorded"
@@ -481,6 +511,8 @@ export async function withCompResult(
             return reply(403, "Only an entrant or a competition admin can submit scores");
         await migrateComp(input.elim, input.renewGuard);
         const current = (await get("comp", input.id))!;
+        if (current.draw_notifications_pending === true)
+            await publishDraw(input.id, context, input.renewGuard);
         if (typeof current.pending_result === "string")
             await repairResult(input.id, JSON.parse(current.pending_result), context);
         return run({ ...input, elim: (await get("comp", input.id))! });

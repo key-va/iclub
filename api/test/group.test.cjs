@@ -6,7 +6,7 @@ const original = Module._load;
 const rows = new Map(),
     blobs = new Map(),
     pushes = [];
-let exportsCount, rejectSignature, failPush, failWrite;
+let exportsCount, rejectSignature, failPush, failWrite, failPublish;
 const key = (pk, rk) => `${pk}|${rk}`;
 const seed = (pk, rk, attrs = {}) =>
     rows.set(key(pk, rk), {
@@ -92,7 +92,13 @@ Module._load = function (id) {
             },
         };
     if (id.endsWith("/doGuidsToPublic"))
-        return { doGuidsToPublic: async () => exportsCount++ };
+        return { doGuidsToPublic: async () => {
+            if (failPublish) {
+                failPublish = false;
+                throw new Error("Publishing interrupted");
+            }
+            exportsCount++;
+        } };
     if (id.endsWith("/doSendPush"))
         return {
             doSendPush: async (input) => {
@@ -156,6 +162,7 @@ beforeEach(() => {
     rejectSignature = false;
     failPush = false;
     failWrite = undefined;
+    failPublish = false;
     seed("club", "club_home", { name: "Club", url: "club.example" });
     seed("club", "club_other", { url: "other.example" });
     for (const id of [
@@ -732,4 +739,40 @@ test("Groups and competitions register one named POST endpoint per action", () =
             assert.deepEqual(endpoint.methods, ["POST"]);
         }
     }
+});
+
+test("Drawn comp matches notify both players after publication, including on recovery", async () => {
+    const id = await openElim();
+    await enterElim(id, ["user_member", "user_applicant", "user_visitor"]);
+    const drawnNotices = () => pushes.filter(push => push.content === "Get ready, your next comp match is drawn");
+    const assertMatchNotice = (notice, matchId) => {
+        assert.equal(notice.path, `match/${matchId}`);
+        assert.equal(notice.heading, get("match", matchId).name);
+        assert.equal(notice.exceptUserId, undefined);
+        assert.deepEqual(notice.userIds.sort(), [slot(matchId, 1), slot(matchId, 2)].sort());
+    };
+
+    failPublish = true;
+    await assert.rejects(elimCall(id, "draw", elimAdmin), /Publishing interrupted/);
+    assert.equal(drawnNotices().length, 0);
+    const firstRound = [1, 2].map(position => elimBracketId("match", id, 1, position));
+    const matchId = firstRound.find(m => get("match", m).state === "active");
+    assert.ok(matchId);
+    assert.equal((await elimCall(id, "draw", elimAdmin)).status, 200);
+    assert.equal(drawnNotices().length, 1);
+    assertMatchNotice(drawnNotices()[0], matchId);
+    assert.equal((await elimCall(id, "draw", elimAdmin)).status, 200);
+    assert.equal(drawnNotices().length, 1);
+
+    const result = scores(matchId, 8, 3);
+    const final = elimBracketId("match", id, 2, 1);
+    failPublish = true;
+    await assert.rejects(elimCall(id, "score", result.first_id, result), /Publishing interrupted/);
+    assert.equal(get("match", final).state, "active");
+    assert.equal(drawnNotices().length, 1);
+    assert.equal((await elimCall(id, "score", result.first_id, result)).status, 200);
+    assert.equal(drawnNotices().length, 2);
+    assertMatchNotice(drawnNotices()[1], final);
+    assert.equal((await elimCall(id, "correct", elimAdmin, scores(matchId, 8, 4))).status, 200);
+    assert.equal(drawnNotices().length, 2);
 });
