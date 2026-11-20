@@ -9,8 +9,8 @@ before(async () => {
         plugins: [{ name: 'expose-page-actions', enforce: 'pre', transform(source, id) {
             const path = id.replaceAll('\\', '/');
             if (path.endsWith('/components/routeLink.svelte') || path.endsWith('/components/RouteLinkHiddenAction.svelte')) return `
-                <script>let { href, title, description, detail, children } = $props();</script>
-                <article><a {href}>{title}</a><p>{description}</p>{@render detail?.()}{@render children?.()}</article>`;
+                <script>let { href, title, description, detail, children, colour } = $props();</script>
+                <article data-colour={colour}><a {href}>{title}</a><p>{description}</p>{@render detail?.()}{@render children?.()}</article>`;
             if (path.endsWith('/components/hiddenOptions.svelte')) return `
                 <script>let { title, children } = $props();</script><section aria-label={title}>{@render children?.()}</section>`;
             if (path.endsWith('/components/apiService.svelte')) return `
@@ -122,30 +122,55 @@ test('pending team/group memberships on user pages retain admin acceptance actio
     assert.equal(hasAction(await output('user', 'user_bob', 'user_bob'), 'accept'), false);
 });
 
-test('Elim participant rows show seed status and restrict their quick actions to admins before the draw', async () => {
+test('Competition page mirrors ladder controls and scopes requests and ranking by role', async () => {
     const rows = [
         ...fixture(),
         { pk: 'comp', rk: 'comp_test', name: 'Club knockout', competition_type: 'elimination', state: 'open' },
+        { pk: 'comp_test', rk: 'club_test' },
         { pk: 'comp_test', rk: 'user_admin', is_admin: true, is_participant: true },
         { pk: 'comp_test', rk: 'user_alice', is_participant: true, seed: 1 },
         { pk: 'comp_test', rk: 'user_bob', state: 'pending' }
     ];
     const admin = await output('comp', 'user_admin', undefined, rows);
-    assert.match(admin, /class="blue green"[^>]*aria-label="Remove seed 1 from Alice"/);
-    assert.match(admin, /class="blue orange"[^>]*aria-label="Accept Bob"/);
-    assert.equal(hasAction(admin, 'Seed Administrator'), true);
-    assert.match(admin, /seeded 1/);
-    assert.match(admin, /unseeded/);
+    assert.match(admin, /elimination • singles • super set • entries open/);
+    assert.match(admin, /data-colour="green"[^>]*><a [^>]*>Alice/);
+    assert.match(admin, /data-colour="blue"[^>]*><a [^>]*>Administrator/);
+    assert.match(admin, /data-colour="orange"[^>]*><a [^>]*>Bob/);
+    assert.equal(hasAction(admin, 'Accept Bob'), true);
+    assert.equal(hasAction(admin, 'Unrank Alice'), true);
+    assert.equal(hasAction(admin, 'Rank Administrator'), true);
+    assert.match(admin, /entries open[\s\S]*waiting to join[\s\S]*Players[\s\S]*More Options/);
+    assert.equal(hasAction(admin, 'start draw'), true);
+
     const player = await output('comp', 'user_alice', undefined, rows);
-    assert.match(player, /seeded 1/);
-    assert.equal(hasAction(player, 'Remove seed 1 from Alice'), false);
-    assert.equal(hasAction(player, 'Accept Bob'), false);
+    assert.match(player, /data-colour="green"[^>]*><a [^>]*>Alice/);
+    assert.match(player, /ranked 1/);
+    assert.match(player, /<button[^>]*disabled[^>]*><p>unranked<\/p>/);
+    assert.doesNotMatch(player, /waiting to join|Accept Bob|Unrank Alice/);
+    assert.match(player, /More Options[\s\S]*aria-label="withdraw"/);
+    assert.equal(hasAction(player, 'start draw'), false);
+
+    const applicant = await output('comp', 'user_bob', undefined, rows);
+    assert.match(applicant, /Bob[\s\S]*join request pending/);
+    assert.equal(hasAction(applicant, 'request to join'), false);
+    assert.equal(hasAction(applicant, 'Accept Bob'), false);
+
+    const extendedRows = [...rows, { pk: 'user', rk: 'user_visitor', name: 'Visitor' }];
+    const visitor = await output('comp', 'user_visitor', undefined, extendedRows);
+    assert.match(visitor, /aria-label="request to join"[\s\S]*Players/);
+    assert.doesNotMatch(visitor, /Bob|More Options/);
+
+    rows.find(row => row.rk === 'comp_test').state = 'pending';
+    const approval = await output('comp', 'user_admin', undefined, rows);
+    assert.match(approval, /Club knockout<\/strong><br\s*\/?><span class="description">comp<\/span>/);
+    assert.match(approval, /awaiting club approval[\s\S]*aria-label="approve"/);
+    assert.doesNotMatch(approval, /Accept Bob|Unrank Alice|start draw/);
+
     rows.find(row => row.rk === 'comp_test').state = 'active';
     const drawn = await output('comp', 'user_admin', undefined, rows);
-    assert.match(drawn, /seeded 1/);
-    assert.equal(hasAction(drawn, 'Remove seed 1 from Alice'), false);
+    assert.match(drawn, /ranked 1/);
+    assert.equal(hasAction(drawn, 'Unrank Alice'), false);
 });
-
 test('Browse shows active entities and competitions accepting entries', async () => {
     const rows = [
         { pk: 'ladder', rk: 'ladder_active', name: 'Open ladder', state: 'active' },

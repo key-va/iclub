@@ -5,6 +5,9 @@
 	import { competitionEntry } from '#lib/stores/remote.ts';
 	import ActionConfirmation from '#lib/components/ActionConfirmation.svelte';
 	import ActionQuick from '#lib/components/ActionQuick.svelte';
+	import EntityActions from '#lib/components/EntityActions.svelte';
+	import HiddenOptions from '#lib/components/hiddenOptions.svelte';
+	import RouteLinkHiddenAction from '#lib/components/RouteLinkHiddenAction.svelte';
 	import EntityHeader from '#lib/components/EntityHeader.svelte';
 	import RouteLink from '#lib/components/routeLink.svelte';
 	import { matchSummary } from '#lib/components/matches/matchRules.ts';
@@ -21,6 +24,15 @@
 	const open = $derived(elim?.state === 'open');
 	const drawing = $derived(elim?.state === 'drawing');
 	const drawReady = $derived(elim?.state === 'active' || elim?.state === 'complete');
+	const status = $derived.by(() => {
+		if (elim?.state === 'pending') return 'awaiting club approval';
+		if (open) return 'entries open';
+		if (drawing) return 'draw in progress';
+		return elim?.state === 'complete' ? 'complete' : 'draw underway';
+	});
+	const canJoin = $derived(open && !!caller && mine?.is_participant !== true && mine?.state !== 'pending');
+	const canLeave = $derived(open && (mine?.is_participant === true || mine?.state === 'pending'));
+	const canDraw = $derived(admin && (open || drawing));
 	const entrants = $derived(
 		links.filter((row) => typeOf(row.rk) === 'user' && row.is_participant === true)
 			.sort((a, b) => nameOf(a.rk).localeCompare(nameOf(b.rk)))
@@ -43,16 +55,53 @@
 
 <div class="page">
 	{#if elim?.competition_type === 'elimination'}
-		<EntityHeader entity={elim} subtitle={elim.state === 'pending' ? 'awaiting club approval' : open ? 'entries open' : drawing ? 'draw in progress' : elim.state === 'complete' ? 'complete' : 'draw underway'} />
-		{#if elim.state === 'pending' && canApprove}
-			<ActionConfirmation name="approve" message={`Approve ${elim.name}?`} action={() => competitionEntry(id, 'activate')} />
-		{:else if open && caller}
-			{#if mine?.is_participant === true || mine?.state === 'pending'}
-				<ActionConfirmation name={mine.state === 'pending' ? 'cancel request' : 'withdraw'} message="Withdraw your entry?" action={() => competitionEntry(id, 'leave')} />
-			{:else}
-				<ActionConfirmation name="request to join" message={`Request to join ${elim.name}?`} action={() => competitionEntry(id, 'join')} />
+		<EntityHeader entity={elim} />
+		<EntityActions section="primary" summary={`elimination • singles • super set • ${status}`}>
+			{#if elim.state === 'pending' && canApprove}
+				<ActionConfirmation inline name="approve" message={`Approve ${elim.name}?`}
+					action={() => competitionEntry(id, 'activate')} />
+			{:else if canJoin}
+				<ActionConfirmation inline name="request to join" message={`Request to join ${elim.name}?`}
+					action={() => competitionEntry(id, 'join')} />
 			{/if}
+		</EntityActions>
+
+		{#if open && admin && requests.length}
+			<div class="group">
+				{#each requests as row (row.rk)}
+					<RouteLinkHiddenAction href={hrefOf(row.rk)} title={nameOf(row.rk)}
+						image={imageOf(row.rk)} description="waiting to join" colour="orange">
+						<ActionQuick inline name="accept" label={`Accept ${nameOf(row.rk)}`}
+							action={() => competitionEntry(id, 'accept', row.rk)} />
+					</RouteLinkHiddenAction>
+				{/each}
+			</div>
+		{:else if open && mine?.state === 'pending'}
+			<div class="group">
+				<RouteLink href={hrefOf(mine.rk)} title={nameOf(mine.rk)}
+					image={imageOf(mine.rk)} description="join request pending" />
+			</div>
 		{/if}
+
+		<div class="group">
+			<HiddenOptions title="Players" badge={entrants.length} />
+			{#each entrants as row (row.rk)}
+				{@const ranked = Number(row.seed) > 0}
+				{@const canRank = open && admin && (ranked || seeds.length < 8)}
+				{@const description = ranked ? `ranked ${row.seed}` : 'unranked'}
+				<RouteLinkHiddenAction href={hrefOf(row.rk)} title={nameOf(row.rk)}
+					image={imageOf(row.rk)} {description}
+					colour={ranked ? 'green' : 'blue'}>
+					{#if canRank}
+						<ActionQuick inline name={ranked ? 'unrank' : 'rank'}
+							label={ranked ? `Unrank ${nameOf(row.rk)}` : `Rank ${nameOf(row.rk)}`}
+							action={() => competitionEntry(id, ranked ? 'unseed' : 'seed', row.rk)} />
+					{:else}
+						<button type="button" class="grey" disabled><p>{ranked ? 'ranked' : 'unranked'}</p></button>
+					{/if}
+				</RouteLinkHiddenAction>
+			{/each}
+		</div>
 
 		{#if drawReady}
 			{#if typeof elim.champion_id === 'string' && elim.champion_id}
@@ -70,46 +119,23 @@
 			{/each}
 		{/if}
 
-		{#if entrants.length || (open && admin && requests.length)}
-			<section class="group">
-				<h2>Participants</h2>
-				{#if open && admin}<p class="seed-count">{seeds.length} of 8 seeds assigned</p>{/if}
-				{#each entrants as row (row.rk)}
-					{@const seeded = Number(row.seed) > 0}
-					{@const status = seeded ? `seeded ${row.seed}` : 'unseeded'}
-					{@const tone = seeded ? 'green' : 'blue'}
-					<div class="row participant">
-						<div class="player">
-							{#snippet detail()}<span class="seed-status {tone}">{status}</span>{/snippet}
-							<RouteLink href={hrefOf(row.rk)} title={nameOf(row.rk)} image={imageOf(row.rk)} {detail} />
-						</div>
-						{#if open && admin && (seeded || seeds.length < 8)}
-							<ActionQuick inline name={seeded ? 'unseed' : 'seed'} {tone}
-								label={seeded ? `Remove seed ${row.seed} from ${nameOf(row.rk)}` : `Seed ${nameOf(row.rk)}`}
-								action={() => competitionEntry(id, seeded ? 'unseed' : 'seed', row.rk)} />
-						{/if}
-					</div>
-				{/each}
-				{#if open && admin}
-					{#each requests as row (row.rk)}
-						<div class="row participant">
-							<div class="player">
-								<RouteLink href={hrefOf(row.rk)} title={nameOf(row.rk)} image={imageOf(row.rk)} description="pending" />
-							</div>
-							<ActionQuick inline name="accept" tone="orange" label={`Accept ${nameOf(row.rk)}`}
-								action={() => competitionEntry(id, 'accept', row.rk)} />
-						</div>
-					{/each}
-				{/if}
-			</section>
-		{/if}
-
-		{#if admin && (drawing || open)}
-			<ActionConfirmation name={drawing ? 'resume draw' : 'start draw'} message={drawMessage}
-				action={() => competitionEntry(id, 'draw')} disabled={!drawing && entrants.length < 2} />
+		{#if canLeave || canDraw}
+			<EntityActions section="options">
+				{#snippet options()}
+					{#if canLeave}
+						<ActionConfirmation inline name={mine?.state === 'pending' ? 'cancel request' : 'withdraw'}
+							message={mine?.state === 'pending' ? 'Cancel your join request?' : 'Withdraw your entry?'}
+							action={() => competitionEntry(id, 'leave')} />
+					{/if}
+					{#if canDraw}
+						<ActionConfirmation inline name={drawing ? 'resume draw' : 'start draw'} message={drawMessage}
+							action={() => competitionEntry(id, 'draw')} disabled={!drawing && entrants.length < 2} />
+					{/if}
+				{/snippet}
+			</EntityActions>
 		{/if}
 	{:else if elim}
-		<EntityHeader entity={elim} subtitle="competition" />
+		<EntityHeader entity={elim} />
 		<p>This competition type is unavailable.</p>
 	{:else}
 		<p>{$guids.loaded ? 'Not found' : 'Loading'}</p>
@@ -118,10 +144,4 @@
 
 <style>
 	h2 { font-size: 1rem; margin: 0; padding: 0.85rem 1rem 0.35rem; }
-	.seed-count { margin: 0.25rem 1rem; }
-	.participant { justify-content: space-between; }
-	.player { flex: 1; min-width: 0; }
-	.seed-status { background: none; }
-	.seed-status.green { color: #187543; }
-	.seed-status.blue { color: #165992; }
 </style>
