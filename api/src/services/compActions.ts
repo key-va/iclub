@@ -1,22 +1,21 @@
-import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
+import { HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
 import { DefaultAzureCredential } from "@azure/identity";
 import { TableClient, TransactionAction, odata } from "@azure/data-tables";
 import { resourceName, resourceSuffix } from "../stores/resourceNames";
-import { doSignatureVerification } from "../services/doSignatureVerification";
-import { doUpsertEntity } from "../services/doUpsertEntity";
-import { doUpsertRelation } from "../services/doUpsertRelation";
-import { doGuidsToPublic } from "../services/doGuidsToPublic";
-import { doSendPush } from "../services/doSendPush";
-import { elimBracketId, elimDraw, elimRoundName } from "../services/elimDraw";
-import { groupAction } from "./group";
+import { doSignatureVerification } from "./doSignatureVerification";
+import { doUpsertEntity } from "./doUpsertEntity";
+import { doUpsertRelation } from "./doUpsertRelation";
+import { doGuidsToPublic } from "./doGuidsToPublic";
+import { doSendPush } from "./doSendPush";
+import { elimBracketId, elimDraw, elimRoundName } from "./elimDraw";
 
-const client = new TableClient(
+export const client = new TableClient(
     `https://${resourceName(resourceSuffix.storageAccount)}.table.core.windows.net`,
     "guids",
     new DefaultAzureCredential(),
 );
 
-const reply = (status: number, message: string, subject?: string): HttpResponseInit => ({
+export const reply = (status: number, message: string, subject?: string): HttpResponseInit => ({
     status,
     jsonBody: { success: status < 400, message, ...(subject ? { subject } : {}) },
 });
@@ -32,7 +31,7 @@ type Row = Record<string, unknown> & {
     timestamp?: string;
 };
 
-async function get(pk: string, rk: string): Promise<Row | undefined> {
+export async function get(pk: string, rk: string): Promise<Row | undefined> {
     try {
         return { ...await client.getEntity(pk, rk), partitionKey: pk, rowKey: rk };
     } catch (error) {
@@ -43,12 +42,12 @@ async function get(pk: string, rk: string): Promise<Row | undefined> {
 
 const users = (id: string) => links(id, "user");
 
-function props(row: Row) {
+export function props(row: Row) {
     const { partitionKey, rowKey, etag, timestamp, ...attributes } = row;
     return attributes;
 }
 
-async function mirrorUser(row: Row) {
+export async function mirrorUser(row: Row) {
     await doUpsertEntity(row.rowKey, row.partitionKey, props(row));
 }
 
@@ -60,7 +59,7 @@ async function remove(pk: string, rk: string) {
     }
 }
 
-async function notify(
+export async function notify(
     context: InvocationContext, userIds: string[], exceptUserId: string | undefined,
     name: string, content: string, path: string, id: string,
 ) {
@@ -149,7 +148,7 @@ async function projectMatch(matchId: string, label: string, players: Competitor[
     });
 }
 
-async function startDraw(elim: Row, entrants: Row[], renewGuard: () => Promise<void>) {
+export async function startDraw(elim: Row, entrants: Row[], renewGuard: () => Promise<void>) {
     const id = elim.rowKey;
     const { rounds, slots } = elimDraw(id, entrants.map(row => ({
         id: row.rowKey, seed: Number(row.seed ?? 0),
@@ -182,10 +181,30 @@ async function startDraw(elim: Row, entrants: Row[], renewGuard: () => Promise<v
             await projectMatch(matchId, label, players);
         }
     }
-    await updateCompetition(id, { state: "active" }, ["draw_version"]);
+    await updateComp(id, { state: "active", draw_notifications_pending: true }, ["draw_version"]);
 }
 
-async function updateCompetition(id: string, changes: Record<string, unknown>, removeFields: string[]) {
+async function notifyDrawnMatch(matchId: string, context: InvocationContext) {
+    const match = await get("match", matchId);
+    if (match?.state !== "active") return;
+    const players = competitors(await users(matchId));
+    if (players.length !== 2) return;
+    await notify(context, players.map(player => player.id), undefined, String(match.name),
+        "Get ready, your next comp match is drawn", `match/${matchId}`, matchId);
+}
+
+export async function publishDraw(id: string, context: InvocationContext, renewGuard: () => Promise<void>) {
+    await doGuidsToPublic();
+    const comp = await get("comp", id);
+    if (comp?.draw_notifications_pending !== true) return;
+    for (const match of await links(id, "match")) {
+        await renewGuard();
+        await notifyDrawnMatch(match.rowKey, context);
+    }
+    await updateComp(id, {}, ["draw_notifications_pending"]);
+}
+
+async function updateComp(id: string, changes: Record<string, unknown>, removeFields: string[]) {
     const current = await get("comp", id);
     if (!current) throw new Error("Competition is missing");
     const attributes = props(current);
@@ -212,6 +231,7 @@ type PendingResult = {
     players: Competitor[];
     action: string;
     excludeUser?: string;
+    drawnMatchId?: string;
 };
 
 function legacyPlayers(match: Row): Competitor[] {
@@ -229,7 +249,7 @@ function legacyPlayers(match: Row): Competitor[] {
 }
 
 // The legacy marker is removed last so a partial conversion can resume under the same guard.
-async function migrateCompetition(elim: Row, renewGuard: () => Promise<void>) {
+export async function migrateComp(elim: Row, renewGuard: () => Promise<void>) {
     if (elim.competition_type === undefined) return;
     const id = elim.rowKey;
     if (elim.state !== "drawing") {
@@ -252,7 +272,7 @@ async function migrateCompetition(elim: Row, renewGuard: () => Promise<void>) {
                         matchId: match.rowKey, players, action: String(match.result_action),
                         excludeUser: String(match.result_exclude_user ?? "") || undefined,
                     };
-                    await updateCompetition(id, { pending_result: JSON.stringify(pending) }, []);
+                    await updateComp(id, { pending_result: JSON.stringify(pending) }, []);
                 }
                 await doUpsertRelation(round.rowKey, match.rowKey, { bracket_match: match.bracket_match });
                 await writeCompetitors(match.rowKey, players);
@@ -260,7 +280,7 @@ async function migrateCompetition(elim: Row, renewGuard: () => Promise<void>) {
             }
         }
     }
-    await updateCompetition(id, {
+    await updateComp(id, {
         comp_system: elim.comp_system ?? elim.competition_type,
         format: elim.format ?? "singles",
         match_format: elim.match_format ?? "super_set",
@@ -268,21 +288,30 @@ async function migrateCompetition(elim: Row, renewGuard: () => Promise<void>) {
         ...(elim.state === "drawing" ? [] : ["draw_version"])]);
 }
 
-async function repairResult(id: string, pending: PendingResult, context: InvocationContext) {
+export async function repairResult(id: string, pending: PendingResult, context: InvocationContext) {
     const { matchId, players } = pending;
     const { round, position, rounds } = await matchPlacement(id, matchId);
     await projectMatch(matchId, elimRoundName(round, rounds), players);
     if (round === rounds) {
-        await updateCompetition(id, { state: "complete" }, []);
+        await updateComp(id, { state: "complete" }, []);
     } else {
         const nextPosition = Math.ceil(position / 2);
         const nextId = elimBracketId("match", id, round + 1, nextPosition);
         const feeders = await Promise.all([2 * nextPosition - 1, 2 * nextPosition].map(async feeder =>
             winnerOf(competitors(await users(elimBracketId("match", id, round, feeder))))
         ));
-        await projectMatch(nextId, elimRoundName(round + 1, rounds), assignedPlayers(feeders[0], feeders[1]));
+        const nextPlayers = assignedPlayers(feeders[0], feeders[1]);
+        if (nextPlayers.length === 2 && !pending.drawnMatchId &&
+            (await get("match", nextId))?.state !== "active") {
+            // Record the transition before writing the active match. If
+            // publishing is interrupted, recovery still knows what to notify.
+            pending.drawnMatchId = nextId;
+            await updateComp(id, { pending_result: JSON.stringify(pending) }, []);
+        }
+        await projectMatch(nextId, elimRoundName(round + 1, rounds), nextPlayers);
     }
     await doGuidsToPublic();
+    if (pending.drawnMatchId) await notifyDrawnMatch(pending.drawnMatchId, context);
     const match = await get("match", matchId);
     const notice = pending.action === "forfeit" ? "The match was forfeited"
         : pending.action === "walkover" ? "A walkover was recorded"
@@ -290,10 +319,10 @@ async function repairResult(id: string, pending: PendingResult, context: Invocat
         : "Match scores have been submitted";
     await notify(context, players.map(player => player.id), pending.excludeUser,
         String(match?.name), notice, `match/${matchId}`, matchId);
-    await updateCompetition(id, {}, ["pending_result"]);
+    await updateComp(id, {}, ["pending_result"]);
 }
 
-async function score(
+export async function score(
     elim: Row, matchId: string, caller: string, admin: boolean,
     action: string, data: Record<string, unknown>, context: InvocationContext,
 ) {
@@ -353,16 +382,24 @@ async function score(
     const pending: PendingResult = {
         matchId, players: updated, action, excludeUser: admin && !forfeit ? undefined : caller,
     };
-    await updateCompetition(id, { pending_result: JSON.stringify(pending) }, []);
+    await updateComp(id, { pending_result: JSON.stringify(pending) }, []);
     await repairResult(id, pending, context);
     return reply(200, "Result recorded", matchId);
 }
 
-export async function compAction(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
-    const action = request.params.action;
-    if (action === "activate") return groupAction(request, context, action, "comp");
-    if (!["join", "accept", "leave", "seed", "unseed", "draw", "score", "correct", "forfeit"].includes(action))
-        return reply(404, "Unknown competition action");
+type CompRequest = {
+    id: string;
+    elim: Row;
+    caller: string;
+    user: Row;
+    data: Record<string, unknown>;
+    members: Row[];
+    mine?: Row;
+    admin: boolean;
+    renewGuard: () => Promise<void>;
+};
+
+export async function withComp(request: HttpRequest, context: InvocationContext, run: (input: CompRequest) => Promise<HttpResponseInit>): Promise<HttpResponseInit> {
     let body;
     try {
         body = (await request.json()) as {
@@ -418,97 +455,7 @@ export async function compAction(request: HttpRequest, context: InvocationContex
     try {
         const members = await users(id);
         const mine = members.find(row => row.rowKey === caller);
-        const admin = mine?.is_admin === true;
-        const entrants = members.filter(row => row.is_participant === true);
-        if (["score", "correct", "forfeit"].includes(action)) {
-            if (!admin && mine?.is_participant !== true)
-                return reply(403, "Only an entrant or a competition admin can submit scores");
-            await migrateCompetition(elim, renewGuard);
-            const current = (await get("comp", id))!;
-            if (typeof current.pending_result === "string")
-                await repairResult(id, JSON.parse(current.pending_result), context);
-            return await score((await get("comp", id))!, String(data.match_id ?? ""), caller, admin, action, data, context);
-        }
-        if (!["join", "leave"].includes(action) && !admin)
-            return reply(403, "Only a competition admin can do this");
-        await migrateCompetition(elim, renewGuard);
-        if (action === "draw") {
-            if (elim.state === "active" || elim.state === "complete") {
-                const current = await get("comp", id);
-                if (typeof current?.pending_result === "string")
-                    await repairResult(id, JSON.parse(current.pending_result), context);
-                await doGuidsToPublic();
-                return reply(200, "Draw already started", id);
-            }
-            if (entrants.length < 2) return reply(400, "At least two accepted entrants are required");
-            if (elim.state === "drawing" && elim.draw_version !== 1)
-                return reply(409, "This draw version is unavailable");
-            await client.updateEntity({
-                partitionKey: "comp", rowKey: id, state: "drawing", draw_version: 1,
-            }, "Merge");
-            for (const member of members) {
-                await renewGuard();
-                if (member.state === "pending" || member.state === "closed")
-                    await doUpsertRelation(id, member.rowKey, { ...props(member), state: "closed" });
-                else
-                    await mirrorUser(member);
-            }
-            await startDraw(elim, entrants, renewGuard);
-            await doGuidsToPublic();
-            return reply(200, "Draw started", id);
-        }
-        if (elim.state !== "open") return reply(409, "Entries and seeding are closed");
-
-        const userId = ["join", "leave"].includes(action) ? caller : data.user_id;
-        const member = members.find(row => row.rowKey === userId);
-        const seeds = entrants.filter(row => Number(row.seed) > 0);
-        const attributes = member ? props(member) : {};
-        const changed = new Map<string, Record<string, unknown>>();
-        let recipients: string[] = [];
-        let message: string;
-        if (action === "join") {
-            if (member?.is_participant === true) return reply(409, "You have already joined");
-            changed.set(caller, { ...attributes, state: "pending", is_participant: false });
-            recipients = members.filter(row => row.is_admin === true).map(row => row.rowKey);
-            message = "Join requested";
-        } else if (action === "accept") {
-            if (!member || (member.state !== "pending" && member.is_participant !== true))
-                return reply(409, "This player has no pending request");
-            changed.set(member.rowKey, { ...attributes, state: "accepted", is_participant: true });
-            recipients = member.state === "pending" ? [member.rowKey] : [];
-            message = "Join request accepted";
-        } else {
-            if (!member || (action !== "leave" && member.is_participant !== true))
-                return reply(409, "This player is not an accepted entrant");
-            const rank = Number(member.seed ?? 0);
-            if (action === "seed") {
-                if (!rank && seeds.length >= 8) return reply(409, "All eight seeds are assigned");
-                changed.set(member.rowKey, { ...attributes, seed: rank || seeds.length + 1 });
-                message = "Seed assigned";
-            } else {
-                for (const lower of seeds.filter(row => rank > 0 && Number(row.seed) > rank)) {
-                    changed.set(lower.rowKey, { ...props(lower), seed: Number(lower.seed) - 1 });
-                }
-                changed.set(member.rowKey, {
-                    ...attributes, seed: 0,
-                    ...(action === "leave" ? { state: "left", is_participant: false } : {}),
-                });
-                message = action === "leave" ? "Entry withdrawn" : "Seed removed";
-            }
-        }
-
-        const updates: TransactionAction[] = [...changed].map(([rowKey, values]) =>
-            ["upsert", { partitionKey: id, rowKey, ...values }, "Replace"]);
-        await client.submitTransaction(updates);
-        // Refresh all mirrors so a retry can also repair the lower seeds after
-        // an interrupted multi-row update.
-        for (const row of await users(id)) await mirrorUser(row);
-        await doGuidsToPublic();
-        if (recipients.length)
-            await notify(context, recipients, caller, String(elim.name),
-                action === "join" ? `${user.name ?? "A player"} has requested to join` : message,
-                `comp/${id}`, id);
-        return reply(200, message, id);
+        return await run({ id, elim, caller, user, data, members, mine, admin: mine?.is_admin === true, renewGuard });
     } finally {
         const current = await get("comp", id);
         if (current?.operation_guard === guard) {
@@ -520,11 +467,54 @@ export async function compAction(request: HttpRequest, context: InvocationContex
     }
 }
 
-app.http("compCreate", {
-    methods: ["POST"], route: "comp/create", authLevel: "anonymous",
-    handler: (request, context) => groupAction(request, context, "create", "comp"),
-});
-app.http("compAction", {
-    methods: ["POST"], route: "comp/{comp_id}/{action}", authLevel: "anonymous",
-    handler: compAction,
-});
+export async function withOpenComp(
+    request: HttpRequest, context: InvocationContext,
+    adminOnly: boolean,
+    run: (input: CompRequest) => Promise<HttpResponseInit>,
+) {
+    return withComp(request, context, async (input) => {
+        if (adminOnly && !input.admin)
+            return reply(403, "Only a competition admin can do this");
+        await migrateComp(input.elim, input.renewGuard);
+        if (input.elim.state !== "open") return reply(409, "Entries and seeding are closed");
+        return run(input);
+    });
+}
+
+export async function saveMembership(id: string, changed: Map<string, Record<string, unknown>>) {
+    const updates: TransactionAction[] = [...changed].map(([rowKey, values]) =>
+        ["upsert", { partitionKey: id, rowKey, ...values }, "Replace"]);
+    await client.submitTransaction(updates);
+    // Refresh all mirrors so the next request can repair interrupted writes.
+    for (const row of await users(id)) await mirrorUser(row);
+    await doGuidsToPublic();
+}
+
+export function clearSeed(members: Row[], member: Row, extra: Record<string, unknown> = {}) {
+    const rank = Number(member.seed ?? 0);
+    const changed = new Map<string, Record<string, unknown>>();
+    for (const lower of members.filter(row =>
+        row.is_participant === true && rank > 0 && Number(row.seed) > rank
+    )) {
+        changed.set(lower.rowKey, { ...props(lower), seed: Number(lower.seed) - 1 });
+    }
+    changed.set(member.rowKey, { ...props(member), seed: 0, ...extra });
+    return changed;
+}
+
+export async function withCompResult(
+    request: HttpRequest, context: InvocationContext,
+    run: (input: CompRequest) => Promise<HttpResponseInit>,
+) {
+    return withComp(request, context, async (input) => {
+        if (!input.admin && input.mine?.is_participant !== true)
+            return reply(403, "Only an entrant or a competition admin can submit scores");
+        await migrateComp(input.elim, input.renewGuard);
+        const current = (await get("comp", input.id))!;
+        if (current.draw_notifications_pending === true)
+            await publishDraw(input.id, context, input.renewGuard);
+        if (typeof current.pending_result === "string")
+            await repairResult(input.id, JSON.parse(current.pending_result), context);
+        return run({ ...input, elim: (await get("comp", input.id))! });
+    });
+}

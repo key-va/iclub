@@ -6,7 +6,7 @@ const original = Module._load;
 const rows = new Map(),
     blobs = new Map(),
     pushes = [];
-let exportsCount, rejectSignature, failPush, failWrite;
+let exportsCount, rejectSignature, failPush, failWrite, failPublish;
 const key = (pk, rk) => `${pk}|${rk}`;
 const seed = (pk, rk, attrs = {}) =>
     rows.set(key(pk, rk), {
@@ -72,8 +72,12 @@ class BlobServiceClient {
         };
     }
 }
+const routes = new Map();
 Module._load = function (id) {
-    if (id === "@azure/functions") return { app: { http() {} } };
+    if (id === "@azure/functions") return { app: { http(name, options) {
+        assert.equal(routes.has(options.route), false, `Duplicate route: ${options.route}`);
+        routes.set(options.route, { name, ...options });
+    } } };
     if (id === "@azure/identity") return { DefaultAzureCredential: class {} };
     if (id === "@azure/data-tables")
         return {
@@ -88,7 +92,13 @@ Module._load = function (id) {
             },
         };
     if (id.endsWith("/doGuidsToPublic"))
-        return { doGuidsToPublic: async () => exportsCount++ };
+        return { doGuidsToPublic: async () => {
+            if (failPublish) {
+                failPublish = false;
+                throw new Error("Publishing interrupted");
+            }
+            exportsCount++;
+        } };
     if (id.endsWith("/doSendPush"))
         return {
             doSendPush: async (input) => {
@@ -99,7 +109,11 @@ Module._load = function (id) {
         };
     return original.apply(this, arguments);
 };
-const { groupAction } = require("../dist/src/functions/group");
+const groupActions = ["create", "activate", "join", "accept", "update", "leave"];
+const compActions = ["create", "activate", "join", "accept", "leave", "seed", "unseed", "draw", "score", "correct", "forfeit"];
+for (const [type, actions] of [["group", groupActions], ["comp", compActions]]) {
+    for (const action of actions) require(`../dist/src/functions/${type}${action[0].toUpperCase()}${action.slice(1)}`);
+}
 const { messageCreate } = require("../dist/src/functions/messageCreate");
 const context = { log() {}, warn() {} };
 const jpeg = Buffer.from([0xff, 0xd8, 0xff, 0x01]);
@@ -109,10 +123,11 @@ function request(
     id = "group_g",
     action = "",
     origin = "https://club.example",
+    type = "group",
 ) {
     return {
-        params: { group_id: id, action },
-        url: `https://api.example/api/group/${id}/${action}`,
+        params: action === "create" ? {} : { [`${type}_id`]: id },
+        url: `https://api.example/api/${type}/${action === "create" ? action : `${id}/${action}`}`,
         headers: new Headers({ origin }),
         json: async () => ({
             caller_id: caller,
@@ -122,8 +137,16 @@ function request(
         }),
     };
 }
-const call = (action, caller, data, id, origin) =>
-    groupAction(request(caller, data, id, action, origin), context, action);
+const routeFor = (type, action) => action === "create"
+    ? `${type}/create`
+    : `${type}/{${type}_id}/${action}`;
+const invoke = (type, action, caller, data, id, origin) => {
+    const registration = routes.get(routeFor(type, action));
+    return registration
+        ? registration.handler(request(caller, data, id, action, origin, type), context)
+        : { status: 404 };
+};
+const call = (action, caller, data, id, origin) => invoke("group", action, caller, data, id, origin);
 function mirrors(a, b) {
     const clean = (row) => {
         const { partitionKey, rowKey, etag, ...attrs } = row;
@@ -139,6 +162,7 @@ beforeEach(() => {
     rejectSignature = false;
     failPush = false;
     failWrite = undefined;
+    failPublish = false;
     seed("club", "club_home", { name: "Club", url: "club.example" });
     seed("club", "club_other", { url: "other.example" });
     for (const id of [
@@ -438,15 +462,12 @@ test("persisted group messages survive notification failure, and malformed group
     assert.equal(exportsCount, count);
 });
 
-const { compAction } = require("../dist/src/functions/comp");
 const { elimBracketId, elimDraw } = require("../dist/src/services/elimDraw");
-const elimCall = (id, action, caller, data) => compAction({
-    ...request(caller, data, id, action), params: { comp_id: id, action },
-}, context);
+const elimCall = (id, action, caller, data) => invoke("comp", action, caller, data, id);
 const elimAdmin = "user_creator";
 const clubAdmin = "user_clubadmin";
 async function openElim() {
-    const create = await groupAction(request(elimAdmin, { name: "Club knockout", comp_system: "elimination" }), context, "create", "comp");
+    const create = await elimCall(undefined, "create", elimAdmin, { name: "Club knockout", comp_system: "elimination" });
     assert.equal(create.status, 201);
     const id = create.jsonBody.subject;
     assert.equal(get("comp", id).state, "pending");
@@ -606,15 +627,13 @@ test("Concurrent Elim results can be retried and fill both slots of the final", 
 
 test("Competition creation requires a supported type", async () => {
     for (const comp_system of [undefined, "league"]) {
-        const response = await groupAction(
-            request(elimAdmin, { name: "Club event", comp_system }), context, "create", "comp"
-        );
+        const response = await elimCall(undefined, "create", elimAdmin, { name: "Club event", comp_system });
         assert.equal(response.status, 400);
     }
     for (const settings of [{ format: "doubles" }, { match_format: "best_of_three" }]) {
-        const response = await groupAction(request(elimAdmin, {
+        const response = await elimCall(undefined, "create", elimAdmin, {
             name: "Club event", comp_system: "elimination", ...settings,
-        }), context, "create", "comp");
+        });
         assert.equal(response.status, 400);
     }
     assert.equal([...rows.values()].some(row => row.partitionKey === "comp"), false);
@@ -708,4 +727,52 @@ test("An interrupted legacy competition result migrates and resumes without losi
     assert.equal(winner(matchId), first);
     mirrors(matchId, first);
     mirrors(matchId, second);
+});
+
+test("Groups and competitions register one named POST endpoint per action", () => {
+    for (const [type, actions] of [["group", groupActions], ["comp", compActions]]) {
+        const registered = [...routes.keys()].filter(route => route.startsWith(`${type}/`));
+        assert.deepEqual(registered.sort(), actions.map(action => routeFor(type, action)).sort());
+        for (const action of actions) {
+            const endpoint = routes.get(routeFor(type, action));
+            assert.equal(endpoint.name, `${type}${action[0].toUpperCase()}${action.slice(1)}`);
+            assert.deepEqual(endpoint.methods, ["POST"]);
+        }
+    }
+});
+
+test("Drawn comp matches notify both players after publication, including on recovery", async () => {
+    const id = await openElim();
+    await enterElim(id, ["user_member", "user_applicant", "user_visitor"]);
+    const drawnNotices = () => pushes.filter(push => push.content === "Get ready, your next comp match is drawn");
+    const assertMatchNotice = (notice, matchId) => {
+        assert.equal(notice.path, `match/${matchId}`);
+        assert.equal(notice.heading, get("match", matchId).name);
+        assert.equal(notice.exceptUserId, undefined);
+        assert.deepEqual(notice.userIds.sort(), [slot(matchId, 1), slot(matchId, 2)].sort());
+    };
+
+    failPublish = true;
+    await assert.rejects(elimCall(id, "draw", elimAdmin), /Publishing interrupted/);
+    assert.equal(drawnNotices().length, 0);
+    const firstRound = [1, 2].map(position => elimBracketId("match", id, 1, position));
+    const matchId = firstRound.find(m => get("match", m).state === "active");
+    assert.ok(matchId);
+    assert.equal((await elimCall(id, "draw", elimAdmin)).status, 200);
+    assert.equal(drawnNotices().length, 1);
+    assertMatchNotice(drawnNotices()[0], matchId);
+    assert.equal((await elimCall(id, "draw", elimAdmin)).status, 200);
+    assert.equal(drawnNotices().length, 1);
+
+    const result = scores(matchId, 8, 3);
+    const final = elimBracketId("match", id, 2, 1);
+    failPublish = true;
+    await assert.rejects(elimCall(id, "score", result.first_id, result), /Publishing interrupted/);
+    assert.equal(get("match", final).state, "active");
+    assert.equal(drawnNotices().length, 1);
+    assert.equal((await elimCall(id, "score", result.first_id, result)).status, 200);
+    assert.equal(drawnNotices().length, 2);
+    assertMatchNotice(drawnNotices()[1], final);
+    assert.equal((await elimCall(id, "correct", elimAdmin, scores(matchId, 8, 4))).status, 200);
+    assert.equal(drawnNotices().length, 2);
 });
