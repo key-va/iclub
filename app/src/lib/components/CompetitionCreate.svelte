@@ -12,7 +12,26 @@
 
 	let { type }: { type: 'group' | 'comp' } = $props();
 	const isCompetition = $derived(type === 'comp');
-	let competitionType = $state('elimination');
+	const settings = {
+		format: {
+			label: 'format',
+			description: 'whether players compete alone or in pairs',
+			values: { singles: { label: 'Singles', description: 'one player per side' } }
+		},
+		match_format: {
+			label: 'match format',
+			description: 'how a competition match is played',
+			values: { super_set: { label: 'Super set', description: 'a single long set played to 8 with a tiebreak at 7 games each' } }
+		},
+		competition_type: {
+			label: 'comp system',
+			description: 'how match results determine who advances',
+			values: { elimination: { label: 'Elimination', description: 'the winner advances and the loser is eliminated' } }
+		}
+	};
+	let values = $state<Record<string, string>>({
+		format: 'singles', match_format: 'super_set', competition_type: 'elimination'
+	});
 	const title = $derived(isCompetition ? 'Competition' : 'Group');
 
 	let name = $state(page.url.searchParams.get('name') ?? '');
@@ -42,7 +61,7 @@
 	const createData = $derived({
 		name: cleanName,
 		...(image ? { image } : {}),
-		...(isCompetition ? { competition_type: competitionType } : {})
+		...(isCompetition ? values : {})
 	});
 
 	onMount(() => {
@@ -104,15 +123,28 @@
 		{/if}
 
 		{#if isCompetition}
-			<div class="row right">
-				<select aria-label="Competition type" bind:value={competitionType}>
-					<option value="elimination">Elimination</option>
-				</select>
-			</div>
-		{/if}
-		{#if showHelp}
+			{#each Object.entries(settings) as [key, setting] (key)}
+				<div class="row right">
+					<select aria-label={setting.label} bind:value={values[key]}>
+						{#each Object.entries(setting.values) as [option, details] (option)}
+							<option value={option}>{details.label}</option>
+						{/each}
+					</select>
+				</div>
+				{#if showHelp}
+					<div class="row left help">
+						<p>
+							<strong>{setting.label}</strong>: {setting.description}<br />
+							{#each Object.entries(setting.values) as [option, details], i (option)}
+								{#if i > 0}<br />{/if}<strong>{details.label}</strong>: {details.description}
+							{/each}
+						</p>
+					</div>
+				{/if}
+			{/each}
+		{:else if showHelp}
 			<div class="row left">
-				<p class="info">{#if isCompetition}Create a singles knockout competition using super set scoring.{:else}<strong>group</strong>: create a group to facilitate a chat space to arrange social hits and activities{/if}</p>
+				<p class="info"><strong>group</strong>: create a group to facilitate a chat space to arrange social hits and activities</p>
 			</div>
 		{/if}
 	</div>
@@ -151,5 +183,8 @@
 <style>
 	.page {
 		width: 100%;
+	}
+	.help p {
+		padding: 1em 2em;
 	}
 </style>

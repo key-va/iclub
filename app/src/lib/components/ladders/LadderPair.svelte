@@ -16,7 +16,7 @@
 </script>
 
 <RouteLinkHiddenAction href={hrefOf(pair.rk)} title={nameOf(pair.rk)} {description} image={imageOf(ladder.rk)} colour={ladderStateColours[String(pair.state)] ?? 'grey'}>
-	{#snippet detail()}{rank}{/snippet}
+	{#snippet detail()}rank {rank}{/snippet}
 	<ActionQuick inline name="challenge"
 		action={() => createMatch(ladder.rk, membership.competitorId!, pair.rk)}
 		disabled={!eligible} />

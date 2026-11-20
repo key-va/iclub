@@ -96,7 +96,7 @@ async function projectMatch(match: Record<string, unknown> & { rowKey: string },
         const isFirst = userId === first;
         const score = isFirst ? match.first_score : match.second_score;
         await doUpsertRelation(id, userId, {
-            role: isFirst ? "challenger" : "defender",
+            role: "competitor",
             ...(winner ? { result: match.is_bye ? "bye" : winner === userId ? "winner" : match.is_forfeit ? "forfeiter" : "loser" } : {}),
             ...(typeof score === "number" ? { score } : {}),
         });

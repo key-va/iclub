@@ -183,7 +183,7 @@ test('Browse shows active entities and competitions accepting entries', async ()
     ];
     const html = await output('browse', 'user_admin', undefined, rows);
     assert.match(html, /Open ladder/);
-    assert.match(html, /Open entries/);
+    assert.match(html, /Open entries<\/a><p>comp<\/p>/);
     assert.match(html, /Active draw/);
     assert.doesNotMatch(html, /Pending team|Pending group|Pending comp|Finished draw/);
 });
@@ -201,9 +201,9 @@ test('Competition rounds and user profiles show active matches and elimination s
         { pk: 'round_final', rk: 'match_waiting' },
         { pk: 'match_final', rk: 'comp_test' },
         { pk: 'match_result', rk: 'comp_test' },
-        { pk: 'match_final', rk: 'user_alice', role: 'challenger' },
-        { pk: 'match_final', rk: 'user_admin', role: 'defender' },
-        { pk: 'user_alice', rk: 'match_final', role: 'challenger' },
+        { pk: 'match_final', rk: 'user_alice', role: 'competitor' },
+        { pk: 'match_final', rk: 'user_admin', role: 'competitor' },
+        { pk: 'user_alice', rk: 'match_final', role: 'competitor' },
         { pk: 'user_bob', rk: 'match_result', result: 'loser' },
         { pk: 'comp_test', rk: 'user_alice', is_participant: true, seed: 1 },
         { pk: 'comp_test', rk: 'user_bob', is_participant: true, seed: 2 },
@@ -224,6 +224,8 @@ test('Competition rounds and user profiles show active matches and elimination s
     assert.match(bob, /Club knockout<\/a><p>eliminated[\s\S]*No pending matches/);
 
     const match = await output('match', 'user_alice', 'match_final', rows);
+    assert.match(match, /competitor/);
+    assert.doesNotMatch(match, />challenger<|>defender</);
     assert.match(match, /aria-label="help"[\s\S]*aria-label="submit"/);
     assert.match(match, /aria-label="More Options"[\s\S]*aria-label="forfeit"/);
     const adminRows = [...rows, { pk: 'comp_test', rk: 'user_bob', is_admin: true }];

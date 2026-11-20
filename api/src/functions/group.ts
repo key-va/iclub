@@ -108,10 +108,15 @@ export async function groupAction(
     if (isCompetitionCreate && data.competition_type !== "elimination")
         return reply(400, "Choose a supported competition type");
 
+    if (isCompetitionCreate && (
+        (data.format !== undefined && data.format !== "singles") ||
+        (data.match_format !== undefined && data.match_format !== "super_set")
+    )) return reply(400, "Choose a supported format and match format");
+
     let image: Buffer | undefined;
     let name: string | undefined;
     if (action === "create" || action === "update") {
-        const fields = isCompetitionCreate ? ["name", "image", "competition_type"] : ["name", "image"];
+        const fields = isCompetitionCreate ? ["name", "image", "competition_type", "format", "match_format"] : ["name", "image"];
         if (Object.keys(data).some((key) => !fields.includes(key)))
             return reply(400, isCompetitionCreate ? "Unexpected competition fields" : "Only name and image can be supplied");
         if (action === "create" || data.name !== undefined) {
@@ -184,7 +189,7 @@ export async function groupAction(
         });
         await doUpsertEntity(type, id, {
             name, state: "pending",
-            ...(isCompetitionCreate ? { competition_type: data.competition_type } : {}),
+            ...(isCompetitionCreate ? { competition_type: data.competition_type, format: "singles", match_format: "super_set" } : {}),
         });
         await doGuidsToPublic();
         const admins = (await relations(club.clubId))

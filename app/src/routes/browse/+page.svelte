@@ -87,7 +87,7 @@
 			href={hrefOf(entity.rk)}
 			title={entity.name ?? 'no name'}
 			isWhite={entity.pk === 'comp'}
-			description={entity.pk === 'comp' ? (entity.competition_type === 'elimination' ? 'elimination' : 'competition') : entity.pk}
+			description={entity.pk}
 			image={imageOf(entity.rk)}
 		/>
 	{/each}
