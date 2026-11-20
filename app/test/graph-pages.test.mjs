@@ -193,7 +193,7 @@ test('Competition rounds and user profiles show active matches and elimination s
         ...fixture(),
         { pk: 'comp', rk: 'comp_test', name: 'Club knockout', competition_type: 'elimination', state: 'active' },
         { pk: 'round', rk: 'round_final', name: 'Club knockout Final', bracket_round: 2 },
-        { pk: 'match', rk: 'match_final', name: 'Alice vs Administrator', state: 'active', bracket_match: 1 },
+        { pk: 'match', rk: 'match_final', name: 'Alice vs Administrator', state: 'active', bracket_match: 1, first_id: 'user_alice', second_id: 'user_admin' },
         { pk: 'match', rk: 'match_waiting', name: 'R1 Pending', state: 'waiting', bracket_match: 2 },
         { pk: 'match', rk: 'match_result', name: 'Alice vs Bob', state: 'complete' },
         { pk: 'comp_test', rk: 'round_final' },
@@ -211,16 +211,21 @@ test('Competition rounds and user profiles show active matches and elimination s
         { pk: 'user_bob', rk: 'comp_test', is_participant: true, seed: 2 }
     ];
     const comp = await output('comp', 'user_alice', undefined, rows);
+    assert.match(comp, /data-colour="orange"[^>]*><a [^>]*>Alice vs Administrator<\/a>[\s\S]*aria-label="forfeit"[\s\S]*aria-label="Players"/);
     assert.match(comp, /data-colour="red"[^>]*><a [^>]*>Bob<\/a><p>eliminated/);
     assert.match(comp, /aria-label="Club knockout Final"[\s\S]*data-white="true"[^>]*><a [^>]*>Alice vs Administrator/);
     assert.match(comp, /data-white="false"[^>]*><a [^>]*>R1 Pending/);
 
     const alice = await output('user', 'user_alice', 'user_alice', rows);
-    assert.match(alice, /Club knockout<\/a><p>ranked 1[\s\S]*Alice vs Administrator/);
+    assert.match(alice, /Club knockout<\/a><p>ranked 1[\s\S]*data-colour="orange"[^>]*><a [^>]*>Alice vs Administrator/);
+    assert.equal(hasAction(alice, 'forfeit'), true);
+    assert.equal(hasAction(await output('user', 'user_visitor', 'user_alice', rows), 'forfeit'), false);
     const bob = await output('user', 'user_bob', 'user_bob', rows);
     assert.match(bob, /Club knockout<\/a><p>eliminated[\s\S]*No pending matches/);
 
     const match = await output('match', 'user_alice', 'match_final', rows);
     assert.match(match, /aria-label="help"[\s\S]*aria-label="submit"/);
     assert.match(match, /aria-label="More Options"[\s\S]*aria-label="forfeit"/);
+    const adminRows = [...rows, { pk: 'comp_test', rk: 'user_bob', is_admin: true }];
+    assert.equal(hasAction(await output('match', 'user_bob', 'match_final', adminRows), 'forfeit'), false);
 });

@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { local } from '#lib/stores/local.ts';
 	import { relationsOf, type GuidRow } from '#lib/stores/guids.ts';
-	import { acceptMatch, forfeitMatch } from '#lib/stores/remote.ts';
+	import { acceptMatch, forfeitCompetitionMatch, forfeitMatch } from '#lib/stores/remote.ts';
+	import { canForfeitCompetitionMatch } from './matchRules.ts';
 	import EntityActions from '../EntityActions.svelte';
 	import ActionQuick from '../ActionQuick.svelte';
 	import ActionConfirmation from '../ActionConfirmation.svelte';
@@ -17,6 +18,7 @@
 		forfeitData?: Record<string, unknown>;
 	} = $props();
 	const links = $derived(relationsOf(match.rk));
+	const comp = $derived(links.find((row) => row.rk.startsWith('comp_')));
 	const mine = $derived(links.find((row) => row.rk === $local.caller_id));
 	const ladder = $derived(links.find((row) => row.rk.startsWith('ladder_')));
 	const admin = $derived(
@@ -31,13 +33,19 @@
 			(mine?.competitor_id === defender?.rk && !!defender)
 	);
 	const canAccept = $derived(
-		match.state === 'pending' && (onDefendingSide || admin)
+		!comp && match.state === 'pending' && (onDefendingSide || admin)
 	);
 	const canForfeit = $derived(
+		comp ? canForfeitCompetitionMatch(match, $local.caller_id) :
 		['pending', 'active'].includes(String(match.state)) &&
 			!!mine &&
 			['challenger', 'defender', 'participant'].includes(String(mine.role))
 	);
+	function forfeit() {
+		return comp
+			? forfeitCompetitionMatch(comp.rk, match.rk, String(match.first_id), String(match.second_id))
+			: forfeitMatch(match.rk, forfeitData);
+	}
 </script>
 
 {#snippet quickButtons()}
@@ -49,7 +57,7 @@
 	{#if canForfeit}<ActionQuick
 			inline
 			name="forfeit"
-			action={() => forfeitMatch(match.rk, forfeitData)}
+			action={forfeit}
 		/>{/if}
 {/snippet}
 {#snippet acceptButton()}<ActionConfirmation
@@ -65,7 +73,7 @@
 		showLabel
 		name="forfeit"
 		message="Forfeit this match?"
-		action={() => forfeitMatch(match.rk, forfeitData)}
+		action={forfeit}
 	/>{/snippet}
 {#if canAccept || canForfeit}
 	{#if quick}{@render quickButtons()}

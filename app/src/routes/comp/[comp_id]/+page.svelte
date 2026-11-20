@@ -8,9 +8,10 @@
 	import EntityActions from '#lib/components/EntityActions.svelte';
 	import HiddenOptions from '#lib/components/hiddenOptions.svelte';
 	import RouteLinkHiddenAction from '#lib/components/RouteLinkHiddenAction.svelte';
+	import UserMatch from '#lib/components/matches/UserMatch.svelte';
 	import EntityHeader from '#lib/components/EntityHeader.svelte';
 	import RouteLink from '#lib/components/routeLink.svelte';
-	import { competitionPlayerMatches, competitionPlayerStatus } from '#lib/components/competitions/competitionPlayers.ts';
+	import { activeCompetitionMatches, competitionPlayerMatches, competitionPlayerStatus } from '#lib/components/competitions/competitionPlayers.ts';
 	import { matchSummary } from '#lib/components/matches/matchRules.ts';
 
 	const id = $derived(page.params.comp_id ?? '');
@@ -44,6 +45,9 @@
 	const rounds = $derived(links.filter((row) => typeOf(row.rk) === 'round')
 		.map((row) => entityOf(row.rk)).filter((row): row is GuidRow => !!row)
 		.sort((a, b) => Number(a.bracket_round) - Number(b.bracket_round)));
+	const yourMatches = $derived(caller
+		? activeCompetitionMatches(competitionPlayerMatches(id, caller))
+		: []);
 	const matchesOf = (round: string) => relationsOf(round)
 		.filter((row) => typeOf(row.rk) === 'match')
 		.map((row) => entityOf(row.rk)).filter((row): row is GuidRow => !!row)
@@ -85,6 +89,11 @@
 		{/if}
 
 		<div class="group">
+			{#if drawReady}
+				{#each yourMatches as match (match.rk)}
+					<UserMatch {match} />
+				{/each}
+			{/if}
 			<HiddenOptions title="Players" badge={entrants.length} />
 			{#each entrants as row (row.rk)}
 				{@const ranked = Number(row.seed) > 0}

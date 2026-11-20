@@ -6,6 +6,11 @@ export function competitionPlayerMatches(compId: string, userId: string) {
 		.filter((row) => relationsOf(row.rk).some((link) => link.rk === compId));
 }
 
+export function activeCompetitionMatches(matches: GuidRow[]) {
+	return matches.map((row) => entityOf(row.rk))
+		.filter((match): match is GuidRow => match?.state === 'active');
+}
+
 export function competitionPlayerStatus(player: GuidRow, matches: GuidRow[]) {
 	if (matches.some((row) =>
 		(row.result === 'loser' || row.result === 'forfeiter') &&

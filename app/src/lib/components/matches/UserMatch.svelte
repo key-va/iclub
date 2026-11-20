@@ -6,6 +6,7 @@
 		hrefOf,
 		type GuidRow
 	} from '#lib/stores/guids.ts';
+	import { canForfeitCompetitionMatch } from './matchRules.ts';
 	import MatchActions from './MatchActions.svelte';
 	import RouteLinkHiddenAction from '../RouteLinkHiddenAction.svelte';
 	let { match }: { match: GuidRow } = $props();
@@ -21,7 +22,9 @@
 				(row) => row.rk === $local.caller_id && row.is_admin === true
 			)
 	);
+	const comp = $derived(relationsOf(match.rk).some((row) => row.rk.startsWith('comp_')));
 	const actionable = $derived(
+		comp ? canForfeitCompetitionMatch(match, $local.caller_id) :
 		['pending', 'active'].includes(String(match.state)) &&
 			((!!mine &&
 				['challenger', 'defender', 'participant'].includes(

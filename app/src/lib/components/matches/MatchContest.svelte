@@ -59,7 +59,6 @@
 				next?.bracket_match === Math.ceil(Number(match.bracket_match) / 2) && !!next.winner_id;
 		}));
 	let correcting = $state(false);
-	let forfeitWinner = $state('');
 	const isPlayer = $derived(
 		matchUsers.some(
 			(user) =>
@@ -323,31 +322,15 @@
 	image={imageOf((elim ?? ladder)?.rk ?? '')}
 ></RouteLink>
 
-{#if elim && challenger && defender && (canCorrect || (match.state === 'active' && (isPlayer || isElimAdmin)))}
+{#if canCorrect}
 	<EntityActions section="options">
 		{#snippet options()}
-			{#if canCorrect}
-				<button class="blue" onclick={() => correcting ? (correcting = false) : editResult()}>
-					<p>{correcting ? 'cancel correction' : 'correct score'}</p>
-				</button>
-			{:else}
-				{#if isElimAdmin}
-					<select aria-label="Player who advances" bind:value={forfeitWinner}>
-						<option value="">{isPlayer ? 'Forfeit own match' : 'Player who advances'}</option>
-						<option value={challenger.rk}>{nameOf(challenger.rk)}</option>
-						<option value={defender.rk}>{nameOf(defender.rk)}</option>
-					</select>
-				{/if}
-				<ActionConfirmation inline arrow showLabel name="forfeit"
-					message={forfeitWinner ? `Advance ${nameOf(forfeitWinner)} by forfeit?` : 'Forfeit this match?'}
-					disabled={!isPlayer && !forfeitWinner}
-					action={() => recordElimResult(elim.rk, matchId, 'forfeit', challenger.rk, defender.rk, {
-						winner_id: forfeitWinner || (caller_id === challenger.rk ? defender.rk : challenger.rk)
-					})} />
-			{/if}
+			<button class="blue" onclick={() => correcting ? (correcting = false) : editResult()}>
+				<p>{correcting ? 'cancel correction' : 'correct score'}</p>
+			</button>
 		{/snippet}
 	</EntityActions>
-{:else if !elim}
+{:else}
 	<MatchActions
 		{match}
 		section="options"

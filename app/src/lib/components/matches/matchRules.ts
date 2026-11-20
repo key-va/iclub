@@ -5,6 +5,11 @@ import {
 	nameOf
 } from '#lib/stores/guids.ts';
 
+export function canForfeitCompetitionMatch(match: GuidRow, callerId: string | null) {
+	return match.state === 'active' && !!callerId && !!match.first_id && !!match.second_id &&
+		(callerId === match.first_id || callerId === match.second_id);
+}
+
 // Recorded scores are a single number or comma-separated games per set, eg "6,4"
 export const gamesOf = (relation?: Record<string, unknown>): string[] =>
 	relation?.score === undefined || relation.score === ''

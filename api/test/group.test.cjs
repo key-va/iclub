@@ -618,8 +618,13 @@ test("Competition round names, pending slots and player forfeits follow the draw
     assert.equal((await elimCall(id, "score", second.first_id, scores(secondMatch, 8, 1))).status, 200);
     assert.equal(get("match", final).name, "Jordan vs Alex");
 
-    assert.equal((await elimCall(id, "forfeit", elimAdmin, {
-        ...scores(final, 0, 0), winner_id: second.first_id,
+    const finalScore = scores(final, 0, 0);
+    assert.equal((await elimCall(id, "forfeit", elimAdmin, finalScore)).status, 403);
+    assert.equal((await elimCall(id, "walkover", elimAdmin, finalScore)).status, 404);
+    relation(id, first.second_id, { is_admin: true, is_participant: true });
+    assert.equal((await elimCall(id, "forfeit", first.second_id, {
+        ...finalScore, winner_id: first.second_id,
     })).status, 200);
     assert.equal(get("comp", id).champion_id, second.first_id);
+    assert.equal(get(first.second_id, final).result, "forfeiter");
 });

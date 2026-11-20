@@ -146,10 +146,10 @@ export const competitionEntry = (
 export const recordElimResult = (
 	id: string,
 	matchId: string,
-	action: 'score' | 'correct' | 'walkover' | 'forfeit',
+	action: 'score' | 'correct',
 	firstId: string,
 	secondId: string,
-	result: { first_score: number; second_score: number } | { winner_id: string }
+	result: { first_score: number; second_score: number }
 ) =>
 	mutateWithSubject(`comp/${id}/${action}`, {
 		match_id: matchId,
@@ -157,6 +157,16 @@ export const recordElimResult = (
 		second_id: secondId,
 		...result
 	});
+export const forfeitCompetitionMatch = (
+	id: string,
+	matchId: string,
+	firstId: string,
+	secondId: string
+) => mutateWithSubject(`comp/${id}/forfeit`, {
+	match_id: matchId,
+	first_id: firstId,
+	second_id: secondId
+});
 export const createTeam = (data: Record<string, unknown>) =>
 	mutateWithSubject('team/create', data);
 export const activateTeam = (id: string) =>

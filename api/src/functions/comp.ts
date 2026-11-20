@@ -195,8 +195,11 @@ async function score(
     if (!match) return reply(404, "competition match not found");
     const first = String(match.first_id ?? "");
     const second = String(match.second_id ?? "");
-    if (["correct", "walkover"].includes(action) && !admin)
-        return reply(403, "Only a competition admin can correct scores or record a walkover");
+    const forfeit = action === "forfeit";
+    if (action === "correct" && !admin)
+        return reply(403, "Only a competition admin can correct scores");
+    if (forfeit && (!first || !second || (caller !== first && caller !== second)))
+        return reply(403, "Only a player in this match can forfeit");
     if (!admin && caller !== first && caller !== second)
         return reply(403, "Only a player or a competition admin can submit the score");
     if (match.is_bye || !first || !second)
@@ -209,20 +212,15 @@ async function score(
     const next = round < Number(elim.rounds)
         ? await get("match", elimBracketId("match", id, round + 1, Math.ceil(position / 2)))
         : undefined;
-    const forfeit = action === "forfeit";
-    const walkover = action === "walkover";
-    const unplayed = walkover || forfeit;
-    const awardedWinner = forfeit && !admin ? (caller === first ? second : first) : data.winner_id;
     const a = data.first_score;
     const b = data.second_score;
-    if (unplayed ? awardedWinner !== first && awardedWinner !== second
-        : typeof a !== "number" || typeof b !== "number" || !Number.isInteger(a)
-            || !Number.isInteger(b) || a < 0 || a > 8 || b < 0 || b > 8 || a === b)
-        return reply(400, unplayed ? "Select the player who advances" : "Enter two different whole-number scores from 0 to 8");
-    const winner = unplayed ? String(awardedWinner) : Number(a) > Number(b) ? first : second;
+    if (!forfeit && (typeof a !== "number" || typeof b !== "number" || !Number.isInteger(a)
+        || !Number.isInteger(b) || a < 0 || a > 8 || b < 0 || b > 8 || a === b))
+        return reply(400, "Enter two different whole-number scores from 0 to 8");
+    const winner = forfeit ? (caller === first ? second : first) : Number(a) > Number(b) ? first : second;
     const attributes = {
-        winner_id: winner, is_walkover: walkover, is_forfeit: forfeit,
-        first_score: unplayed ? "" : Number(a), second_score: unplayed ? "" : Number(b),
+        winner_id: winner, is_walkover: false, is_forfeit: forfeit,
+        first_score: forfeit ? "" : Number(a), second_score: forfeit ? "" : Number(b),
     };
     const same = Object.entries(attributes).every(([key, value]) => (match[key] ?? false) === value);
     if (same) {
@@ -243,7 +241,7 @@ async function score(
     }, "Merge");
     await client.updateEntity({
         partitionKey: "match", rowKey: matchId, ...attributes,
-        result_pending: true, result_exclude_user: admin ? "" : caller,
+        result_pending: true, result_exclude_user: admin && !forfeit ? "" : caller,
         result_action: action,
     }, "Merge");
     await repairResult(elim, matchId, context);
@@ -277,7 +275,7 @@ async function repairResult(elim: Row, matchId: string, context: InvocationConte
 export async function compAction(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
     const action = request.params.action;
     if (action === "activate") return groupAction(request, context, action, "comp");
-    if (!["join", "accept", "leave", "seed", "unseed", "draw", "score", "correct", "walkover", "forfeit"].includes(action))
+    if (!["join", "accept", "leave", "seed", "unseed", "draw", "score", "correct", "forfeit"].includes(action))
         return reply(404, "Unknown competition action");
     let body;
     try {
@@ -336,7 +334,7 @@ export async function compAction(request: HttpRequest, context: InvocationContex
         const mine = members.find(row => row.rowKey === caller);
         const admin = mine?.is_admin === true;
         const entrants = members.filter(row => row.is_participant === true);
-        if (["score", "correct", "walkover", "forfeit"].includes(action)) {
+        if (["score", "correct", "forfeit"].includes(action)) {
             if (!admin && mine?.is_participant !== true)
                 return reply(403, "Only an entrant or a competition admin can submit scores");
             if (typeof elim.pending_match_id === "string" && elim.pending_match_id)
