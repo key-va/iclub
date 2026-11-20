@@ -7,6 +7,7 @@
 		typeOf,
 		imageOf
 	} from '#lib/stores/guids.ts';
+	import { competitionSlots } from '#lib/components/competitions/competitionBracket.ts';
 	import EntityHeader from '#lib/components/EntityHeader.svelte';
 	import MatchContest from '#lib/components/matches/MatchContest.svelte';
 	const id = $derived(page.params.match_id ?? '');
@@ -27,7 +28,7 @@
 			image={elim ? imageOf(elim.rk) : ladder ? imageOf(ladder.rk) : null}
 		/>
 		{#if !elim || elim.state === 'active' || elim.state === 'complete'}
-			{#key elim ? `${match.rk}:${match.first_id}:${match.second_id}` : match.rk}
+			{#key elim ? `${match.rk}:${competitionSlots(match).map((player) => player?.rk ?? '').join(':')}` : match.rk}
 				<MatchContest {match} {ladder} {elim} />
 			{/key}
 		{:else}

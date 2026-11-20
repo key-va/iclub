@@ -2,6 +2,7 @@
 	import { local } from '#lib/stores/local.ts';
 	import { relationsOf, type GuidRow } from '#lib/stores/guids.ts';
 	import { acceptMatch, forfeitCompetitionMatch, forfeitMatch } from '#lib/stores/remote.ts';
+	import { competitionSlots } from '../competitions/competitionBracket.ts';
 	import { canForfeitCompetitionMatch } from './matchRules.ts';
 	import EntityActions from '../EntityActions.svelte';
 	import ActionQuick from '../ActionQuick.svelte';
@@ -42,8 +43,9 @@
 			['challenger', 'defender', 'participant'].includes(String(mine.role))
 	);
 	function forfeit() {
+		const [first, second] = comp ? competitionSlots(match) : [];
 		return comp
-			? forfeitCompetitionMatch(comp.rk, match.rk, String(match.first_id), String(match.second_id))
+			? forfeitCompetitionMatch(comp.rk, match.rk, first!.rk, second!.rk)
 			: forfeitMatch(match.rk, forfeitData);
 	}
 </script>

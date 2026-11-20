@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { competitionSlots, nextCompetitionMatch } from '../competitions/competitionBracket.ts';
 	import MatchActions from './MatchActions.svelte';
 	import MessageThread from '#lib/components/messages/MessageThread.svelte';
 	import ActionConfirmation from '#lib/components/ActionConfirmation.svelte';
@@ -36,11 +37,12 @@
 			(row) => typeOf(row.rk) === 'user' && entityOf(row.rk)
 		)
 	);
+	const slots = $derived(elim ? competitionSlots(match) : []);
 	const challenger = $derived(
-		players.find((player) => elim ? player.rk === match.first_id : player.role === 'challenger')
+		elim ? slots[0] : players.find((player) => player.role === 'challenger')
 	);
 	const defender = $derived(
-		players.find((player) => elim ? player.rk === match.second_id : player.role === 'defender')
+		elim ? slots[1] : players.find((player) => player.role === 'defender')
 	);
 
 	const isLadderAdmin = $derived(
@@ -51,19 +53,14 @@
 	);
 	const isElimAdmin = $derived(!!elim && relationsOf(elim.rk)
 		.some((row) => row.rk === caller_id && row.is_admin === true));
-	const canCorrect = $derived(isElimAdmin && match.state === 'complete' &&
-		!relationsOf(elim?.rk ?? '').some((row) => {
-			if (typeOf(row.rk) !== 'match') return false;
-			const next = entityOf(row.rk);
-			return next?.bracket_round === Number(match.bracket_round) + 1 &&
-				next?.bracket_match === Math.ceil(Number(match.bracket_match) / 2) && !!next.winner_id;
-		}));
+	const canCorrect = $derived(!!elim && isElimAdmin && match.state === 'complete' &&
+		nextCompetitionMatch(elim.rk, match)?.state !== 'complete');
 	let correcting = $state(false);
 	const isPlayer = $derived(
 		matchUsers.some(
 			(user) =>
 				user.rk === caller_id &&
-				(elim ? user.rk === match.first_id || user.rk === match.second_id
+				(elim ? user.rk === slots[0]?.rk || user.rk === slots[1]?.rk
 					: ['challenger', 'defender', 'participant'].includes(String(user.role)))
 		)
 	);
@@ -118,7 +115,7 @@
 		const theirs =
 			winner === challenger ? recordedDefender : recordedChallenger;
 		const sets = mine.map((games, i) => `${games}-${theirs[i] ?? 0}`).join(' ');
-		if (match.is_walkover) return `${nameOf(winner.rk)} wins by walkover`;
+		if (loser?.result === 'walkover' || match.is_walkover) return `${nameOf(winner.rk)} wins by walkover`;
 		return loser?.result === 'forfeiter'
 			? `${nameOf(winner.rk)} wins by forfeit${sets ? ` ${sets}` : ''}`
 			: `${nameOf(winner.rk)} wins${sets ? ` ${sets}` : ''}`;
@@ -311,7 +308,7 @@
 	<MessageThread parentId={matchId} showTime />
 {/if}
 {#if elim && match.state === 'bye'}
-	<p class="info">{nameOf(String(match.winner_id))} advances with a bye.</p>
+	<p class="info">{nameOf(slots.find((player) => player)?.rk ?? '')} advances with a bye.</p>
 {:else if elim && match.state === 'waiting'}
 	<p class="info">Waiting for earlier results.</p>
 {/if}

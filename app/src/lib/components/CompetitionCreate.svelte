@@ -23,14 +23,14 @@
 			description: 'how a competition match is played',
 			values: { super_set: { label: 'Super set', description: 'a single long set played to 8 with a tiebreak at 7 games each' } }
 		},
-		competition_type: {
+		comp_system: {
 			label: 'comp system',
 			description: 'how match results determine who advances',
 			values: { elimination: { label: 'Elimination', description: 'the winner advances and the loser is eliminated' } }
 		}
 	};
 	let values = $state<Record<string, string>>({
-		format: 'singles', match_format: 'super_set', competition_type: 'elimination'
+		format: 'singles', match_format: 'super_set', comp_system: 'elimination'
 	});
 	const title = $derived(isCompetition ? 'Competition' : 'Group');
 

@@ -13,7 +13,7 @@ export function activeCompetitionMatches(matches: GuidRow[]) {
 
 export function competitionPlayerStatus(player: GuidRow, matches: GuidRow[]) {
 	if (matches.some((row) =>
-		(row.result === 'loser' || row.result === 'forfeiter') &&
+		(row.result === 'loser' || row.result === 'forfeiter' || row.result === 'walkover') &&
 		entityOf(row.rk)?.state === 'complete'
 	)) return 'eliminated';
 	if (player.state === 'pending') return 'join request pending';

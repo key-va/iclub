@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { local } from '#lib/stores/local.ts';
-	import { entityOf, guids, hrefOf, imageOf, nameOf, relationsOf, typeOf, type GuidRow } from '#lib/stores/guids.ts';
+	import { entityOf, guids, hrefOf, imageOf, nameOf, relationsOf, typeOf } from '#lib/stores/guids.ts';
 	import { competitionEntry } from '#lib/stores/remote.ts';
 	import ActionConfirmation from '#lib/components/ActionConfirmation.svelte';
 	import ActionQuick from '#lib/components/ActionQuick.svelte';
@@ -12,6 +12,7 @@
 	import EntityHeader from '#lib/components/EntityHeader.svelte';
 	import RouteLink from '#lib/components/routeLink.svelte';
 	import { activeCompetitionMatches, competitionPlayerMatches, competitionPlayerStatus } from '#lib/components/competitions/competitionPlayers.ts';
+	import { competitionChampion, competitionRounds, roundMatches } from '#lib/components/competitions/competitionBracket.ts';
 	import { matchSummary } from '#lib/components/matches/matchRules.ts';
 
 	const id = $derived(page.params.comp_id ?? '');
@@ -42,16 +43,11 @@
 	const seeds = $derived(entrants.filter((row) => Number(row.seed) > 0)
 		.sort((a, b) => Number(a.seed) - Number(b.seed)));
 	const requests = $derived(links.filter((row) => typeOf(row.rk) === 'user' && row.state === 'pending'));
-	const rounds = $derived(links.filter((row) => typeOf(row.rk) === 'round')
-		.map((row) => entityOf(row.rk)).filter((row): row is GuidRow => !!row)
-		.sort((a, b) => Number(a.bracket_round) - Number(b.bracket_round)));
+	const rounds = $derived(competitionRounds(id));
+	const champion = $derived(elim ? competitionChampion(elim) : '');
 	const yourMatches = $derived(caller
 		? activeCompetitionMatches(competitionPlayerMatches(id, caller))
 		: []);
-	const matchesOf = (round: string) => relationsOf(round)
-		.filter((row) => typeOf(row.rk) === 'match')
-		.map((row) => entityOf(row.rk)).filter((row): row is GuidRow => !!row)
-		.sort((a, b) => Number(a.bracket_match) - Number(b.bracket_match));
 	const byes = $derived(2 ** Math.ceil(Math.log2(Math.max(entrants.length, 2))) - entrants.length);
 	const drawMessage = $derived(drawing
 		? 'Resume the draw?'
@@ -59,7 +55,7 @@
 </script>
 
 <div class="page">
-	{#if elim?.competition_type === 'elimination'}
+	{#if elim && (elim.comp_system ?? elim.competition_type) === 'elimination'}
 		<EntityHeader entity={elim} />
 		<EntityActions section="primary" summary={`elimination • singles • super set • ${status}`}>
 			{#if elim.state === 'pending' && canApprove}
@@ -114,12 +110,12 @@
 		</div>
 
 		{#if drawReady}
-			{#if typeof elim.champion_id === 'string' && elim.champion_id}
-				<RouteLink href={hrefOf(elim.champion_id)} title={nameOf(elim.champion_id)} description="champion" image={imageOf(elim.champion_id)} />
+			{#if champion}
+				<RouteLink href={hrefOf(champion)} title={nameOf(champion)} description="champion" image={imageOf(champion)} />
 			{/if}
-			{#each rounds as round (round.rk)}
+			{#each rounds as { entity: round } (round.rk)}
 				<HiddenOptions title={round.name}>
-					{#each matchesOf(round.rk) as match (match.rk)}
+					{#each roundMatches(round.rk) as { entity: match } (match.rk)}
 						<RouteLink href={hrefOf(match.rk)} title={match.name} isWhite={match.state === 'active'}
 							description={match.state === 'bye' ? 'bye' : matchSummary(match.rk) || (match.state === 'waiting' ? 'awaiting players' : 'ready to play')}
 						/>

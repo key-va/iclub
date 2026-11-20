@@ -41,15 +41,7 @@ async function get(pk: string, rk: string): Promise<Row | undefined> {
     }
 }
 
-async function users(id: string) {
-    const rows = [];
-    for await (const row of client.listEntities({
-        queryOptions: { filter: odata`PartitionKey eq ${id}` },
-    })) {
-        if (row.rowKey.startsWith("user_")) rows.push(row);
-    }
-    return rows;
-}
+const users = (id: string) => links(id, "user");
 
 function props(row: Row) {
     const { partitionKey, rowKey, etag, timestamp, ...attributes } = row;
@@ -81,40 +73,80 @@ async function notify(
     }
 }
 
-async function projectMatch(match: Record<string, unknown> & { rowKey: string }, first: string, second: string, rounds: number) {
-    const id = match.rowKey;
-    const players = [first, second].filter(Boolean);
-    for (const previous of await users(id)) {
-        if (!players.includes(previous.rowKey)) {
-            await remove(previous.rowKey, id);
-            await remove(id, previous.rowKey);
-        }
+async function links(id: string, type: string): Promise<Row[]> {
+    const rows: Row[] = [];
+    for await (const row of client.listEntities({
+        queryOptions: { filter: odata`PartitionKey eq ${id}` },
+    })) {
+        if (row.rowKey.startsWith(`${type}_`)) rows.push({ ...row, partitionKey: id, rowKey: row.rowKey });
     }
+    return rows;
+}
 
-    const winner = String(match.winner_id ?? "");
-    for (const userId of players) {
-        const isFirst = userId === first;
-        const score = isFirst ? match.first_score : match.second_score;
-        await doUpsertRelation(id, userId, {
-            role: "competitor",
-            ...(winner ? { result: match.is_bye ? "bye" : winner === userId ? "winner" : match.is_forfeit ? "forfeiter" : "loser" } : {}),
-            ...(typeof score === "number" ? { score } : {}),
-        });
+function sameAttributes(row: Row | undefined, attributes: Record<string, unknown>) {
+    if (!row) return false;
+    const current = props(row);
+    return Object.keys(current).length === Object.keys(attributes).length &&
+        Object.entries(attributes).every(([name, value]) => current[name] === value);
+}
+
+async function writeIfChanged(pk: string, rk: string, attributes: Record<string, unknown>) {
+    if (!sameAttributes(await get(pk, rk), attributes))
+        await doUpsertEntity(pk, rk, attributes);
+}
+
+type Competitor = { id: string; slot: number; result?: string; score?: number };
+
+function competitors(rows: Row[]): Competitor[] {
+    return rows.filter(row => row.slot === 1 || row.slot === 2).map(row => ({
+        id: row.rowKey,
+        slot: Number(row.slot),
+        ...(typeof row.result === "string" ? { result: row.result } : {}),
+        ...(typeof row.score === "number" ? { score: row.score } : {}),
+    }));
+}
+
+function assignedPlayers(first: string, second: string): Competitor[] {
+    return [first, second].flatMap((id, i) => id ? [{ id, slot: i + 1 }] : []);
+}
+
+async function writeCompetitors(matchId: string, players: Competitor[]) {
+    const previous = await users(matchId);
+    for (const row of previous) {
+        if (players.some(player => player.id === row.rowKey)) continue;
+        // Remove the reverse first so an interrupted removal can still be retried.
+        await remove(row.rowKey, matchId);
+        await remove(matchId, row.rowKey);
     }
-    const label = elimRoundName(Number(match.bracket_round), rounds);
+    const records = players.map(({ id, ...attributes }) => ({
+        partitionKey: matchId, rowKey: id, role: "competitor", ...attributes,
+    }));
+    const updates: TransactionAction[] = records
+        .filter(row => !sameAttributes(previous.find(old => old.rowKey === row.rowKey), props(row)))
+        .map(row => ["upsert", row, "Replace"]);
+    if (updates.length) await client.submitTransaction(updates);
+    for (const row of records)
+        await writeIfChanged(row.rowKey, matchId, props(row));
+}
+
+function winnerOf(players: Competitor[]) {
+    return players.find(player => player.result === "winner" || player.result === "bye")?.id ?? "";
+}
+
+async function projectMatch(matchId: string, label: string, players: Competitor[]) {
+    const bye = players.some(player => player.result === "bye");
     let name = `${label} Pending`;
-    if (players.length === 2 || match.is_bye) {
-        const firstNames = await Promise.all(players.map(async userId => {
-            const user = await get("user", userId);
+    if (players.length === 2 || bye) {
+        const firstNames = await Promise.all(players.map(async player => {
+            const user = await get("user", player.id);
             return String(user?.name ?? "").trim().split(/\s+/)[0] || "Player";
         }));
-        name = match.is_bye ? `${firstNames[0]} (bye)` : firstNames.join(" vs ");
+        name = bye ? `${firstNames[0]} (bye)` : firstNames.join(" vs ");
     }
-    await client.updateEntity({
-        partitionKey: "match", rowKey: id, name,
-        first_id: first, second_id: second, draw_ready: true,
-        state: match.is_bye ? "bye" : winner ? "complete" : second && first ? "active" : "waiting",
-    }, "Merge");
+    await writeCompetitors(matchId, players);
+    await writeIfChanged("match", matchId, {
+        name, state: bye ? "bye" : winnerOf(players) ? "complete" : players.length === 2 ? "active" : "waiting",
+    });
 }
 
 async function startDraw(elim: Row, entrants: Row[], renewGuard: () => Promise<void>) {
@@ -125,61 +157,140 @@ async function startDraw(elim: Row, entrants: Row[], renewGuard: () => Promise<v
     const winners = new Map<string, string>();
     for (let round = 1; round <= rounds; round++) {
         const roundId = elimBracketId("round", id, round);
-        const positions = 2 ** (rounds - round);
         const label = elimRoundName(round, rounds);
-        await doUpsertEntity("round", roundId, {
-            name: `${elim.name} ${label}`, bracket_round: round,
-        });
-        await doUpsertRelation(id, roundId);
-        for (let position = 1; position <= positions; position++) {
+        await writeIfChanged("round", roundId, { name: `${elim.name} ${label}` });
+        await doUpsertRelation(id, roundId, { bracket_round: round });
+        for (let position = 1; position <= 2 ** (rounds - round); position++) {
             await renewGuard();
             const matchId = elimBracketId("match", id, round, position);
             const [first, second] = round === 1
                 ? [slots[2 * position - 2], slots[2 * position - 1]]
                 : [2 * position - 1, 2 * position].map(feeder =>
                     winners.get(elimBracketId("match", id, round - 1, feeder)) ?? "");
-            const bye = round === 1 && (!first || !second);
-            const winner = bye ? first || second : "";
-            if (winner) winners.set(matchId, winner);
-            // A ready row is written only after its links are in place. A retry
-            // can skip completed positions while retaining the same bye winners.
-            if ((await get("match", matchId))?.draw_ready === true) continue;
-            const fields = {
-                name: `${label} Pending`, bracket_round: round, bracket_match: position,
-                is_bye: bye, winner_id: winner,
-                first_id: first, second_id: second, state: "waiting",
-            };
-            await doUpsertEntity("match", matchId, fields);
+            const players = assignedPlayers(first, second);
+            if (round === 1 && players.length === 1) {
+                players[0].result = "bye";
+                winners.set(matchId, players[0].id);
+            }
+            // The clean match row is committed last. Its presence means the
+            // deterministic slots and mirrored links were fully written.
+            const existing = await get("match", matchId);
+            if (existing && sameAttributes(existing, { name: existing.name, state: existing.state }))
+                continue;
             await doUpsertRelation(id, matchId);
-            await doUpsertRelation(roundId, matchId);
-            await projectMatch({ rowKey: matchId, ...fields }, first, second, rounds);
+            await doUpsertRelation(roundId, matchId, { bracket_match: position });
+            await projectMatch(matchId, label, players);
         }
     }
-    await client.updateEntity({
-        partitionKey: "comp", rowKey: id, state: "active", rounds,
-    }, "Merge");
+    await updateCompetition(id, { state: "active" }, ["draw_version"]);
 }
 
-async function finishResult(elim: Row, match: Row) {
+async function updateCompetition(id: string, changes: Record<string, unknown>, removeFields: string[]) {
+    const current = await get("comp", id);
+    if (!current) throw new Error("Competition is missing");
+    const attributes = props(current);
+    for (const name of removeFields) delete attributes[name];
+    await client.updateEntity({
+        partitionKey: "comp", rowKey: id, ...attributes, ...changes,
+    }, "Replace", { etag: current.etag });
+}
+
+async function matchPlacement(compId: string, matchId: string) {
+    const roundLinks = await links(compId, "round");
+    const [matchRound] = await links(matchId, "round");
+    const round = roundLinks.find(link => link.rowKey === matchRound?.rowKey);
+    if (!round || !matchRound) throw new Error("Competition match is missing its round");
+    return {
+        round: Number(round.bracket_round),
+        position: Number(matchRound.bracket_match),
+        rounds: roundLinks.length,
+    };
+}
+
+type PendingResult = {
+    matchId: string;
+    players: Competitor[];
+    action: string;
+    excludeUser?: string;
+};
+
+function legacyPlayers(match: Row): Competitor[] {
+    return assignedPlayers(String(match.first_id ?? ""), String(match.second_id ?? "")).map(player => {
+        const score = player.slot === 1 ? match.first_score : match.second_score;
+        const result = match.is_bye || match.state === "bye" ? "bye"
+            : match.winner_id === player.id ? "winner"
+            : match.winner_id ? (match.is_walkover ? "walkover" : match.is_forfeit ? "forfeiter" : "loser")
+            : undefined;
+        return {
+            ...player, ...(result ? { result } : {}),
+            ...(typeof score === "number" ? { score } : {}),
+        };
+    });
+}
+
+// The legacy marker is removed last so a partial conversion can resume under the same guard.
+async function migrateCompetition(elim: Row, renewGuard: () => Promise<void>) {
+    if (elim.competition_type === undefined) return;
     const id = elim.rowKey;
-    const round = Number(match.bracket_round);
-    const position = Number(match.bracket_match);
-    await projectMatch(match, String(match.first_id), String(match.second_id), Number(elim.rounds));
-    if (round === elim.rounds) {
-        await client.updateEntity({
-            partitionKey: "comp", rowKey: id, state: "complete",
-            champion_id: String(match.winner_id),
-        }, "Merge");
+    if (elim.state !== "drawing") {
+        for (const roundLink of await links(id, "round")) {
+            await renewGuard();
+            const round = await get("round", roundLink.rowKey);
+            if (!round) throw new Error("Competition round is missing");
+            if (round.bracket_round !== undefined) {
+                await doUpsertRelation(id, round.rowKey, { bracket_round: round.bracket_round });
+                await doUpsertEntity("round", round.rowKey, { name: round.name });
+            }
+            for (const matchLink of await links(round.rowKey, "match")) {
+                await renewGuard();
+                const match = await get("match", matchLink.rowKey);
+                if (!match) throw new Error("Competition match is missing");
+                if (match.bracket_match === undefined) continue;
+                const players = legacyPlayers(match);
+                if (match.result_pending === true) {
+                    const pending: PendingResult = {
+                        matchId: match.rowKey, players, action: String(match.result_action),
+                        excludeUser: String(match.result_exclude_user ?? "") || undefined,
+                    };
+                    await updateCompetition(id, { pending_result: JSON.stringify(pending) }, []);
+                }
+                await doUpsertRelation(round.rowKey, match.rowKey, { bracket_match: match.bracket_match });
+                await writeCompetitors(match.rowKey, players);
+                await doUpsertEntity("match", match.rowKey, { name: match.name, state: match.state });
+            }
+        }
+    }
+    await updateCompetition(id, {
+        comp_system: elim.comp_system ?? elim.competition_type,
+        format: elim.format ?? "singles",
+        match_format: elim.match_format ?? "super_set",
+    }, ["competition_type", "rounds", "champion_id", "pending_match_id",
+        ...(elim.state === "drawing" ? [] : ["draw_version"])]);
+}
+
+async function repairResult(id: string, pending: PendingResult, context: InvocationContext) {
+    const { matchId, players } = pending;
+    const { round, position, rounds } = await matchPlacement(id, matchId);
+    await projectMatch(matchId, elimRoundName(round, rounds), players);
+    if (round === rounds) {
+        await updateCompetition(id, { state: "complete" }, []);
     } else {
         const nextPosition = Math.ceil(position / 2);
-        const next = await get("match", elimBracketId("match", id, round + 1, nextPosition));
-        if (!next) throw new Error("Next match is missing");
-        const feeders = await Promise.all(
-            [2 * nextPosition - 1, 2 * nextPosition].map(feeder =>
-                get("match", elimBracketId("match", id, round, feeder)))
-        );
-        await projectMatch(next, String(feeders[0]?.winner_id ?? ""), String(feeders[1]?.winner_id ?? ""), Number(elim.rounds));
+        const nextId = elimBracketId("match", id, round + 1, nextPosition);
+        const feeders = await Promise.all([2 * nextPosition - 1, 2 * nextPosition].map(async feeder =>
+            winnerOf(competitors(await users(elimBracketId("match", id, round, feeder))))
+        ));
+        await projectMatch(nextId, elimRoundName(round + 1, rounds), assignedPlayers(feeders[0], feeders[1]));
     }
+    await doGuidsToPublic();
+    const match = await get("match", matchId);
+    const notice = pending.action === "forfeit" ? "The match was forfeited"
+        : pending.action === "walkover" ? "A walkover was recorded"
+        : pending.action === "correct" ? "The match score was corrected"
+        : "Match scores have been submitted";
+    await notify(context, players.map(player => player.id), pending.excludeUser,
+        String(match?.name), notice, `match/${matchId}`, matchId);
+    await updateCompetition(id, {}, ["pending_result"]);
 }
 
 async function score(
@@ -190,86 +301,61 @@ async function score(
     if (!["active", "complete"].includes(String(elim.state)))
         return reply(409, "The draw has to be ready before scoring");
     if (!matchId.startsWith("match_") || !(await get(id, matchId)))
-        return reply(404, "competition match not found");
+        return reply(404, "Competition match not found");
     const match = await get("match", matchId);
-    if (!match) return reply(404, "competition match not found");
-    const first = String(match.first_id ?? "");
-    const second = String(match.second_id ?? "");
+    if (!match) return reply(404, "Competition match not found");
+    const players = competitors(await users(matchId)).sort((a, b) => a.slot - b.slot);
+    const [first, second] = players;
+    const playing = players.some(player => player.id === caller);
     const forfeit = action === "forfeit";
     if (action === "correct" && !admin)
         return reply(403, "Only a competition admin can correct scores");
-    if (forfeit && (!first || !second || (caller !== first && caller !== second)))
+    if (forfeit && !playing)
         return reply(403, "Only a player in this match can forfeit");
-    if (!admin && caller !== first && caller !== second)
+    if (!admin && !playing)
         return reply(403, "Only a player or a competition admin can submit the score");
-    if (match.is_bye || !first || !second)
+    if (match.state === "bye" || !first || !second)
         return reply(409, "This match is not ready for a result");
-    if (data.first_id !== first || data.second_id !== second)
+    if (data.first_id !== first.id || data.second_id !== second.id)
         return reply(409, "The players changed. Refresh the match and try again");
 
-    const round = Number(match.bracket_round);
-    const position = Number(match.bracket_match);
-    const next = round < Number(elim.rounds)
-        ? await get("match", elimBracketId("match", id, round + 1, Math.ceil(position / 2)))
-        : undefined;
     const a = data.first_score;
     const b = data.second_score;
     if (!forfeit && (typeof a !== "number" || typeof b !== "number" || !Number.isInteger(a)
         || !Number.isInteger(b) || a < 0 || a > 8 || b < 0 || b > 8 || a === b))
         return reply(400, "Enter two different whole-number scores from 0 to 8");
-    const winner = forfeit ? (caller === first ? second : first) : Number(a) > Number(b) ? first : second;
-    const attributes = {
-        winner_id: winner, is_walkover: false, is_forfeit: forfeit,
-        first_score: forfeit ? "" : Number(a), second_score: forfeit ? "" : Number(b),
-    };
-    const same = Object.entries(attributes).every(([key, value]) => (match[key] ?? false) === value);
-    if (same) {
+    const winner = forfeit ? (caller === first.id ? second.id : first.id)
+        : Number(a) > Number(b) ? first.id : second.id;
+    const updated = players.map(player => ({
+        id: player.id, slot: player.slot,
+        result: player.id === winner ? "winner" : forfeit ? "forfeiter" : "loser",
+        ...(forfeit ? {} : { score: Number(player.slot === 1 ? a : b) }),
+    }));
+    if (updated.every((player, index) =>
+        player.result === players[index].result && player.score === players[index].score
+    )) {
         await doGuidsToPublic();
         return reply(200, "Result already recorded", matchId);
     }
-    if (action === "correct" && !match.winner_id)
+    if (action === "correct" && match.state !== "complete")
         return reply(409, "Enter the initial score first");
-    if (match.winner_id && action !== "correct")
+    if (match.state === "complete" && action !== "correct")
         return reply(409, "This match already has a result");
-    if (next?.winner_id)
-        return reply(409, "The next match already has a recorded result");
-
-    // Record the match to repair before writing the authoritative result.
-    // If the result write never happened, recovery simply clears the pointer.
-    await client.updateEntity({
-        partitionKey: "comp", rowKey: id, pending_match_id: matchId,
-    }, "Merge");
-    await client.updateEntity({
-        partitionKey: "match", rowKey: matchId, ...attributes,
-        result_pending: true, result_exclude_user: admin && !forfeit ? "" : caller,
-        result_action: action,
-    }, "Merge");
-    await repairResult(elim, matchId, context);
-    return reply(200, "Result recorded", matchId);
-}
-
-async function repairResult(elim: Row, matchId: string, context: InvocationContext) {
-    const match = await get("match", matchId);
-    if (match?.result_pending === true) {
-        await finishResult(elim, match);
-        await doGuidsToPublic();
-        const notice = match.result_action === "forfeit" ? "The match was forfeited"
-            : match.result_action === "walkover" ? "A walkover was recorded"
-            : match.result_action === "correct" ? "The match score was corrected"
-            : "Match scores have been submitted";
-        await notify(
-            context, [String(match.first_id), String(match.second_id)],
-            String(match.result_exclude_user ?? "") || undefined,
-            String(match.name), notice, `match/${matchId}`, matchId,
-        );
-        await client.updateEntity({
-            partitionKey: "match", rowKey: matchId, result_pending: false,
-            result_exclude_user: "", result_action: "",
-        }, "Merge");
+    const { round, position, rounds } = await matchPlacement(id, matchId);
+    if (round < rounds) {
+        const next = await get("match", elimBracketId("match", id, round + 1, Math.ceil(position / 2)));
+        if (next?.state === "complete")
+            return reply(409, "The next match already has a recorded result");
     }
-    await client.updateEntity({
-        partitionKey: "comp", rowKey: elim.rowKey, pending_match_id: "",
-    }, "Merge");
+
+    // Persist the intended result before changing any relations. A retry can
+    // replay the projection, including the inverse links and the next match.
+    const pending: PendingResult = {
+        matchId, players: updated, action, excludeUser: admin && !forfeit ? undefined : caller,
+    };
+    await updateCompetition(id, { pending_result: JSON.stringify(pending) }, []);
+    await repairResult(id, pending, context);
+    return reply(200, "Result recorded", matchId);
 }
 
 export async function compAction(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
@@ -301,7 +387,7 @@ export async function compAction(request: HttpRequest, context: InvocationContex
     if (!id?.startsWith("comp_")) return reply(400, "comp_id is required");
     const elim = await get("comp", id);
     if (!elim) return reply(404, "Competition not found");
-    if (elim.competition_type !== "elimination")
+    if ((elim.comp_system ?? elim.competition_type) !== "elimination")
         return reply(409, "This action requires an elimination competition");
     if (elim.state === "pending") return reply(409, "The competition is awaiting club approval");
     const leaseLength = 300_000;
@@ -337,14 +423,20 @@ export async function compAction(request: HttpRequest, context: InvocationContex
         if (["score", "correct", "forfeit"].includes(action)) {
             if (!admin && mine?.is_participant !== true)
                 return reply(403, "Only an entrant or a competition admin can submit scores");
-            if (typeof elim.pending_match_id === "string" && elim.pending_match_id)
-                await repairResult(elim, elim.pending_match_id, context);
-            return await score(elim, String(data.match_id ?? ""), caller, admin, action, data, context);
+            await migrateCompetition(elim, renewGuard);
+            const current = (await get("comp", id))!;
+            if (typeof current.pending_result === "string")
+                await repairResult(id, JSON.parse(current.pending_result), context);
+            return await score((await get("comp", id))!, String(data.match_id ?? ""), caller, admin, action, data, context);
         }
         if (!["join", "leave"].includes(action) && !admin)
             return reply(403, "Only a competition admin can do this");
+        await migrateCompetition(elim, renewGuard);
         if (action === "draw") {
             if (elim.state === "active" || elim.state === "complete") {
+                const current = await get("comp", id);
+                if (typeof current?.pending_result === "string")
+                    await repairResult(id, JSON.parse(current.pending_result), context);
                 await doGuidsToPublic();
                 return reply(200, "Draw already started", id);
             }
@@ -420,9 +512,10 @@ export async function compAction(request: HttpRequest, context: InvocationContex
     } finally {
         const current = await get("comp", id);
         if (current?.operation_guard === guard) {
+            const { operation_guard, ...attributes } = props(current);
             await client.updateEntity({
-                partitionKey: "comp", rowKey: id, operation_guard: 0,
-            }, "Merge", { etag: current.etag });
+                partitionKey: "comp", rowKey: id, ...attributes,
+            }, "Replace", { etag: current.etag });
         }
     }
 }
