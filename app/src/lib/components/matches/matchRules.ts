@@ -1,3 +1,4 @@
+import { competitionSlots } from '../competitions/competitionBracket.ts';
 import {
 	type GuidRow,
 	relationsOf,
@@ -6,8 +7,9 @@ import {
 } from '#lib/stores/guids.ts';
 
 export function canForfeitCompetitionMatch(match: GuidRow, callerId: string | null) {
-	return match.state === 'active' && !!callerId && !!match.first_id && !!match.second_id &&
-		(callerId === match.first_id || callerId === match.second_id);
+	const [first, second] = competitionSlots(match);
+	return match.state === 'active' && !!first && !!second &&
+		(callerId === first.rk || callerId === second.rk);
 }
 
 // Recorded scores are a single number or comma-separated games per set, eg "6,4"
@@ -28,7 +30,7 @@ export function matchSummary(matchId: string): string {
 	const sets = gamesOf(winner)
 		.map((games, i) => `${games}-${theirs[i] ?? 0}`)
 		.join(' ');
-	if (entityOf(matchId)?.is_walkover) return `${nameOf(winner.rk)} wins by walkover`;
+	if (loser?.result === 'walkover' || entityOf(matchId)?.is_walkover) return `${nameOf(winner.rk)} wins by walkover`;
 	const how = loser?.result === 'forfeiter' ? 'wins by forfeit' : 'wins';
 	return `${nameOf(winner.rk)} ${how}${sets ? ` ${sets}` : ''}`;
 }

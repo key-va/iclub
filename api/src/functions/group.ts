@@ -105,7 +105,7 @@ export async function groupAction(
         return reply(404, "Unknown group action");
 
     const isCompetitionCreate = type === "comp" && action === "create";
-    if (isCompetitionCreate && data.competition_type !== "elimination")
+    if (isCompetitionCreate && (data.comp_system ?? data.competition_type) !== "elimination")
         return reply(400, "Choose a supported competition type");
 
     if (isCompetitionCreate && (
@@ -116,7 +116,7 @@ export async function groupAction(
     let image: Buffer | undefined;
     let name: string | undefined;
     if (action === "create" || action === "update") {
-        const fields = isCompetitionCreate ? ["name", "image", "competition_type", "format", "match_format"] : ["name", "image"];
+        const fields = isCompetitionCreate ? ["name", "image", "comp_system", "competition_type", "format", "match_format"] : ["name", "image"];
         if (Object.keys(data).some((key) => !fields.includes(key)))
             return reply(400, isCompetitionCreate ? "Unexpected competition fields" : "Only name and image can be supplied");
         if (action === "create" || data.name !== undefined) {
@@ -189,7 +189,7 @@ export async function groupAction(
         });
         await doUpsertEntity(type, id, {
             name, state: "pending",
-            ...(isCompetitionCreate ? { competition_type: data.competition_type, format: "singles", match_format: "super_set" } : {}),
+            ...(isCompetitionCreate ? { comp_system: data.comp_system ?? data.competition_type, format: "singles", match_format: "super_set" } : {}),
         });
         await doGuidsToPublic();
         const admins = (await relations(club.clubId))
