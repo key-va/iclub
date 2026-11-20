@@ -67,15 +67,16 @@
 	});
 </script>
 
+{#snippet rankDetail()}rank {rank}{/snippet}
+
 <div class="group">
 	<RouteLink
 		href={hrefOf(ladder.rk)}
 		title={nameOf(ladder.rk)}
 		description={stateText}
 		image={imageOf(ladder.rk)}
-	>
-		{#snippet detail()}{Number.isFinite(rank) ? rank : 0}{/snippet}
-	</RouteLink>
+		detail={Number.isFinite(rank) && rank > 0 ? rankDetail : undefined}
+	/>
 	{#if canAccept}
 		{#if ladder.format === 'doubles'}<div class="row right">
 				<button class="grey" disabled><p>pending pair</p></button>

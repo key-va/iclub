@@ -102,7 +102,7 @@ export async function messageCreate(request: HttpRequest, context: InvocationCon
     })) {
         if (isRound && relation.rowKey.startsWith("team_")) teams.push(relation.rowKey);
         if (isGroup && relation.rowKey.startsWith("user_") && relation.is_participant === true) players.push(relation.rowKey);
-        if (!isRound && !isGroup && (relation.role === "challenger" || relation.role === "defender")) players.push(...await doCompetitorUsers(guidsClient, relation.rowKey as string));
+        if (!isRound && !isGroup && (relation.role === "challenger" || relation.role === "defender" || relation.role === "competitor")) players.push(...await doCompetitorUsers(guidsClient, relation.rowKey as string));
     }
     if (isRound) {
         if (teams.length !== 1) {

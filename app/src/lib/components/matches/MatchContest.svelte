@@ -37,10 +37,10 @@
 		)
 	);
 	const challenger = $derived(
-		players.find((player) => player.role === 'challenger')
+		players.find((player) => elim ? player.rk === match.first_id : player.role === 'challenger')
 	);
 	const defender = $derived(
-		players.find((player) => player.role === 'defender')
+		players.find((player) => elim ? player.rk === match.second_id : player.role === 'defender')
 	);
 
 	const isLadderAdmin = $derived(
@@ -63,7 +63,8 @@
 		matchUsers.some(
 			(user) =>
 				user.rk === caller_id &&
-				['challenger', 'defender', 'participant'].includes(String(user.role))
+				(elim ? user.rk === match.first_id || user.rk === match.second_id
+					: ['challenger', 'defender', 'participant'].includes(String(user.role)))
 		)
 	);
 	const showScores = $derived(
@@ -194,13 +195,13 @@
 			left={{
 				href: hrefOf(challenger.rk),
 				title: nameOf(challenger.rk),
-				description: roleText(challenger, 'challenger'),
+				description: roleText(challenger, elim ? 'competitor' : 'challenger'),
 				image: imageOf(ladder?.format === 'doubles' ? ladder.rk : challenger.rk)
 			}}
 			right={{
 				href: hrefOf(defender.rk),
 				title: nameOf(defender.rk),
-				description: roleText(defender, 'defender'),
+				description: roleText(defender, elim ? 'competitor' : 'defender'),
 				image: imageOf(ladder?.format === 'doubles' ? ladder.rk : defender.rk)
 			}}
 		/>

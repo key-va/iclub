@@ -450,6 +450,8 @@ async function openElim() {
     const id = create.jsonBody.subject;
     assert.equal(get("comp", id).state, "pending");
     assert.equal(get("comp", id).competition_type, "elimination");
+    assert.equal(get("comp", id).format, "singles");
+    assert.equal(get("comp", id).match_format, "super_set");
     assert.match(id, /^comp_/);
     assert.equal((await elimCall(id, "activate", elimAdmin)).status, 403);
     assert.equal((await elimCall(id, "activate", clubAdmin)).status, 200);
@@ -588,6 +590,12 @@ test("Competition creation requires a supported type", async () => {
         );
         assert.equal(response.status, 400);
     }
+    for (const settings of [{ format: "doubles" }, { match_format: "best_of_three" }]) {
+        const response = await groupAction(request(elimAdmin, {
+            name: "Club event", competition_type: "elimination", ...settings,
+        }), context, "create", "comp");
+        assert.equal(response.status, 400);
+    }
     assert.equal([...rows.values()].some(row => row.partitionKey === "comp"), false);
 });
 
@@ -602,6 +610,10 @@ test("Competition round names, pending slots and player forfeits follow the draw
     const secondMatch = elimBracketId("match", id, 1, 2);
     const final = elimBracketId("match", id, 2, 1);
     const first = get("match", firstMatch);
+    for (const player of [first.first_id, first.second_id]) {
+        assert.equal(get(firstMatch, player).role, "competitor");
+        assert.equal(get(player, firstMatch).role, "competitor");
+    }
     const second = get("match", secondMatch);
     seed("user", first.first_id, { name: "Taylor Smith" });
     seed("user", first.second_id, { name: "Jordan Jones" });
