@@ -1,5 +1,7 @@
 # AGENTS.md - Intra Club Scaffold Development Guide
 
+Use `next` as the default target for merging iClub code changes unless the user specifies another branch.
+
 This repository is a reusable scaffold/template for future apps.
 
 The app implements ladders, doubles pairs, matches, teams, rounds and groups on a shared implementation baseline:
