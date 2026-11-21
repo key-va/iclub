@@ -14,6 +14,59 @@ const html = (name) =>
 const name = "Hurlingham Park Lobs";
 const originalFetch = global.fetch;
 after(() => (global.fetch = originalFetch));
+test("published finals matchups use calendar dates and accept missing results or scores", () => {
+    const calendar = [
+        { name: "Semi Final", date: "2026-11-24" },
+        { name: "Grand Final", date: "2026-12-01" },
+    ];
+    const results = `<tr><td colspan="9"><b>Section 1</b><br><b>Grand Final</b></td></tr>
+        <tr><th>Home Team</th><th>Away Team</th></tr>
+        <tr><td>Lobs</td><td>8</td><td>5</td><td>36</td><td></td><td>2</td><td>1</td><td>20</td><td>Battlers</td></tr>
+        <tr><td colspan="9"><b>Section 1</b><br><b>Semi Final</b></td></tr>
+        <tr><td>Gunslingers</td><td colspan="7">Missing Result</td><td>Lobs</td></tr>
+        <tr><td>Other Club</td><td colspan="7">Missing Result</td><td>Royals</td></tr>`;
+    const [final, semi] = parseResults(results, "Lobs", [], calendar);
+    assert.equal(final.stage, "Grand Final");
+    assert.equal(final.status, "completed");
+    assert.equal(final.points_for, 8);
+    assert.equal(semi.stage, "Semi Final");
+    assert.equal(semi.date, "2026-11-24");
+    assert.equal(semi.opponent, "Gunslingers");
+    assert.equal(semi.home_away, "away");
+    assert.equal(semi.status, "scheduled");
+});
+test("Semi Final elimination requires two published matchups with four distinct teams", () => {
+    const calendar = [{ name: "Semi Final", date: "2026-11-24" }];
+    const standings = ["Lobs", "Aces", "Royals", "Battlers", "Gunslingers"].map((name) => ({ name }));
+    const firstMatch = `<tr><td>Section 1 Semi Final</td></tr>
+        <tr><th>Home Team</th><th>Away Team</th></tr>
+        <tr><td>Aces</td><td>Missing Result</td><td>Royals</td></tr>`;
+    const secondMatch = `<tr><td>Battlers</td><td>Missing Result</td><td>Gunslingers</td></tr>`;
+    assert.deepEqual(parseResults(firstMatch, "Lobs", [], calendar, standings), []);
+    assert.deepEqual(
+        parseResults(firstMatch + secondMatch.replace("Gunslingers", "Royals"), "Lobs", [], calendar, standings),
+        [],
+    );
+    const draw = firstMatch + secondMatch;
+    assert.equal(parseResults(draw, "Battlers", [], calendar, standings)[0].status, "scheduled");
+    assert.deepEqual(parseResults(draw, "Lobs", [], calendar, standings), [{
+        stage: "Semi Final", date: "2026-11-24", opponent: "",
+        home_away: "", venue: "", status: "eliminated",
+    }]);
+});
+test("a published Grand Final excludes a team only once both finalists are known", () => {
+    const calendar = [{ name: "Grand Final", date: "2026-12-01" }];
+    const standings = ["Lobs", "Battlers", "Royals"].map((name) => ({ name }));
+    const results = `<tr><td colspan="9">Section 1 Grand Final</td></tr>
+        <tr><th>Home Team</th><th>Away Team</th></tr>
+        <tr><td>Battlers</td><td colspan="7">Missing Result</td><td>Royals</td></tr>`;
+    assert.equal(parseResults(results, "Lobs", [], calendar, standings)[0].status, "eliminated");
+    assert.equal(parseResults(results, "Royals", [], calendar, standings)[0].status, "scheduled");
+    assert.deepEqual(
+        parseResults(results.replace("Royals</td>", "Winner SF2</td>"), "Lobs", [], calendar, standings),
+        [],
+    );
+});
 test("live-captured TROLS tables yield independent numbered fixtures, venues, byes, calendar, results and standings", () => {
     const parsed = parseFixture(html("fixture"), name);
     assert.equal(parsed.rounds.length, 14);

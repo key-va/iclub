@@ -128,7 +128,7 @@ export function outstandingTeamRounds(userId: string, teamId: string) {
 		.filter(
 			(row) =>
 				['pending', 'selected'].includes(String(row.role)) &&
-				viewOf(row).state !== 'complete'
+				!['complete', 'eliminated'].includes(String(viewOf(row).state))
 		)
 		.sort(
 			(a, b) =>

@@ -17,7 +17,7 @@
 		isTeamAdmin(relationsOf(team.rk).find((row) => row.rk === $local.caller_id))
 	);
 	const selectable = $derived(
-		round.state !== 'complete' &&
+		!['complete', 'eliminated'].includes(String(round.state)) &&
 			admin &&
 			['available', 'selected'].includes(String(user.role))
 	);

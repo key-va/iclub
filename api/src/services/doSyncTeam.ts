@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { DefaultAzureCredential } from "@azure/identity";
 import { TableClient, odata } from "@azure/data-tables";
 import { resourceName, resourceSuffix } from "../stores/resourceNames";
@@ -12,6 +13,7 @@ import {
     teamAttributes,
     roundRecord,
     roundCondition,
+    type TeamRoundImport,
 } from "./competitionData";
 export { teamMapping } from "./competitionData";
 import {
@@ -25,15 +27,21 @@ const client = new TableClient(
     "guids",
     new DefaultAzureCredential(),
 );
-export const externalRoundKey = (mapping: TeamMapping, number: number) =>
+export const externalRoundKey = (mapping: TeamMapping, round: number | string) =>
     JSON.stringify([
         mapping.provider,
         mapping.association,
         mapping.season,
         mapping.section,
         mapping.external_team,
-        number,
+        round,
     ]);
+
+function finalsRoundId(teamId: string, key: string) {
+    const timestamp = teamId.slice("team_".length, "team_".length + 19);
+    const hash = createHash("sha256").update(JSON.stringify([teamId, key])).digest("hex");
+    return `round_${timestamp}_${hash.slice(0, 12)}`;
+}
 
 // Repair missing links as well as populating new members/rounds. Existing roles are never replaced.
 export async function doEnsureRoundUsers(teamId: string) {
@@ -195,9 +203,33 @@ export async function doSyncTeam(
             )
         )
             throw Error("Invalid competition round");
-        const old = existing.get(externalRoundKey(mapping, round.number));
+    }
+    const finalsDates = new Map<string, string>();
+    for (const { name, date } of source.calendar) {
         if (
-            old &&
+            (name === "Semi Final" || name === "Grand Final") &&
+            /^\d{4}-\d{2}-\d{2}$/.test(date)
+        )
+            finalsDates.set(name, date);
+    }
+    const finals = new Map((source.finals ?? []).map((round) => [round.stage, round]));
+    const rounds: TeamRoundImport[] = [
+        ...source.rounds,
+        ...Array.from(finalsDates, ([stage, date]) => finals.get(stage) ?? ({
+            stage,
+            date,
+            opponent: "",
+            home_away: "",
+            venue: "",
+            status: "scheduled",
+        })),
+    ];
+    const keyOf = (round: TeamRoundImport) =>
+        externalRoundKey(mapping, "stage" in round ? round.stage : round.number);
+    for (const round of rounds) {
+        const old = existing.get(keyOf(round));
+        if (
+            old && round.opponent &&
             round.opponent !== (old.ext_opponent ?? old.opponent) &&
             roundCondition(old, roundRelations.get(old.rowKey)?.result) ===
                 "completed"
@@ -207,10 +239,13 @@ export async function doSyncTeam(
     await migrateTeamRelations(graph);
     let created = 0,
         updated = 0;
-    for (const round of source.rounds) {
-        const external_key = externalRoundKey(mapping, round.number);
+    for (const round of rounds) {
+        const external_key = keyOf(round);
         const old = existing.get(external_key);
-        const id = old?.rowKey ?? doNewGuid("round");
+        // A retry can reuse a finals round even if neither ownership link was written.
+        const id = old?.rowKey ?? ("stage" in round
+            ? finalsRoundId(teamId, external_key)
+            : doNewGuid("round"));
         const {
             entity: next,
             result,
@@ -258,9 +293,7 @@ export async function doSyncTeam(
     }
     // Retain rounds omitted from a later source response, but migrate their old
     // ownership attribute/name too. Their last known official fields stay intact.
-    const importedKeys = new Set(
-        source.rounds.map((round) => externalRoundKey(mapping, round.number)),
-    );
+    const importedKeys = new Set(rounds.map(keyOf));
     for (const [key, old] of existing) {
         if (importedKeys.has(key)) continue;
         const rowKey = old.rowKey;
@@ -319,5 +352,5 @@ export async function doSyncTeam(
         last_synced: new Date().toISOString(),
     });
     await doGuidsToPublic();
-    return { created, updated, rounds: source.rounds.length };
+    return { created, updated, rounds: rounds.length };
 }

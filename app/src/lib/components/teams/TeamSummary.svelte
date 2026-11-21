@@ -19,7 +19,7 @@
 		jsonArray,
 		roundView
 	} from '#lib/components/rounds/roundRules.ts';
-	import ActionQuick from '#lib/components/ActionQuick.svelte';
+	import ActionConfirmation from '#lib/components/ActionConfirmation.svelte';
 	import { syncTeam } from '#lib/stores/remote.ts';
 
 	import RouteLink from '#lib/components/routeLink.svelte';
@@ -39,7 +39,23 @@
 		relationsOf(id)
 			.filter((row) => typeOf(row.rk) === 'round' && entityOf(row.rk))
 			.map((round) => roundView(entityOf(round.rk)!, round))
-			.sort((a, b) => Number(a.number) - Number(b.number))
+			.sort(
+				(a, b) =>
+					Number(a.number ?? Infinity) - Number(b.number ?? Infinity) ||
+					String(a.date).localeCompare(String(b.date))
+			)
+	);
+	const futureRounds = $derived(rounds.filter((round) => !round.result));
+	const finalsDates = $derived(
+		jsonArray(team.ext_calendar)
+			.filter(
+				(entry): entry is { name: string; date: string } =>
+					(entry?.name === 'Semi Final' || entry?.name === 'Grand Final') &&
+					!rounds.some((round) => round.ext_stage === entry.name) &&
+					typeof entry.date === 'string' &&
+					/^\d{4}-\d{2}-\d{2}$/.test(entry.date)
+			)
+			.sort((a, b) => a.date.localeCompare(b.date))
 	);
 	const members = $derived(users.filter((u) => isTeamMember(u)));
 	const pending = $derived(users.filter((u) => u.state === 'pending'));
@@ -69,10 +85,18 @@
 		{/if}
 		<HiddenOptions
 			title="Future Rounds"
-			badge={rounds.filter((r) => !r.result).length}
+			badge={futureRounds.length + finalsDates.length}
 		></HiddenOptions>
-		{#each rounds.filter((r) => !r.result) as round (round.rk)}
-			<TeamRound {team} {round} />
+		{#each futureRounds as round (round.rk)}
+			{#if round.state === 'eliminated'}
+				<HiddenOptions title={round.name} description={`eliminated · ${round.date}`} />
+			{:else}
+				<TeamRound {team} {round} />
+			{/if}
+		{/each}
+
+		{#each finalsDates as final}
+			<HiddenOptions title={final.name} description={`pending · ${final.date}`} />
 		{/each}
 
 		{#if standings.length}
@@ -85,21 +109,24 @@
 				></HiddenOptions>
 			{/each}
 		{/if}
-		{#if isTeamMember(mine)}
-			<ActionQuick
-				name="refresh data"
-				action={() => syncTeam(id)}
-				onsuccess={(result) => {
-					syncMessage = result.message;
-				}}
-			/>
-		{/if}
-		{#if syncMessage}
-			<div class="row right">
-				<p role="status">{syncMessage}</p>
-			</div>
-		{/if}
 	</div>
+
+	{#if isTeamMember(mine)}
+		<ActionConfirmation
+			name="refresh data"
+			message="Refresh the team’s schedules, results and standings?"
+			navigate={false}
+			action={() => syncTeam(id)}
+			onsuccess={(result) => {
+				syncMessage = result.message;
+			}}
+		/>
+	{/if}
+	{#if syncMessage}
+		<div class="row right">
+			<p role="status">{syncMessage}</p>
+		</div>
+	{/if}
 
 	<HiddenOptions title="Members">
 		{#each members as user (user.rk)}

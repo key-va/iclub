@@ -1,6 +1,8 @@
 import {
     CompetitionOption,
     CompetitionProvider,
+    CompetitionSnapshot,
+    FinalsRound,
     OfficialRound,
     Standing,
     TeamMapping,
@@ -232,30 +234,55 @@ export function parseResults(
     html: string,
     teamName: string,
     rounds: OfficialRound[],
+    calendar: CompetitionSnapshot["calendar"] = [],
+    standings: Standing[] = [],
 ) {
     if (!/Home Team/.test(html) || !/Away Team/.test(html))
         throw Error("TROLS results table is missing");
     let number: number | undefined;
-    const seen = new Set<number>();
+    let stage: string | undefined;
+    const finals: FinalsRound[] = [];
+    const finalsTeams: Record<string, string[]> = {
+        "Semi Final": [],
+        "Grand Final": [],
+    };
+    const seen = new Set<number | string>();
     for (const row of rows(html)) {
-        const heading = text(row.html).match(/Rd\.\s*(\d+)/);
-        if (heading) {
-            number = Number(heading[1]);
+        const c = row.cells;
+        if (c.length === 1) {
+            const heading = c[0].match(/Rd\.\s*(\d+)$/);
+            const finalsHeading = c[0].match(/\b(Semi[ -]?Final|Grand[ -]?Final|Final)$/i);
+            if (heading || finalsHeading) {
+                number = heading ? Number(heading[1]) : undefined;
+                stage = finalsHeading
+                    ? (/^semi/i.test(finalsHeading[1]) ? "Semi Final" : "Grand Final")
+                    : undefined;
+            }
             continue;
         }
-        const c = row.cells;
+        if (stage && (c.length === 3 || c.length === 9) &&
+            c[0] !== "Home Team" && c[c.length - 1] !== "Away Team")
+            finalsTeams[stage].push(c[0], c[c.length - 1]);
         if (
-            !number ||
+            (!number && !stage) ||
             c.length < 3 ||
             (c[0] !== teamName && c[c.length - 1] !== teamName)
         )
             continue;
-        const round = rounds.find((r) => r.number === number);
-        if (!round || seen.has(number))
-            throw Error("Unexpected TROLS result round");
-        seen.add(number);
         const home = c[0] === teamName;
         const opponent = home ? c[c.length - 1] : c[0];
+        const direction = home ? "home" : "away";
+        const date = calendar.find((entry) => entry.name === stage)?.date;
+        const identity = stage ?? number!;
+        if (stage && (!date || !opponent)) continue;
+        const matchup: FinalsRound | undefined = stage && date
+            ? { stage, date, opponent, home_away: direction, venue: "", status: "scheduled" }
+            : undefined;
+        const round = matchup ?? rounds.find((r) => r.number === number);
+        if (!round || seen.has(identity))
+            throw Error("Unexpected TROLS result round");
+        seen.add(identity);
+        if (matchup) finals.push(matchup);
         if (
             round.opponent !== opponent ||
             (round.status !== "bye" &&
@@ -270,7 +297,8 @@ export function parseResults(
         if (c.length === 3) {
             if (/wash\s*out/i.test(c[1])) round.status = "washout";
             else if (/postpon/i.test(c[1])) round.status = "postponed";
-            else if (c[1]) throw Error("Unknown TROLS result status");
+            else if (c[1] && !(stage && /^missing result$/i.test(c[1])))
+                throw Error("Unknown TROLS result status");
             if (c[1]) round.source_status = c[1];
             continue;
         }
@@ -292,6 +320,23 @@ export function parseResults(
         )?.[1];
         if (match) round.external_match = match;
     }
+    // Only a complete draw with distinct, recognised teams can establish elimination.
+    const sectionTeams = new Set(standings.map(({ name }) => name));
+    for (const [stage, expectedTeams] of [["Semi Final", 4], ["Grand Final", 2]] as const) {
+        const date = calendar.find(({ name }) => name === stage)?.date;
+        const draw = finalsTeams[stage];
+        if (
+            date && draw.length === expectedTeams &&
+            new Set(draw).size === expectedTeams &&
+            !draw.includes(teamName) && draw.every((name) => sectionTeams.has(name))
+        ) {
+            finals.push({
+                stage, date, opponent: "",
+                home_away: "", venue: "", status: "eliminated",
+            });
+        }
+    }
+    return finals;
 }
 export function parseStandings(html: string): Standing[] {
     if (!/>Won</i.test(html) || !/>Pts</i.test(html))
@@ -419,11 +464,11 @@ export const trols: CompetitionProvider = {
         selected(fixture, "team", mapping.external_team);
         const team = chosen(fixture, "team", mapping.external_team);
         const parsed = parseFixture(fixture, team.name);
-        parseResults(results, team.name, parsed.rounds);
         const standings = parseStandings(ladder);
+        const finals = parseResults(results, team.name, parsed.rounds, parsed.calendar, standings);
         if (!standings.some((s) => s.name === team.name))
             throw Error("Team is missing from TROLS standings");
-        return { ...parsed, standings };
+        return { ...parsed, finals, standings };
     },
 };
 export function providerFor(provider: string): CompetitionProvider {

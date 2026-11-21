@@ -27,6 +27,10 @@ export interface OfficialRound {
     games_for?: number;
     games_against?: number;
 }
+export type FinalsRound = Omit<OfficialRound, "number"> & {
+    stage: string;
+    number?: never;
+};
 export interface Standing {
     name: string;
     rank: number;
@@ -36,6 +40,7 @@ export interface Standing {
 }
 export interface CompetitionSnapshot {
     rounds: OfficialRound[];
+    finals?: FinalsRound[];
     standings: Standing[];
     calendar: { date: string; name: string }[];
 }

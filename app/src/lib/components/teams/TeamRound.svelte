@@ -23,6 +23,12 @@
 			? relationsOf($local.caller_id).find((row) => row.rk === round.rk)?.role
 			: undefined
 	);
+	const roleLabel = $derived(role == null ? 'no status' : String(role));
+	const description = $derived(
+		round.ext_stage && round.is_home === undefined
+			? `${roleLabel} · ${round.date}`
+			: `${roleLabel} • ${round.is_home ? 'home' : 'away'} • ${round.date}`
+	);
 	const options = $derived(
 		isTeamMember(mine) && round.state !== 'complete'
 			? availabilityOptions(role)
@@ -47,10 +53,8 @@
 	<RouteLinkHiddenAction
 		href={hrefOf(round.rk)}
 		title={round.name}
-		description={role == null ? 'no status' : String(role)}
+		{description}
 		colour={roundRoleColour[String(role)] ?? 'grey'}
 		children={options.length ? actions : undefined}
-	>
-		{#snippet detail()}{round.is_home ? 'home' : 'away'}{' • '}{round.date}{/snippet}
-	</RouteLinkHiddenAction>
+	/>
 {/if}

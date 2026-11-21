@@ -1,4 +1,4 @@
-import { OfficialRound, TeamMapping } from "./competitionProvider";
+import { FinalsRound, OfficialRound, TeamMapping } from "./competitionProvider";
 
 // Stored graph contract: ext_* is imported data/source mapping; name, state,
 // external_key are the app's normalized interpretation. A team's result and
@@ -110,15 +110,18 @@ export function roundCondition(
     if (row.state === undefined) return String(row.status ?? "scheduled"); // legacy dataset
     if (result === "bye" || result === "washout") return String(result);
     if (row.state === "complete") return "completed";
+    if (row.state === "eliminated") return "eliminated";
     return /postpon/i.test(String(row.ext_status ?? ""))
         ? "postponed"
         : "scheduled";
 }
+export type TeamRoundImport = OfficialRound | FinalsRound;
+
 export function roundRecord(
     old: Record<string, any>,
     provider: string,
     externalKey: string,
-    incoming?: OfficialRound,
+    incoming?: TeamRoundImport,
     relationship?: Record<string, any>,
 ) {
     const relationshipResult = relationship?.result;
@@ -132,10 +135,12 @@ export function roundRecord(
         "home_away",
         "is_home",
     ]);
+    const calendarOnly = incoming && "stage" in incoming && !incoming.opponent;
     for (const key of roundFields) {
         if (next[`ext_${key}`] === undefined && old[key] !== undefined)
             next[`ext_${key}`] = old[key];
-        if (incoming?.[key] !== undefined) next[`ext_${key}`] = incoming[key];
+        if (incoming?.[key] !== undefined && (!calendarOnly || key === "date"))
+            next[`ext_${key}`] = incoming[key];
     }
     if (next.ext_match === undefined && old.external_match !== undefined)
         next.ext_match = old.external_match;
@@ -143,8 +148,10 @@ export function roundRecord(
         next.ext_match = incoming.external_match;
     const previous = roundCondition(old, relationshipResult);
     const preserveResult =
-        incoming?.status === "scheduled" &&
-        ["completed", "washout", "postponed"].includes(previous);
+        (incoming?.status === "scheduled" &&
+            (["completed", "washout", "postponed"].includes(previous) ||
+                (calendarOnly && previous === "eliminated"))) ||
+        (incoming?.status === "eliminated" && previous === "completed");
     const condition = incoming && !preserveResult ? incoming.status : previous;
     // Only literal source labels belong in ext_status; never store synthetic
     // 'scheduled'/'completed' strings there. An empty source label removes it.
@@ -155,11 +162,11 @@ export function roundRecord(
     next.ext_provider = provider;
     next.external_key = externalKey; // generated stable app key, not a source ID
     const direction =
-        incoming?.home_away ?? relationship?.home_away ?? old.home_away;
+        (calendarOnly ? undefined : incoming?.home_away) ?? relationship?.home_away ?? old.home_away;
     let is_home: boolean | undefined;
     if (condition === "bye") is_home = false;
     else {
-        if (!incoming && typeof relationship?.is_home === "boolean")
+        if ((!incoming || calendarOnly) && typeof relationship?.is_home === "boolean")
             is_home = relationship.is_home;
         else if (direction === "home") is_home = true;
         else if (direction === "away") is_home = false;
@@ -168,7 +175,7 @@ export function roundRecord(
     }
     next.state = ["completed", "bye", "washout"].includes(condition)
         ? "complete"
-        : "pending";
+        : condition === "eliminated" ? "eliminated" : "pending";
     let result: string | undefined;
     if (condition === "bye" || condition === "washout") result = condition;
     else if (
@@ -190,6 +197,10 @@ export function roundRecord(
     ) {
         result = String(relationshipResult ?? old.result);
     }
-    next.name = `Round ${next.ext_number} vs ${next.ext_opponent ?? ""}`;
+    if (incoming && "stage" in incoming) next.ext_stage = incoming.stage;
+    const roundName = next.ext_stage ?? `Round ${next.ext_number}`;
+    next.name = next.ext_stage && (!next.ext_opponent || condition === "eliminated")
+        ? roundName
+        : `${roundName} vs ${next.ext_opponent ?? ""}`;
     return { entity: next, result, is_home };
 }

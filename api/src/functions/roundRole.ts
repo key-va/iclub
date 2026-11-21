@@ -63,6 +63,8 @@ export async function roundRole(
                 return reply(409, "Round must belong to an active team");
             const currentRound = await get("round", id);
             if (!currentRound) return reply(404, "Round not found");
+            if (currentRound.state === "eliminated")
+                return reply(409, "An eliminated round cannot be changed");
             if (
                 currentRound.state === "complete" ||
                 (currentRound.state === undefined &&
@@ -111,6 +113,9 @@ export async function roundRole(
                     : undefined;
             await doUpsertRelation(id, user, { role });
             await doGuidsToPublic();
+            const roundName =
+                currentRound.ext_stage ??
+                `Round ${currentRound.ext_number ?? currentRound.number}`;
             if (old === "selected" && role === "unavailable")
                 await push(
                     (await relations(teamId))
@@ -120,7 +125,7 @@ export async function roundRole(
                         )
                         .map((r) => r.rowKey),
                     `Player unavailable — ${team.name}`,
-                    `${unavailablePlayer?.name || "A player"} is now unavailable for Round ${currentRound.ext_number ?? currentRound.number}. A replacement player is needed.`,
+                    `${unavailablePlayer?.name || "A player"} is now unavailable for ${roundName}. A replacement player is needed.`,
                     `round/${id}`,
                     context,
                 );
@@ -128,7 +133,7 @@ export async function roundRole(
                 await push(
                     [user],
                     String(team.name),
-                    `You have been selected for Round ${currentRound.ext_number ?? currentRound.number}.`,
+                    `You have been selected for ${roundName}.`,
                     `round/${id}`,
                     context,
                 );

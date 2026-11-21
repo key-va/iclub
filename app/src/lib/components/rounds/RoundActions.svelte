@@ -15,14 +15,14 @@
 		)
 	);
 	const options = $derived(
-		member && round.state !== 'complete' ? availabilityOptions(mine?.role) : []
+		member && !['complete', 'eliminated'].includes(String(round.state)) ? availabilityOptions(mine?.role) : []
 	);
 </script>
 
 {#if options.length}<EntityActions>
 		{#each options as role}<ActionConfirmation
 				inline
-				arrow
+				arrow={role === 'available'}
 				showLabel
 				name={role}
 				action={() => confirmRoundRole(round.rk, role)}
