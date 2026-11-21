@@ -87,7 +87,7 @@
 		{/each}
 
 		{#each finalsDates as final}
-			<HiddenOptions title={final.name} description={`${final.date} • competition calendar`} />
+			<HiddenOptions title={final.name} description={`pending · ${final.date}`} />
 		{/each}
 
 		{#if standings.length}
