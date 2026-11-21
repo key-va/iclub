@@ -274,8 +274,8 @@ test('User profiles count completed wins and losses and match headers keep the e
         );
     }
     const profile = await output('user', 'user_alice', 'user_alice', rows);
-    assert.match(profile, /<div class="group"><p class="info center description">1 won · 3 lost<\/p>/);
-    assert.match(await output('user', 'user_bob', 'user_bob', rows), /0 won · 0 lost/);
+    assert.match(profile, /<div class="group"><p class="info center description">1 won • 3 lost<\/p>/);
+    assert.match(await output('user', 'user_bob', 'user_bob', rows), /0 won • 0 lost/);
 
     const match = await output('match', 'user_alice', 'match_win', rows);
     assert.match(match, /Match win<\/strong><br\s*\/?><span class="description">match<\/span>/);
