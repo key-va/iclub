@@ -41,6 +41,17 @@
 			.map((round) => roundView(entityOf(round.rk)!, round))
 			.sort((a, b) => Number(a.number) - Number(b.number))
 	);
+	const futureRounds = $derived(rounds.filter((round) => !round.result));
+	const finalsDates = $derived(
+		jsonArray(team.ext_calendar)
+			.filter(
+				(entry): entry is { name: string; date: string } =>
+					(entry?.name === 'Semi Final' || entry?.name === 'Grand Final') &&
+					typeof entry.date === 'string' &&
+					/^\d{4}-\d{2}-\d{2}$/.test(entry.date)
+			)
+			.sort((a, b) => a.date.localeCompare(b.date))
+	);
 	const members = $derived(users.filter((u) => isTeamMember(u)));
 	const pending = $derived(users.filter((u) => u.state === 'pending'));
 	const standings = $derived(jsonArray(team?.standings));
@@ -69,10 +80,14 @@
 		{/if}
 		<HiddenOptions
 			title="Future Rounds"
-			badge={rounds.filter((r) => !r.result).length}
+			badge={futureRounds.length + finalsDates.length}
 		></HiddenOptions>
-		{#each rounds.filter((r) => !r.result) as round (round.rk)}
+		{#each futureRounds as round (round.rk)}
 			<TeamRound {team} {round} />
+		{/each}
+
+		{#each finalsDates as final}
+			<HiddenOptions title={final.name} description={`${final.date} • competition calendar`} />
 		{/each}
 
 		{#if standings.length}
