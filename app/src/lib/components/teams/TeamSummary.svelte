@@ -19,7 +19,7 @@
 		jsonArray,
 		roundView
 	} from '#lib/components/rounds/roundRules.ts';
-	import ActionQuick from '#lib/components/ActionQuick.svelte';
+	import ActionConfirmation from '#lib/components/ActionConfirmation.svelte';
 	import { syncTeam } from '#lib/stores/remote.ts';
 
 	import RouteLink from '#lib/components/routeLink.svelte';
@@ -85,21 +85,24 @@
 				></HiddenOptions>
 			{/each}
 		{/if}
-		{#if isTeamMember(mine)}
-			<ActionQuick
-				name="refresh data"
-				action={() => syncTeam(id)}
-				onsuccess={(result) => {
-					syncMessage = result.message;
-				}}
-			/>
-		{/if}
-		{#if syncMessage}
-			<div class="row right">
-				<p role="status">{syncMessage}</p>
-			</div>
-		{/if}
 	</div>
+
+	{#if isTeamMember(mine)}
+		<ActionConfirmation
+			name="refresh data"
+			message="Refresh the team’s schedules, results and standings?"
+			navigate={false}
+			action={() => syncTeam(id)}
+			onsuccess={(result) => {
+				syncMessage = result.message;
+			}}
+		/>
+	{/if}
+	{#if syncMessage}
+		<div class="row right">
+			<p role="status">{syncMessage}</p>
+		</div>
+	{/if}
 
 	<HiddenOptions title="Members">
 		{#each members as user (user.rk)}
