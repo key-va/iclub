@@ -90,7 +90,7 @@
 	{#if user_entity}
 		<EntityHeader entity={user_entity} />
 		<div class="group">
-			<p class="info center description">{results.won} won • {results.lost} lost</p>
+			<p class="info center description">{results.won} won • lost {results.lost}</p>
 		</div>
 
 		{#if user_id === caller_id && adminClubs.length > 0}
