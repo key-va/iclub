@@ -25,18 +25,19 @@ jobs:
           az functionapp config appsettings list -g next -n nextxfa --query "[?name=='FUNCTIONS_WORKER_RUNTIME' || name=='FUNCTIONS_EXTENSION_VERSION' || name=='RESOURCE_GROUP_PREFIX'].{name:name,value:value}" -o table
           az functionapp config appsettings list -g next -n nextxfa --query "[?name=='AzureWebJobsStorage' || name=='WEBSITE_RUN_FROM_PACKAGE'].name" -o tsv
           az functionapp function list -g next -n nextxfa --query '[].name' -o tsv
+      - name: Inspect startup telemetry
+        run: |
+          az config set extension.use_dynamic_install=yes_without_prompt
+          app_id=$(az resource list -g next --resource-type microsoft.insights/components --query '[0].id' -o tsv)
+          az monitor app-insights query --app "$app_id" --analytics-query 'union (traces | project timestamp, text=message), (exceptions | project timestamp, text=outerMessage) | where timestamp > ago(36h) | where text has_any ("indexing", "worker", "registered", "entry point", "functions found", "functions loaded", "MODULE_NOT_FOUND", "No job functions") | extend text=replace_regex(text, @"https?://[^\s]+", "[URL]") | where not(text has_any ("token", "password", "AccountKey", "signature", "secret", "Authorization", "connection string")) | summarize timestamp=max(timestamp) by text | top 30 by timestamp' -o json
       - name: Inspect deployed files
+        if: always()
         shell: bash
         run: |
           azure_bearer=$(az account get-access-token --query accessToken -o tsv)
           echo "::add-mask::$azure_bearer"
           scm=https://nextxfa.scm.azurewebsites.net/api/vfs/site/wwwroot
           for file in package.json host.json dist/src/functions/userOtp.js dist/src/functions/team.js dist/src/functions/teamJoin.js dist/src/functions/comp.js dist/src/functions/compJoin.js node_modules/@azure/functions/package.json; do
-            echo "$file $(curl -sS -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $azure_bearer" "$scm/$file")"
+            echo "$file $(curl --max-time 5 -sS -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $azure_bearer" "$scm/$file")"
           done
-          curl -fsS -H "Authorization: Bearer $azure_bearer" "$scm/package.json" | jq '{main, type}'
-      - name: Inspect startup telemetry
-        run: |
-          az config set extension.use_dynamic_install=yes_without_prompt
-          app_id=$(az resource list -g next --resource-type microsoft.insights/components --query '[0].id' -o tsv)
-          az monitor app-insights query --app "$app_id" --analytics-query 'union (traces | project timestamp, text=message), (exceptions | project timestamp, text=outerMessage) | where timestamp > ago(36h) | where text has_any ("indexing", "worker", "registered", "entry point", "functions found", "functions loaded", "MODULE_NOT_FOUND", "No job functions") | extend text=replace_regex(text, @"https?://[^\s]+", "[URL]") | where not(text has_any ("token", "password", "AccountKey", "signature", "secret", "Authorization", "connection string")) | summarize timestamp=max(timestamp) by text | top 30 by timestamp' -o json
+          curl --max-time 5 -fsS -H "Authorization: Bearer $azure_bearer" "$scm/package.json" | jq '{main, type}'
