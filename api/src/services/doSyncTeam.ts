@@ -203,14 +203,6 @@ export async function doSyncTeam(
             )
         )
             throw Error("Invalid competition round");
-        const old = existing.get(externalRoundKey(mapping, round.number));
-        if (
-            old &&
-            round.opponent !== (old.ext_opponent ?? old.opponent) &&
-            roundCondition(old, roundRelations.get(old.rowKey)?.result) ===
-                "completed"
-        )
-            throw Error("A completed round has a conflicting fixture");
     }
     const finalsDates = new Map<string, string>();
     for (const { name, date } of source.calendar) {
@@ -220,9 +212,10 @@ export async function doSyncTeam(
         )
             finalsDates.set(name, date);
     }
+    const finals = new Map((source.finals ?? []).map((round) => [round.stage, round]));
     const rounds: TeamRoundImport[] = [
         ...source.rounds,
-        ...Array.from(finalsDates, ([stage, date]) => ({
+        ...Array.from(finalsDates, ([stage, date]) => finals.get(stage) ?? ({
             stage,
             date,
             opponent: "",
@@ -233,6 +226,16 @@ export async function doSyncTeam(
     ];
     const keyOf = (round: TeamRoundImport) =>
         externalRoundKey(mapping, "stage" in round ? round.stage : round.number);
+    for (const round of rounds) {
+        const old = existing.get(keyOf(round));
+        if (
+            old && round.opponent &&
+            round.opponent !== (old.ext_opponent ?? old.opponent) &&
+            roundCondition(old, roundRelations.get(old.rowKey)?.result) ===
+                "completed"
+        )
+            throw Error("A completed round has a conflicting fixture");
+    }
     await migrateTeamRelations(graph);
     let created = 0,
         updated = 0;

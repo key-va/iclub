@@ -482,6 +482,24 @@ test("finals calendar dates support round availability and preserve responses wh
     assert.equal(refreshed.jsonBody.data.created, 0);
     assert.equal(get("round", semi).ext_date, "2026-11-25");
     assert.equal(get(U, semi).role, "available");
+    source.finals = [{
+        stage: "Semi Final", date: "2026-11-25", opponent: "Gunslingers",
+        home_away: "away", venue: "", status: "scheduled",
+    }];
+    assert.equal((await call("sync", A)).status, 200);
+    assert.equal(get("round", semi).name, "Semi Final vs Gunslingers");
+    assert.equal(get(T, semi).is_home, false);
+    assert.equal(get(U, semi).role, "available");
+    source.finals[0].status = "completed";
+    source.finals[0].points_for = 8;
+    source.finals[0].points_against = 2;
+    assert.equal((await call("sync", A)).status, 200);
+    assert.equal(get(T, semi).result, "winner");
+    source.finals = [];
+    assert.equal((await call("sync", A)).status, 200);
+    assert.equal(get(T, semi).result, "winner");
+    assert.equal(get("round", semi).ext_opponent, "Gunslingers");
+    assert.equal(get(U, semi).role, "available");
     mirrored();
 });
 test("manual sync preserves round IDs, postponement identity, memberships, roles, messages and old valid results", async () => {

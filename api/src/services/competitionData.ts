@@ -1,4 +1,4 @@
-import { OfficialRound, TeamMapping } from "./competitionProvider";
+import { FinalsRound, OfficialRound, TeamMapping } from "./competitionProvider";
 
 // Stored graph contract: ext_* is imported data/source mapping; name, state,
 // external_key are the app's normalized interpretation. A team's result and
@@ -114,9 +114,7 @@ export function roundCondition(
         ? "postponed"
         : "scheduled";
 }
-export type TeamRoundImport =
-    | OfficialRound
-    | (Omit<OfficialRound, "number"> & { stage: string; number?: never });
+export type TeamRoundImport = OfficialRound | FinalsRound;
 
 export function roundRecord(
     old: Record<string, any>,
@@ -136,10 +134,12 @@ export function roundRecord(
         "home_away",
         "is_home",
     ]);
+    const calendarOnly = incoming && "stage" in incoming && !incoming.opponent;
     for (const key of roundFields) {
         if (next[`ext_${key}`] === undefined && old[key] !== undefined)
             next[`ext_${key}`] = old[key];
-        if (incoming?.[key] !== undefined) next[`ext_${key}`] = incoming[key];
+        if (incoming?.[key] !== undefined && (!calendarOnly || key === "date"))
+            next[`ext_${key}`] = incoming[key];
     }
     if (next.ext_match === undefined && old.external_match !== undefined)
         next.ext_match = old.external_match;
@@ -159,11 +159,11 @@ export function roundRecord(
     next.ext_provider = provider;
     next.external_key = externalKey; // generated stable app key, not a source ID
     const direction =
-        incoming?.home_away ?? relationship?.home_away ?? old.home_away;
+        (calendarOnly ? undefined : incoming?.home_away) ?? relationship?.home_away ?? old.home_away;
     let is_home: boolean | undefined;
     if (condition === "bye") is_home = false;
     else {
-        if (!incoming && typeof relationship?.is_home === "boolean")
+        if ((!incoming || calendarOnly) && typeof relationship?.is_home === "boolean")
             is_home = relationship.is_home;
         else if (direction === "home") is_home = true;
         else if (direction === "away") is_home = false;
@@ -195,6 +195,9 @@ export function roundRecord(
         result = String(relationshipResult ?? old.result);
     }
     if (incoming && "stage" in incoming) next.ext_stage = incoming.stage;
-    next.name = next.ext_stage ?? `Round ${next.ext_number} vs ${next.ext_opponent ?? ""}`;
+    const roundName = next.ext_stage ?? `Round ${next.ext_number}`;
+    next.name = next.ext_stage && !next.ext_opponent
+        ? roundName
+        : `${roundName} vs ${next.ext_opponent ?? ""}`;
     return { entity: next, result, is_home };
 }
