@@ -33,9 +33,14 @@ export function nextCompetitionMatch(compId: string, match: GuidRow) {
 		.find((row) => row.position === Math.ceil(position / 2))?.entity;
 }
 
+export function competitionFinal(compId: string) {
+	const finalRound = competitionRounds(compId).at(-1);
+	return finalRound && roundMatches(finalRound.entity.rk)[0]?.entity;
+}
+
 export function competitionChampion(comp: GuidRow) {
-	const finalRound = competitionRounds(comp.rk).at(-1);
-	const final = finalRound && roundMatches(finalRound.entity.rk)[0]?.entity;
+	if (comp.state !== 'complete') return '';
+	const final = competitionFinal(comp.rk);
 	return (final && relationsOf(final.rk).find((row) => row.result === 'winner')?.rk)
 		?? (typeof comp.champion_id === 'string' ? comp.champion_id : '');
 }

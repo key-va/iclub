@@ -572,7 +572,7 @@ test("Elim score repair advances winners, notifies the right players and guards 
 
     const otherScore = scores(secondMatch, 8, 1);
     assert.equal((await elimCall(id, "score", elimAdmin, otherScore)).status, 200);
-    assert.equal(pushes.at(-1).exceptUserId, undefined);
+    assert.equal(pushes.at(-1).exceptUserId, elimAdmin);
     assert.deepEqual(pushes.at(-1).userIds, [otherScore.first_id, otherScore.second_id]);
     const staleFinal = scores(final, 8, 4);
     const correction = scores(firstMatch, 2, 8);
@@ -584,7 +584,11 @@ test("Elim score repair advances winners, notifies the right players and guards 
     mirrors(final, firstScore.second_id);
     assert.equal((await elimCall(id, "score", elimAdmin, staleFinal)).status, 409);
 
-    assert.equal((await elimCall(id, "score", elimAdmin, scores(final, 8, 5))).status, 200);
+    const finalist = slot(final, 1);
+    relation(id, finalist, { is_admin: true, is_participant: true });
+    assert.equal((await elimCall(id, "score", finalist, scores(final, 8, 5))).status, 200);
+    assert.equal(pushes.at(-1).exceptUserId, finalist);
+    assert.deepEqual(pushes.at(-1).userIds.filter(user => user !== pushes.at(-1).exceptUserId), [slot(final, 2)]);
     assert.equal(winner(final), firstScore.second_id);
     assert.equal((await elimCall(id, "correct", elimAdmin, firstScore)).status, 409);
     assert.equal((await elimCall(id, "correct", elimAdmin, scores(final, 5, 8))).status, 200);

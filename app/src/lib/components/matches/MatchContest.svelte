@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { competitionSlots, nextCompetitionMatch } from '../competitions/competitionBracket.ts';
+	import { competitionFinal, competitionSlots, nextCompetitionMatch } from '../competitions/competitionBracket.ts';
 	import MatchActions from './MatchActions.svelte';
 	import MessageThread from '#lib/components/messages/MessageThread.svelte';
 	import ActionConfirmation from '#lib/components/ActionConfirmation.svelte';
@@ -103,8 +103,12 @@
 			: String(player.score).split(',');
 	const recordedChallenger = $derived(recordedGames(challenger));
 	const recordedDefender = $derived(recordedGames(defender));
-	const roleText = (player: Record<string, unknown>, fallback: string) =>
-		isComplete ? String(player.result ?? fallback) : fallback;
+	const isFinal = $derived(!!elim && competitionFinal(elim.rk)?.rk === matchId);
+	function roleText(player: Record<string, unknown>, fallback: string) {
+		if (!isComplete) return fallback;
+		if (isFinal && player.result) return player.result === 'winner' ? 'champion' : 'eliminated';
+		return String(player.result ?? fallback);
+	}
 	const completeSummary = $derived.by(() => {
 		const winner = [challenger, defender].find(
 			(player) => player?.result === 'winner'
@@ -308,7 +312,9 @@
 	<MessageThread parentId={matchId} showTime />
 {/if}
 {#if elim && match.state === 'bye'}
-	<p class="info">{nameOf(slots.find((player) => player)?.rk ?? '')} advances with a bye.</p>
+	<div class="group">
+		<p class="info center">{nameOf(slots.find((player) => player)?.rk ?? '')} advances with a bye.</p>
+	</div>
 {:else if elim && match.state === 'waiting'}
 	<p class="info">Waiting for earlier results.</p>
 {/if}
