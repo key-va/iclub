@@ -105,7 +105,6 @@
 	{#if user}
 		<EntityHeader
 			entity={user}
-			subtitle="edit"
 			image={image || imageOf(user.rk)}
 		/>
 

@@ -74,12 +74,24 @@
 		relatedRows.filter((row) => typeOf(row.rk) === 'ladder' && entityOf(row.rk))
 	);
 
-	// Finished matches this user played, newest first (IDs embed their creation time)
+	const results = $derived.by(() => {
+		let won = 0;
+		let lost = 0;
+		for (const match of relatedRows) {
+			if (typeOf(match.rk) !== 'match' || entityOf(match.rk)?.state !== 'complete') continue;
+			if (match.result === 'winner') won++;
+			if (['loser', 'forfeiter', 'walkover'].includes(String(match.result))) lost++;
+		}
+		return { won, lost };
+	});
 </script>
 
 <div class="page">
 	{#if user_entity}
 		<EntityHeader entity={user_entity} />
+		<div class="group">
+			<p class="info center description">{results.won} won · {results.lost} lost</p>
+		</div>
 
 		{#if user_id === caller_id && adminClubs.length > 0}
 			<div class="group">
