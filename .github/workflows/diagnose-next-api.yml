@@ -8,7 +8,7 @@ permissions:
   contents: read
 jobs:
   inspect:
-    if: github.event.head_commit.message == 'Restore next API route discovery'
+    if: github.event.head_commit.message == 'Check remaining next API files'
     runs-on: ubuntu-latest
     timeout-minutes: 6
     steps:
@@ -17,38 +17,21 @@ jobs:
           client-id: ${{ vars.AZURE_CLIENT_ID }}
           tenant-id: ${{ vars.AZURE_TENANT_ID }}
           subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
-      - name: Remove obsolete compiled files from the extracted deployment
+      - uses: actions/checkout@v4
+      - name: Compare deployed function files with source
         run: |
           token=$(timeout 20 az account get-access-token --query accessToken -o tsv)
           echo "::add-mask::$token"
-          scm=https://nextxfa.scm.azurewebsites.net/api/vfs
-          mounted=$(curl --max-time 20 -sS -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $token" "$scm/data/SitePackages/packagename.txt")
-          if [[ "$mounted" != 404 ]]; then
-            echo "::error::Expected an extracted deployment without a mounted package, got HTTP $mounted"
-            exit 1
-          fi
-          root="$scm/site/wwwroot/dist/src/functions"
-          for file in compCreate.js groupCreate.js teamJoin.js userOtp.js; do
-            curl --max-time 20 -fsS -o /dev/null -H "Authorization: Bearer $token" "$root/$file"
-          done
-          for file in comp.js group.js team.js elim.js; do
-            status=$(curl --max-time 20 -sS -o /dev/null -w '%{http_code}' -X DELETE \
-              -H "Authorization: Bearer $token" -H 'If-Match: *' "$root/$file")
-            case "$status" in
-              200|204|404) echo "$file HTTP $status" ;;
-              *) echo "::error::Could not remove inactive build output $file (HTTP $status)"; exit 1 ;;
-            esac
-          done
-          az functionapp config appsettings delete -g next -n nextxfa --setting-names WEBSITE_RUN_FROM_PACKAGE --output none
-          az functionapp restart -g next -n nextxfa
-      - name: Verify live routes
+          root=https://nextxfa.scm.azurewebsites.net/api/vfs/site/wwwroot/dist/src/functions
+          git ls-files 'api/src/functions/*.ts' | sed 's@.*/@@; s/\.ts$/.js/' | sort > /tmp/iclub-expected
+          curl --retry 2 --max-time 10 -fsS -H "Authorization: Bearer $token" "$root/" |
+            jq -r '.[].name | select(endswith(".js"))' | sort > /tmp/iclub-deployed
+          echo 'Extra compiled files:'
+          comm -13 /tmp/iclub-expected /tmp/iclub-deployed
+          echo 'Missing compiled files:'
+          comm -23 /tmp/iclub-expected /tmp/iclub-deployed
+      - name: Synchronise Function App triggers
+        if: always()
         run: |
-          body=$(mktemp)
-          for attempt in {1..12}; do
-            about=$(curl -sS --max-time 5 -o /dev/null -w '%{http_code}' https://nextxfa.azurewebsites.net/api/system/about) || about=unreachable
-            otp=$(curl -sS --max-time 5 -o "$body" -w '%{http_code}' -H 'Content-Type: application/json' --data '{}' https://nextxfa.azurewebsites.net/api/user/otp) || otp=unreachable
-            echo "system/about $about, user/otp $otp"
-            if [[ "$about" == 200 && "$otp" == 400 ]] && jq -e '.message == "email or phone is required"' "$body" >/dev/null; then exit 0; fi
-            sleep 5
-          done
-          exit 1
+          app_id=$(az functionapp show -g next -n nextxfa --query id -o tsv)
+          timeout 45 az rest --method post --url "https://management.azure.com$app_id/syncfunctiontriggers?api-version=2024-11-01"
