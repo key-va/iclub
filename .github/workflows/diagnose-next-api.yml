@@ -1,0 +1,27 @@
+name: Inspect next API package
+on:
+  push:
+    branches: [next]
+    paths: ['.github/workflows/diagnose-next-api.yml']
+permissions:
+  id-token: write
+  contents: read
+jobs:
+  inspect:
+    if: github.event.head_commit.message == 'Inspect next API package status'
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - name: Check Kudu deployment and mounted package
+        run: |
+          token=$(timeout 20 az account get-access-token --query accessToken -o tsv)
+          echo "::add-mask::$token"
+          scm=https://nextxfa.scm.azurewebsites.net/api
+          curl --max-time 20 -fsS -H "Authorization: Bearer $token" "$scm/deployments/latest" |
+            jq '{id, status, status_text, received_time, start_time, end_time, active, complete}'
+          curl --max-time 15 -sS -H "Authorization: Bearer $token" -w '\nMount marker HTTP %{http_code}\n' "$scm/vfs/data/SitePackages/packagename.txt"
