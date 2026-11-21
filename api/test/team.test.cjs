@@ -457,6 +457,33 @@ test("only approved team members and team admins can sync", async () => {
     rejectSignature = true;
     assert.equal((await call("sync", U)).status, 401);
 });
+test("finals calendar dates support round availability and preserve responses when rescheduled", async () => {
+    seed();
+    relation(T, U, { is_member: true });
+    source.calendar = [
+        { name: "Semi Final", date: "2026-11-24" },
+        { name: "Grand Final", date: "2026-12-01" },
+        { name: "No Play", date: "2026-11-23" },
+        { name: "Spare (if required)", date: "2026-12-08" },
+    ];
+    assert.equal((await call("sync", A)).status, 200);
+    const rounds = [...rows.values()].filter((row) => row.partitionKey === "round");
+    assert.deepEqual(rounds.map((row) => row.name), [
+        "Round 1 vs Royals", "Semi Final", "Grand Final",
+    ]);
+    const semi = rounds[1].rowKey;
+    assert.equal(get(T, semi).is_home, undefined);
+    assert.equal(get(semi, U).role, "pending");
+    assert.equal((await role(OUT, OUT, "available", semi)).status, 403);
+    assert.equal((await role(U, U, "available", semi)).status, 200);
+    source.calendar[0].date = "2026-11-25";
+    const refreshed = await call("sync", A);
+    assert.equal(refreshed.status, 200);
+    assert.equal(refreshed.jsonBody.data.created, 0);
+    assert.equal(get("round", semi).ext_date, "2026-11-25");
+    assert.equal(get(U, semi).role, "available");
+    mirrored();
+});
 test("manual sync preserves round IDs, postponement identity, memberships, roles, messages and old valid results", async () => {
     seed();
     relation(T, U, { role: "is_member" });

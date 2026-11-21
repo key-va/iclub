@@ -39,7 +39,11 @@
 		relationsOf(id)
 			.filter((row) => typeOf(row.rk) === 'round' && entityOf(row.rk))
 			.map((round) => roundView(entityOf(round.rk)!, round))
-			.sort((a, b) => Number(a.number) - Number(b.number))
+			.sort(
+				(a, b) =>
+					Number(a.number ?? Infinity) - Number(b.number ?? Infinity) ||
+					String(a.date).localeCompare(String(b.date))
+			)
 	);
 	const futureRounds = $derived(rounds.filter((round) => !round.result));
 	const finalsDates = $derived(
@@ -47,6 +51,7 @@
 			.filter(
 				(entry): entry is { name: string; date: string } =>
 					(entry?.name === 'Semi Final' || entry?.name === 'Grand Final') &&
+					!rounds.some((round) => round.ext_stage === entry.name) &&
 					typeof entry.date === 'string' &&
 					/^\d{4}-\d{2}-\d{2}$/.test(entry.date)
 			)

@@ -51,6 +51,12 @@
 		colour={roundRoleColour[String(role)] ?? 'grey'}
 		children={options.length ? actions : undefined}
 	>
-		{#snippet detail()}{round.is_home ? 'home' : 'away'}{' • '}{round.date}{/snippet}
+		{#snippet detail()}
+			{#if round.ext_stage && round.is_home === undefined}
+				{' · '}{round.date}
+			{:else}
+				{round.is_home ? 'home' : 'away'}{' • '}{round.date}
+			{/if}
+		{/snippet}
 	</RouteLinkHiddenAction>
 {/if}

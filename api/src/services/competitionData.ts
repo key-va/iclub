@@ -114,11 +114,15 @@ export function roundCondition(
         ? "postponed"
         : "scheduled";
 }
+export type TeamRoundImport =
+    | OfficialRound
+    | (Omit<OfficialRound, "number"> & { stage: string; number?: never });
+
 export function roundRecord(
     old: Record<string, any>,
     provider: string,
     externalKey: string,
-    incoming?: OfficialRound,
+    incoming?: TeamRoundImport,
     relationship?: Record<string, any>,
 ) {
     const relationshipResult = relationship?.result;
@@ -190,6 +194,7 @@ export function roundRecord(
     ) {
         result = String(relationshipResult ?? old.result);
     }
-    next.name = `Round ${next.ext_number} vs ${next.ext_opponent ?? ""}`;
+    if (incoming && "stage" in incoming) next.ext_stage = incoming.stage;
+    next.name = next.ext_stage ?? `Round ${next.ext_number} vs ${next.ext_opponent ?? ""}`;
     return { entity: next, result, is_home };
 }
