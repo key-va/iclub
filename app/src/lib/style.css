@@ -61,6 +61,14 @@ svg {
     background: var(--brand-background, #00BFFF); color: var(--brand-background-text, white);
 }
 
+.green {
+    background: #187543; color: white;
+}
+
+.orange {
+    background: #a4470c; color: white;
+}
+
 .grey {
     background: lightgrey; color: white;
 }
@@ -278,5 +286,3 @@ table {
     to { width: 2px; height: 100vh; translate: 100vw 0; }
 }
 .action-link { text-decoration: none; }
-
-.description { text-transform: lowercase; }

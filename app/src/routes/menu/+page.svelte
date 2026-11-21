@@ -16,7 +16,7 @@
 		<RouteLink
 			href="/browse"
 			title="Browse"
-			description="ladders, teams and groups"
+			description="ladders, teams, groups and competitions"
 			isWhite={true}
 		/>
 		<RouteLink
@@ -35,7 +35,7 @@
 		<RouteLink
 			href="/browse"
 			title="Browse"
-			description="ladders, teams and groups"
+			description="ladders, teams, groups and competitions"
 			isWhite={false}
 		/>
 	{/if}

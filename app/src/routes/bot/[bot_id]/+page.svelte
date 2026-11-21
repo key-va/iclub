@@ -7,7 +7,7 @@
 </script>
 
 <div class="page">
-	<EntityHeader entity={bot} title={bot?.name ?? 'Bot'} subtitle="bot" />
+	<EntityHeader entity={bot} title="Bot" subtitle="bot" />
 
 	{#if bot}
 		<div class="group">

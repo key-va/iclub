@@ -1,5 +1,7 @@
 # AGENTS.md - Intra Club Scaffold Development Guide
 
+Use `next` as the default target for merging iClub code changes unless the user specifies another branch.
+
 This repository is a reusable scaffold/template for future apps.
 
 The app implements ladders, doubles pairs, matches, teams, rounds and groups on a shared implementation baseline:
@@ -66,6 +68,8 @@ The storage model is a generic property graph with two row shapes.
 ---
 
 ## 3) Backend API (Azure Functions, Node/TypeScript)
+
+Comp, group and team actions register explicit routes in separate action files, following the ladder handlers. Team and round role aliases share their action handler. Team request handling and locking live in `api/src/services/teamActions.ts`. Shared comp logic lives in `api/src/services/compActions.ts`. Group and comp creation and approval share `api/src/services/clubEntityRequests.ts`.
 
 Current endpoints in `api/src/functions/`:
 
@@ -181,15 +185,17 @@ Do not introduce new storage abstractions unless a real gap is proven.
 
 - [EntityHeader.svelte](./app/src/lib/components/EntityHeader.svelte)
   - shared page title/subtitle, large image and install guidance; pages retain their outer container and entity-existence checks
-  - accepts an entity (defaults to its name, type and `imageOf(rk)`), with title/subtitle/image overrides for branded pages, forms and related-entity images
+  - uses the entity name and type whenever an entity is supplied. Branded pages and creation forms without an entity supply a title and subtitle. Related-entity images can override `imageOf(rk)`.
   - `image={null}` omits the image and install guidance; form previews remain reactive through the image prop
 
+- [CompetitionCreate.svelte](./app/src/lib/components/CompetitionCreate.svelte)
+  - shared group and elimination creation form, including image preparation and club-origin checks
 - [ActionConfirmation.svelte](./app/src/lib/components/ActionConfirmation.svelte)
   - accepts a deferred `action` callback returning `NavigationResponse`, confirms before execution, then always navigates using the API response subject on success (an entity ID or validated local path); no destination/endpoint/data props
 - [ActionQuick.svelte](./app/src/lib/components/ActionQuick.svelte)
   - executes its deferred `action` callback immediately, displays a timer while busy and never navigates, even if the response has a subject
   - both public action components share `ActionControl.svelte` internally for confirmation/error UI, duplicate-submission guards and `api-action-state` events used by revealed options
-  - shared display props include name/disabled/inline/arrow/children/onsuccess; confirmation also accepts message
+  - shared display props include name/disabled/inline/arrow/children/onsuccess and an optional accessible label. Immediate actions may override the default blue tone with green or orange.
   - named functions in `remote.ts` own payloads, signed HTTP requests and graph refresh: `activateLadder`, `joinLadder`, `acceptLadderMember`, `acceptLadderPair`, `createMatch`
   - successful mutations whose graph refresh fails expose a refresh-only retry; callback/navigation retries also retain the completed response to avoid repeating mutations
 - [actionActivity.ts](./app/src/lib/components/actionActivity.ts)
@@ -388,7 +394,7 @@ Keep shared infrastructure composable while implementing feature rules in their 
 - `EntityActions.svelte` owns centred summary, help toggle, optional More Options expansion and wrapping action layout. Summary/help content uses groups; controls sit in an ungrouped row beneath it, and expanded help appears above the controls. Pending approvals live in the entity action component, never in a separate Pending panel. Entity-specific `LadderActions`, `TeamActions`, `GroupActions`, `RoundActions`, and `MatchActions` determine permissions/content and supply deferred named remote functions. Pages retain headers and content composition.
 - Page-level actions use `ActionConfirmation`, with `arrow showLabel` for a readable label plus arrow; existing `arrow` callers retain icon-only behaviour. All enabled confirmation triggers use the foreground colour, including arrows; disabled triggers remain grey. Row-level status dots reveal `ActionQuick`. Round availability and match acceptance stay visible; match forfeiture is under More Options; memberships reveal away/return/leave beneath More Options. Ladder help explains only selected settings, including cooling/play periods.
 - User-page ladder sections show confirmed accept joiner (disabled pending pair for doubles), contextual match rows with quick accept/forfeit, or a confirmed issue challenge for an eligible competitive entry; otherwise show the plain empty-match row. Doubles challenges resolve both pair IDs. Team sections show confirmed accept joiner and quick pending/selected-round availability.
-- `membership.ts` implements signed `ladder/{id}/leave`, `ladder/{id}/return`, `team/{id}/leave`, and shared group leave logic; `ladderAway.ts` delegates away, and `group.ts` routes `group/{id}/leave`. Credentials always identify the acting user; no target user is accepted.
+- `membership.ts` implements signed `ladder/{id}/leave`, `ladder/{id}/return`, and shared team and group leave logic. `ladderAway.ts` delegates away. `teamLeave.ts` and `groupLeave.ts` register their respective leave routes. Credentials always identify the acting user; no target user is accepted.
 - Away/leave forfeit the affected competitor's pending/active matches on that ladder via `doCompleteMatch`. Leave checks all affected users for last-admin protection before any forfeitures or membership changes. Either doubles partner withdraws both partners and their pair; immutable pair membership and match history remain. Singles/pair withdrawal removes competitive rank and closes gaps. Relations remain mirrored with state left and inactive membership/admin flags; user pages omit left memberships and join allows a fresh request. Team leave marks unfinished round availability unavailable and preserves completed history.
 - Last-admin rejection comes from the API and is shown after confirmation; do not disable leave preemptively in the UI. Group/team join, acceptance, round-role and membership confirmations return API navigation subjects. Quick actions use the same outcomes without navigating.
 

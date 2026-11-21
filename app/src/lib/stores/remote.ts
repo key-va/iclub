@@ -136,6 +136,37 @@ export const updateGroup = (id: string, data: Record<string, unknown>) =>
 export const activateGroup = (id: string) =>
 	mutateWithSubject(`group/${id}/activate`);
 export const joinGroup = (id: string) => mutateWithSubject(`group/${id}/join`);
+export const createCompetition = (data: Record<string, unknown>) =>
+	mutateWithSubject('comp/create', data);
+export const competitionEntry = (
+	id: string,
+	action: 'activate' | 'join' | 'leave' | 'draw' | 'accept' | 'seed' | 'unseed',
+	userId?: string
+) => mutateWithSubject(`comp/${id}/${action}`, userId ? { user_id: userId } : {});
+export const recordElimResult = (
+	id: string,
+	matchId: string,
+	action: 'score' | 'correct',
+	firstId: string,
+	secondId: string,
+	result: { first_score: number; second_score: number }
+) =>
+	mutateWithSubject(`comp/${id}/${action}`, {
+		match_id: matchId,
+		first_id: firstId,
+		second_id: secondId,
+		...result
+	});
+export const forfeitCompetitionMatch = (
+	id: string,
+	matchId: string,
+	firstId: string,
+	secondId: string
+) => mutateWithSubject(`comp/${id}/forfeit`, {
+	match_id: matchId,
+	first_id: firstId,
+	second_id: secondId
+});
 export const createTeam = (data: Record<string, unknown>) =>
 	mutateWithSubject('team/create', data);
 export const activateTeam = (id: string) =>

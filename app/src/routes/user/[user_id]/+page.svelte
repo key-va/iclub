@@ -1,4 +1,5 @@
 <script lang="ts">
+	import UserCompetition from '#lib/components/competitions/UserCompetition.svelte';
 	import MatchHistory from '#lib/components/matches/MatchHistory.svelte';
 	import UserGroup from '#lib/components/groups/UserGroup.svelte';
 	import UserTeam from '#lib/components/teams/UserTeam.svelte';
@@ -50,6 +51,14 @@
 				.filter((group) => entityOf(group.rk)?.state === 'pending')
 		)
 	);
+	const competitions = $derived(
+		relationsOf(user_id).filter((row) => typeOf(row.rk) === 'comp' && entityOf(row.rk) &&
+			(row.is_admin === true || !['left', 'closed'].includes(String(row.state))))
+	);
+	const pendingCompetitions = $derived(
+		adminClubs.flatMap((club) => relationsOf(club.rk)
+			.filter((row) => typeOf(row.rk) === 'comp' && entityOf(row.rk)?.state === 'pending'))
+	);
 	const teams = $derived(
 		relatedRows.filter((row) => typeOf(row.rk) === 'team' && entityOf(row.rk))
 	);
@@ -65,12 +74,24 @@
 		relatedRows.filter((row) => typeOf(row.rk) === 'ladder' && entityOf(row.rk))
 	);
 
-	// Finished matches this user played, newest first (IDs embed their creation time)
+	const results = $derived.by(() => {
+		let won = 0;
+		let lost = 0;
+		for (const match of relatedRows) {
+			if (typeOf(match.rk) !== 'match' || entityOf(match.rk)?.state !== 'complete') continue;
+			if (match.result === 'winner') won++;
+			if (['loser', 'forfeiter', 'walkover'].includes(String(match.result))) lost++;
+		}
+		return { won, lost };
+	});
 </script>
 
 <div class="page">
 	{#if user_entity}
 		<EntityHeader entity={user_entity} />
+		<div class="group">
+			<p class="info center description">{results.won} won • lost {results.lost}</p>
+		</div>
 
 		{#if user_id === caller_id && adminClubs.length > 0}
 			<div class="group">
@@ -93,24 +114,27 @@
 					description="pending club approval"
 					image={imageOf(team.rk)}
 				/>{/each}
+			{#each pendingCompetitions as elim (elim.rk)}
+				<RouteLink href={hrefOf(elim.rk)} title={nameOf(elim.rk)}
+					description="pending club approval" image={imageOf(elim.rk)} isWhite />
+			{/each}
 			{#each pendingGroups as group (group.rk)}<RouteLink
 					href={hrefOf(group.rk)}
 					title={nameOf(group.rk)}
 					description="pending club approval"
 					image={imageOf(group.rk)}
-					isWhite={true}
 				/>{/each}
 		{/if}
 
 		{#each ladders as ladder (ladder.rk)}
 			<UserLadder user={user_entity} ladder={entityOf(ladder.rk)!} />
 		{:else}
-			{#if user_id === caller_id && ladders.length === 0 && teams.length === 0 && groups.length === 0}
+			{#if user_id === caller_id && ladders.length === 0 && teams.length === 0 && groups.length === 0 && competitions.length === 0}
 				<div class="group">
 					<RouteLink
 						href="/browse"
 						title="Browse"
-						description="ladders, teams and groups"
+						description="ladders, teams, groups and competitions"
 					/>
 				</div>
 			{/if}
@@ -122,6 +146,10 @@
 
 		{#each groups as group (group.rk)}
 			<UserGroup user={user_entity} {group} />
+		{/each}
+
+		{#each competitions as competition (competition.rk)}
+			<UserCompetition user={user_entity} {competition} />
 		{/each}
 
 		<MatchHistory parentId={user_id} />

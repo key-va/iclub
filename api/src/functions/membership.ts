@@ -308,10 +308,3 @@ app.http('ladderReturn', {
 	handler: (request, context) =>
 		membershipAction(request, context, 'ladder', 'return')
 });
-app.http('teamLeave', {
-	methods: ['POST'],
-	route: 'team/{team_id}/leave',
-	authLevel: 'anonymous',
-	handler: (request, context) =>
-		membershipAction(request, context, 'team', 'leave')
-});

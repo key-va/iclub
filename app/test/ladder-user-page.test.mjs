@@ -63,8 +63,15 @@ test('admin-only relations display administrator without an acceptance action', 
 
 test('only ladder admins can accept genuine pending singles requests', async () => {
     const relation = { state: 'pending', is_participant: false };
-    assert.match(await renderUser({ relation }), /aria-label="accept joiner"/);
-    assert.doesNotMatch(await renderUser({ relation, caller: 'user_other' }), /aria-label="accept joiner"/);
+    const admin = await renderUser({ relation });
+    assert.match(admin, /aria-label="accept joiner"/);
+    assert.doesNotMatch(admin, /No pending matches/);
+    const applicant = await renderUser({ relation, caller: 'user_viewed' });
+    assert.match(applicant, /join request pending/);
+    assert.doesNotMatch(applicant, /No pending matches|aria-label="accept joiner"/);
+    const visitor = await renderUser({ relation, caller: 'user_other' });
+    assert.match(visitor, /No pending matches/);
+    assert.doesNotMatch(visitor, /aria-label="accept joiner"/);
     assert.doesNotMatch(await renderUser({ relation: { state: 'pending', is_participant: true } }), /aria-label="accept joiner"/);
 });
 
@@ -72,7 +79,7 @@ test('pending doubles requests show a disabled waiting button only to admins', a
     const relation = { is_admin: true, state: 'pending', is_participant: false };
     const html = await renderUser({ format: 'doubles', relation });
     assert.match(html, /<button class="grey" disabled[^>]*><p>pending pair<\/p><\/button>/);
-    assert.doesNotMatch(html, /aria-label="accept joiner"/);
+    assert.doesNotMatch(html, /aria-label="accept joiner"|No pending matches/);
     assert.doesNotMatch(await renderUser({ format: 'doubles', relation, caller: 'user_other' }), /pending pair/);
 });
 

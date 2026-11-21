@@ -37,7 +37,7 @@ jobs:
 
       - name: Build and test API
         working-directory: api
-        run: npm test
+        run: npm run clean && npm test
 
       - name: Login to Azure
         uses: azure/login@v2
@@ -51,8 +51,41 @@ jobs:
           RESOURCE_GROUP_PREFIX: ${{ github.ref_name == 'next' && 'next' || vars.AZURE_RESOURCE_GROUP }}
         run: node api/scripts/configure-web-push.cjs
 
+      - name: Run API from its deployment package
+        env:
+          RESOURCE_GROUP_PREFIX: ${{ github.ref_name == 'next' && 'next' || vars.AZURE_RESOURCE_GROUP }}
+        run: |
+          # Mount the current package so removed handlers cannot survive a deployment.
+          az functionapp config appsettings set \
+            --resource-group "$RESOURCE_GROUP_PREFIX" \
+            --name "${RESOURCE_GROUP_PREFIX}xfa" \
+            --settings WEBSITE_RUN_FROM_PACKAGE=1 \
+            --output none
+
       - name: Deploy API
         uses: Azure/functions-action@v1
         with:
           app-name: ${{ github.ref_name == 'next' && 'next' || vars.AZURE_RESOURCE_GROUP }}xfa
           package: api
+
+      - name: Verify live API routes
+        env:
+          RESOURCE_GROUP_PREFIX: ${{ github.ref_name == 'next' && 'next' || vars.AZURE_RESOURCE_GROUP }}
+        run: |
+          api_url="https://${RESOURCE_GROUP_PREFIX}xfa.azurewebsites.net/api"
+          otp_response=$(mktemp)
+          for attempt in {1..18}; do
+            about_status=$(curl -sS --max-time 10 -o /dev/null -w '%{http_code}' "$api_url/system/about") || about_status=unreachable
+            # An empty body exercises route dispatch without requesting an OTP.
+            otp_status=$(curl -sS --max-time 10 -o "$otp_response" -w '%{http_code}' \
+              -H 'Content-Type: application/json' --data '{}' "$api_url/user/otp") || otp_status=unreachable
+            if [[ "$about_status" == 200 && "$otp_status" == 400 ]] &&
+              jq -e '.success == false and .message == "email or phone is required"' "$otp_response" >/dev/null; then
+              echo "Live system/about and user/otp routes verified"
+              exit 0
+            fi
+            echo "Attempt $attempt: system/about $about_status, user/otp $otp_status"
+            sleep 10
+          done
+          echo "::error::The deployed API did not serve its expected routes"
+          exit 1

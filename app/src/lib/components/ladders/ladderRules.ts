@@ -82,7 +82,7 @@ export function ladderMembership(ladder: GuidRow, userId: string | null) {
 
 export const ladderStateColours: Record<string, string> = {
 	away: 'red',
-	busy: 'gold',
+	busy: 'orange',
 	cooling: 'blue',
 	active: 'green'
 };

@@ -84,7 +84,6 @@
 	{#if group && admin}
 		<EntityHeader
 			entity={group}
-			subtitle="edit"
 			image={image || imageOf(group.rk)}
 		/>
 

@@ -8,6 +8,8 @@
 		action: () => Promise<ApiResponse>;
 		disabled?: boolean;
 		inline?: boolean;
+		tone?: 'blue' | 'green' | 'orange';
+		label?: string;
 		arrow?: boolean;
 		showLabel?: boolean;
 		onsuccess?: (result: ApiResponse) => void | Promise<void>;
@@ -28,6 +30,8 @@
 		navigate,
 		disabled = false,
 		inline = false,
+		tone,
+		label,
 		arrow = false,
 		showLabel = false,
 		onsuccess,
@@ -166,7 +170,9 @@
 	<button
 		bind:this={triggerButton}
 		class={disabled ? 'grey' : confirm ? 'pink' : 'blue'}
-		aria-label={name}
+		class:green={!disabled && !confirm && tone === 'green'}
+		class:orange={!disabled && !confirm && tone === 'orange'}
+		aria-label={label ?? name}
 		aria-busy={isBusy}
 		disabled={disabled || isBusy || isExpanded}
 		onclick={start}

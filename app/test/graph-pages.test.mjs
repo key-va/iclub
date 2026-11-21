@@ -9,8 +9,8 @@ before(async () => {
         plugins: [{ name: 'expose-page-actions', enforce: 'pre', transform(source, id) {
             const path = id.replaceAll('\\', '/');
             if (path.endsWith('/components/routeLink.svelte') || path.endsWith('/components/RouteLinkHiddenAction.svelte')) return `
-                <script>let { href, title, description, detail, children } = $props();</script>
-                <article><a {href}>{title}</a><p>{description}</p>{@render detail?.()}{@render children?.()}</article>`;
+                <script>let { href, title, description, detail, children, colour, isWhite } = $props();</script>
+                <article data-colour={colour} data-white={isWhite}><a {href}>{title}</a><p>{description}</p>{@render detail?.()}{@render children?.()}</article>`;
             if (path.endsWith('/components/hiddenOptions.svelte')) return `
                 <script>let { title, children } = $props();</script><section aria-label={title}>{@render children?.()}</section>`;
             if (path.endsWith('/components/apiService.svelte')) return `
@@ -23,8 +23,8 @@ before(async () => {
     render = (await server.ssrLoadModule('svelte/server')).render;
     guids = (await server.ssrLoadModule('/src/lib/stores/guids.ts')).guids;
     local = await server.ssrLoadModule('/src/lib/stores/local.ts');
-    pages = Object.fromEntries(await Promise.all(['group', 'team', 'round', 'match', 'user'].map(async type =>
-        [type, (await server.ssrLoadModule(`/src/routes/${type}/[${type}_id]/+page.svelte`)).default])));
+    pages = Object.fromEntries(await Promise.all(['group', 'team', 'round', 'match', 'user', 'comp', 'browse'].map(async type =>
+        [type, (await server.ssrLoadModule(type === 'browse' ? '/src/routes/browse/+page.svelte' : `/src/routes/${type}/[${type}_id]/+page.svelte`)).default])));
 });
 after(async () => { await server?.close(); });
 function fixture() {
@@ -60,11 +60,11 @@ function fixture() {
     link('message_test', 'user_alice', { role: 'sender' });
     return items;
 }
-async function output(type, caller = 'user_admin', viewedUser = 'user_alice') {
-    await loadGraph(guids, fixture());
+async function output(type, caller = 'user_admin', viewedId, items = fixture()) {
+    await loadGraph(guids, items);
     local.setLocalData({ caller_id: caller, device_id: null, connect_key: null });
     return render(pages[type], {
-        context: new Map([['__request__', { page: { params: { [`${type}_id`]: type === 'user' ? viewedUser : `${type}_test` } } }]])
+        context: new Map([['__request__', { page: { params: { [`${type}_id`]: viewedId ?? (type === 'user' ? 'user_alice' : `${type}_test`) } } }]])
     }).body;
 }
 function hasAction(html, name) { return html.includes(`aria-label="${name}"`); }
@@ -120,4 +120,163 @@ test('pending team/group memberships on user pages retain admin acceptance actio
     assert.equal((html.match(/aria-label="accept"/g) ?? []).length, 1);
     assert.equal((html.match(/aria-label="accept joiner"/g) ?? []).length, 1);
     assert.equal(hasAction(await output('user', 'user_bob', 'user_bob'), 'accept'), false);
+});
+
+test('Competition page mirrors ladder controls and scopes requests and ranking by role', async () => {
+    const rows = [
+        ...fixture(),
+        { pk: 'comp', rk: 'comp_test', name: 'Club knockout', competition_type: 'elimination', state: 'open' },
+        { pk: 'comp_test', rk: 'club_test' },
+        { pk: 'comp_test', rk: 'user_admin', is_admin: true, is_participant: true },
+        { pk: 'comp_test', rk: 'user_alice', is_participant: true, seed: 1 },
+        { pk: 'comp_test', rk: 'user_bob', state: 'pending' }
+    ];
+    const admin = await output('comp', 'user_admin', undefined, rows);
+    assert.match(admin, /elimination • singles • super set • entries open/);
+    assert.match(admin, /data-colour="blue"[^>]*><a [^>]*>Alice/);
+    assert.match(admin, /data-colour="grey"[^>]*><a [^>]*>Administrator/);
+    assert.match(admin, /data-colour="orange"[^>]*><a [^>]*>Bob/);
+    assert.equal(hasAction(admin, 'Accept Bob'), true);
+    assert.equal(hasAction(admin, 'Unrank Alice'), true);
+    assert.equal(hasAction(admin, 'Rank Administrator'), true);
+    assert.match(admin, /entries open[\s\S]*waiting to join[\s\S]*Players[\s\S]*More Options/);
+    assert.equal(hasAction(admin, 'start draw'), true);
+
+    const player = await output('comp', 'user_alice', undefined, rows);
+    assert.match(player, /data-colour="blue"[^>]*><a [^>]*>Alice/);
+    assert.match(player, /ranked 1/);
+    assert.match(player, /<button[^>]*disabled[^>]*><p>unranked<\/p>/);
+    assert.doesNotMatch(player, /waiting to join|Accept Bob|Unrank Alice/);
+    assert.match(player, /More Options[\s\S]*aria-label="withdraw"/);
+    assert.equal(hasAction(player, 'start draw'), false);
+
+    const applicant = await output('comp', 'user_bob', undefined, rows);
+    assert.match(applicant, /Bob[\s\S]*join request pending/);
+    assert.equal(hasAction(applicant, 'request to join'), false);
+    assert.equal(hasAction(applicant, 'Accept Bob'), false);
+
+    const extendedRows = [...rows, { pk: 'user', rk: 'user_visitor', name: 'Visitor' }];
+    const visitor = await output('comp', 'user_visitor', undefined, extendedRows);
+    assert.match(visitor, /aria-label="request to join"[\s\S]*Players/);
+    assert.doesNotMatch(visitor, /Bob|More Options/);
+
+    rows.find(row => row.rk === 'comp_test').state = 'pending';
+    const approval = await output('comp', 'user_admin', undefined, rows);
+    assert.match(approval, /Club knockout<\/strong><br\s*\/?><span class="description">comp<\/span>/);
+    assert.match(approval, /awaiting club approval[\s\S]*aria-label="approve"/);
+    assert.doesNotMatch(approval, /Accept Bob|Unrank Alice|start draw/);
+
+    rows.find(row => row.rk === 'comp_test').state = 'active';
+    const drawn = await output('comp', 'user_admin', undefined, rows);
+    assert.match(drawn, /ranked 1/);
+    assert.equal(hasAction(drawn, 'Unrank Alice'), false);
+});
+test('Browse shows active entities and competitions accepting entries', async () => {
+    const rows = [
+        { pk: 'ladder', rk: 'ladder_active', name: 'Open ladder', state: 'active' },
+        { pk: 'team', rk: 'team_pending', name: 'Pending team', state: 'pending' },
+        { pk: 'group', rk: 'group_pending', name: 'Pending group', state: 'pending' },
+        { pk: 'comp', rk: 'comp_pending', name: 'Pending comp', state: 'pending' },
+        { pk: 'comp', rk: 'comp_open', name: 'Open entries', state: 'open' },
+        { pk: 'comp', rk: 'comp_active', name: 'Active draw', state: 'active' },
+        { pk: 'comp', rk: 'comp_finished', name: 'Finished draw', state: 'complete' }
+    ];
+    const html = await output('browse', 'user_admin', undefined, rows);
+    assert.match(html, /Open ladder/);
+    assert.match(html, /Open entries<\/a><p>comp<\/p>/);
+    assert.match(html, /Active draw/);
+    assert.doesNotMatch(html, /Pending team|Pending group|Pending comp|Finished draw/);
+});
+
+test('Competition rounds and user profiles show active matches and elimination status', async () => {
+    const rows = [
+        ...fixture(),
+        { pk: 'comp', rk: 'comp_test', name: 'Club knockout', comp_system: 'elimination', state: 'active' },
+        { pk: 'round', rk: 'round_final', name: 'Club knockout Final' },
+        { pk: 'match', rk: 'match_final', name: 'Alice vs Administrator', state: 'active' },
+        { pk: 'match', rk: 'match_waiting', name: 'R1 Pending', state: 'waiting' },
+        { pk: 'match', rk: 'match_result', name: 'Alice vs Bob', state: 'complete' },
+        { pk: 'comp_test', rk: 'round_final', bracket_round: 2 },
+        { pk: 'round_final', rk: 'match_final', bracket_match: 1 },
+        { pk: 'round_final', rk: 'match_waiting', bracket_match: 2 },
+        { pk: 'match_final', rk: 'comp_test' },
+        { pk: 'match_result', rk: 'comp_test' },
+        { pk: 'match_final', rk: 'user_alice', role: 'competitor', slot: 1 },
+        { pk: 'match_final', rk: 'user_admin', role: 'competitor', slot: 2 },
+        { pk: 'user_alice', rk: 'match_final', role: 'competitor' },
+        { pk: 'user_bob', rk: 'match_result', result: 'loser' },
+        { pk: 'comp_test', rk: 'user_alice', is_participant: true, seed: 1 },
+        { pk: 'comp_test', rk: 'user_bob', is_participant: true, seed: 2 },
+        { pk: 'user_alice', rk: 'comp_test', is_participant: true, seed: 1 },
+        { pk: 'user_bob', rk: 'comp_test', is_participant: true, seed: 2 }
+    ];
+    const comp = await output('comp', 'user_alice', undefined, rows);
+    assert.match(comp, /data-colour="orange"[^>]*><a [^>]*>Alice vs Administrator<\/a>[\s\S]*aria-label="forfeit"[\s\S]*aria-label="Players"/);
+    assert.match(comp, /data-colour="red"[^>]*><a [^>]*>Bob<\/a><p>eliminated/);
+    assert.match(comp, /aria-label="Club knockout Final"[\s\S]*data-white="true"[^>]*><a [^>]*>Alice vs Administrator/);
+    assert.match(comp, /data-white="false"[^>]*><a [^>]*>R1 Pending/);
+
+    const alice = await output('user', 'user_alice', 'user_alice', rows);
+    assert.match(alice, /Club knockout<\/a><p>ranked 1[\s\S]*data-colour="orange"[^>]*><a [^>]*>Alice vs Administrator/);
+    assert.equal(hasAction(alice, 'forfeit'), true);
+    assert.equal(hasAction(await output('user', 'user_visitor', 'user_alice', rows), 'forfeit'), false);
+    const bob = await output('user', 'user_bob', 'user_bob', rows);
+    assert.match(bob, /Club knockout<\/a><p>eliminated[\s\S]*No pending matches/);
+
+    const match = await output('match', 'user_alice', 'match_final', rows);
+    assert.match(match, /competitor/);
+    assert.doesNotMatch(match, />challenger<|>defender</);
+    assert.match(match, /aria-label="help"[\s\S]*aria-label="submit"/);
+    assert.match(match, /aria-label="More Options"[\s\S]*aria-label="forfeit"/);
+    const adminRows = [...rows, { pk: 'comp_test', rk: 'user_bob', is_admin: true }];
+    assert.equal(hasAction(await output('match', 'user_bob', 'match_final', adminRows), 'forfeit'), false);
+
+    rows.find(row => row.pk === 'comp' && row.rk === 'comp_test').state = 'complete';
+    rows.find(row => row.pk === 'match' && row.rk === 'match_final').state = 'complete';
+    rows.find(row => row.pk === 'match_final' && row.rk === 'user_alice').result = 'winner';
+    rows.find(row => row.pk === 'match_final' && row.rk === 'user_admin').result = 'loser';
+    rows.push(
+        { pk: 'user_admin', rk: 'match_final', result: 'loser' },
+        { pk: 'comp_test', rk: 'user_admin', is_participant: true },
+    );
+    const completed = await output('comp', 'user_alice', undefined, rows);
+    assert.match(completed, /data-colour="green"[^>]*><a [^>]*>Alice<\/a><p>champion/);
+    assert.match(completed, /data-colour="red"[^>]*><a [^>]*>Administrator<\/a><p>eliminated/);
+    assert.match(await output('user', 'user_alice', 'user_alice', rows), /Club knockout<\/a><p>champion/);
+    const final = await output('match', 'user_alice', 'match_final', rows);
+    assert.match(final, /champion/);
+    assert.match(final, /eliminated/);
+
+});
+
+test('A comp bye shows the player’s saved name in a centred white group', async () => {
+    const rows = [
+        ...fixture(),
+        { pk: 'comp', rk: 'comp_test', comp_system: 'elimination', state: 'active' },
+        { pk: 'match', rk: 'match_bye', name: 'Alice (bye)', state: 'bye' },
+        { pk: 'match_bye', rk: 'comp_test' },
+        { pk: 'match_bye', rk: 'user_alice', role: 'competitor', slot: 1, result: 'bye' },
+    ];
+    const html = await output('match', 'user_alice', 'match_bye', rows);
+    assert.match(html, /<div class="group"><p class="info center">Alice advances with a bye\.<\/p><\/div>/);
+});
+
+test('User profiles count completed wins and losses and match headers keep the entity type', async () => {
+    const rows = [...fixture()];
+    for (const [suffix, state, result] of [
+        ['win', 'complete', 'winner'], ['loss', 'complete', 'loser'],
+        ['forfeit', 'complete', 'forfeiter'], ['walkover', 'complete', 'walkover'],
+        ['bye', 'bye', 'bye'], ['active', 'active', 'winner'],
+    ]) {
+        rows.push(
+            { pk: 'match', rk: `match_${suffix}`, name: `Match ${suffix}`, state },
+            { pk: 'user_alice', rk: `match_${suffix}`, result },
+        );
+    }
+    const profile = await output('user', 'user_alice', 'user_alice', rows);
+    assert.match(profile, /<div class="group"><p class="info center description">1 won • lost 3<\/p>/);
+    assert.match(await output('user', 'user_bob', 'user_bob', rows), /0 won • lost 0/);
+
+    const match = await output('match', 'user_alice', 'match_win', rows);
+    assert.match(match, /Match win<\/strong><br\s*\/?><span class="description">match<\/span>/);
 });
