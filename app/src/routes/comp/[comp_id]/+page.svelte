@@ -110,9 +110,6 @@
 		</div>
 
 		{#if drawReady}
-			{#if champion}
-				<RouteLink href={hrefOf(champion)} title={nameOf(champion)} description="champion" image={imageOf(champion)} />
-			{/if}
 			{#each rounds as { entity: round } (round.rk)}
 				<HiddenOptions title={round.name}>
 					{#each roundMatches(round.rk) as { entity: match } (match.rk)}
