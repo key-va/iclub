@@ -242,7 +242,10 @@ export function parseResults(
     let number: number | undefined;
     let stage: string | undefined;
     const finals: FinalsRound[] = [];
-    const grandFinalTeams: string[][] = [];
+    const finalsTeams: Record<string, string[]> = {
+        "Semi Final": [],
+        "Grand Final": [],
+    };
     const seen = new Set<number | string>();
     for (const row of rows(html)) {
         const c = row.cells;
@@ -257,9 +260,9 @@ export function parseResults(
             }
             continue;
         }
-        if (stage === "Grand Final" && (c.length === 3 || c.length === 9) &&
+        if (stage && (c.length === 3 || c.length === 9) &&
             c[0] !== "Home Team" && c[c.length - 1] !== "Away Team")
-            grandFinalTeams.push([c[0], c[c.length - 1]]);
+            finalsTeams[stage].push(c[0], c[c.length - 1]);
         if (
             (!number && !stage) ||
             c.length < 3 ||
@@ -317,17 +320,21 @@ export function parseResults(
         )?.[1];
         if (match) round.external_match = match;
     }
-    const grandFinalDate = calendar.find(({ name }) => name === "Grand Final")?.date;
-    const [draw] = grandFinalTeams;
-    // A Grand Final has one fixture. Check both names against the section standings
-    // so placeholders in a partially published draw cannot eliminate a team.
-    if (grandFinalDate && grandFinalTeams.length === 1 &&
-        draw[0] !== draw[1] && !draw.includes(teamName) &&
-        draw.every((name) => standings.some((entry) => entry.name === name))) {
-        finals.push({
-            stage: "Grand Final", date: grandFinalDate, opponent: "",
-            home_away: "", venue: "", status: "eliminated",
-        });
+    // Only a complete draw with distinct, recognised teams can establish elimination.
+    const sectionTeams = new Set(standings.map(({ name }) => name));
+    for (const [stage, expectedTeams] of [["Semi Final", 4], ["Grand Final", 2]] as const) {
+        const date = calendar.find(({ name }) => name === stage)?.date;
+        const draw = finalsTeams[stage];
+        if (
+            date && draw.length === expectedTeams &&
+            new Set(draw).size === expectedTeams &&
+            !draw.includes(teamName) && draw.every((name) => sectionTeams.has(name))
+        ) {
+            finals.push({
+                stage, date, opponent: "",
+                home_away: "", venue: "", status: "eliminated",
+            });
+        }
     }
     return finals;
 }

@@ -35,6 +35,25 @@ test("published finals matchups use calendar dates and accept missing results or
     assert.equal(semi.home_away, "away");
     assert.equal(semi.status, "scheduled");
 });
+test("Semi Final elimination requires two published matchups with four distinct teams", () => {
+    const calendar = [{ name: "Semi Final", date: "2026-11-24" }];
+    const standings = ["Lobs", "Aces", "Royals", "Battlers", "Gunslingers"].map((name) => ({ name }));
+    const firstMatch = `<tr><td>Section 1 Semi Final</td></tr>
+        <tr><th>Home Team</th><th>Away Team</th></tr>
+        <tr><td>Aces</td><td>Missing Result</td><td>Royals</td></tr>`;
+    const secondMatch = `<tr><td>Battlers</td><td>Missing Result</td><td>Gunslingers</td></tr>`;
+    assert.deepEqual(parseResults(firstMatch, "Lobs", [], calendar, standings), []);
+    assert.deepEqual(
+        parseResults(firstMatch + secondMatch.replace("Gunslingers", "Royals"), "Lobs", [], calendar, standings),
+        [],
+    );
+    const draw = firstMatch + secondMatch;
+    assert.equal(parseResults(draw, "Battlers", [], calendar, standings)[0].status, "scheduled");
+    assert.deepEqual(parseResults(draw, "Lobs", [], calendar, standings), [{
+        stage: "Semi Final", date: "2026-11-24", opponent: "",
+        home_away: "", venue: "", status: "eliminated",
+    }]);
+});
 test("a published Grand Final excludes a team only once both finalists are known", () => {
     const calendar = [{ name: "Grand Final", date: "2026-12-01" }];
     const standings = ["Lobs", "Battlers", "Royals"].map((name) => ({ name }));
