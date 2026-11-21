@@ -185,7 +185,7 @@ Do not introduce new storage abstractions unless a real gap is proven.
 
 - [EntityHeader.svelte](./app/src/lib/components/EntityHeader.svelte)
   - shared page title/subtitle, large image and install guidance; pages retain their outer container and entity-existence checks
-  - accepts an entity (defaults to its name, type and `imageOf(rk)`), with title/subtitle/image overrides for branded pages, forms and related-entity images
+  - uses the entity name and type whenever an entity is supplied. Branded pages and creation forms without an entity supply a title and subtitle. Related-entity images can override `imageOf(rk)`.
   - `image={null}` omits the image and install guidance; form previews remain reactive through the image prop
 
 - [CompetitionCreate.svelte](./app/src/lib/components/CompetitionCreate.svelte)

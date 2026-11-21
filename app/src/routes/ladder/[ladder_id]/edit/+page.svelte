@@ -74,7 +74,6 @@
 	{#if ladder}
 		<EntityHeader
 			entity={ladder}
-			subtitle="edit"
 			image={image || imageOf(ladder.rk)}
 		/>
 

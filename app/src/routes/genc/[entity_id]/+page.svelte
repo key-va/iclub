@@ -23,7 +23,7 @@
 
 <div class="page">
 	{#if entity}
-		<EntityHeader {entity} subtitle="entity" />
+		<EntityHeader {entity} />
 	{:else}
 		<div class="row right">
 			<p class="truncate">

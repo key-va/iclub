@@ -4,8 +4,8 @@
 
 	let {
 		entity,
-		title = entity?.name,
-		subtitle = entity?.pk,
+		title,
+		subtitle,
 		image = entity ? imageOf(entity.rk) : null,
 		truncate = true
 	}: {
@@ -19,7 +19,7 @@
 
 <div class="row right">
 	<p class:truncate>
-		<strong>{title}</strong><br /><span class="description">{subtitle}</span>
+		<strong>{entity?.name ?? title}</strong><br /><span class="description">{entity?.pk ?? subtitle}</span>
 	</p>
 	<div class="blank-icon-small"></div>
 </div>

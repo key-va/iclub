@@ -42,7 +42,6 @@
 	{#if team && admin}
 		<EntityHeader
 			entity={team}
-			subtitle="edit"
 			image={image || imageOf(team.rk)}
 		/>
 		<div class="row right">

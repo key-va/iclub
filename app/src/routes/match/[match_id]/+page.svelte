@@ -24,7 +24,6 @@
 	{#if match}
 		<EntityHeader
 			entity={match}
-			subtitle={match.state}
 			image={elim ? imageOf(elim.rk) : ladder ? imageOf(ladder.rk) : null}
 		/>
 		{#if !elim || elim.state === 'active' || elim.state === 'complete'}

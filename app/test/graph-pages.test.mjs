@@ -260,3 +260,23 @@ test('A comp bye shows the player’s saved name in a centred white group', asyn
     const html = await output('match', 'user_alice', 'match_bye', rows);
     assert.match(html, /<div class="group"><p class="info center">Alice advances with a bye\.<\/p><\/div>/);
 });
+
+test('User profiles count completed wins and losses and match headers keep the entity type', async () => {
+    const rows = [...fixture()];
+    for (const [suffix, state, result] of [
+        ['win', 'complete', 'winner'], ['loss', 'complete', 'loser'],
+        ['forfeit', 'complete', 'forfeiter'], ['walkover', 'complete', 'walkover'],
+        ['bye', 'bye', 'bye'], ['active', 'active', 'winner'],
+    ]) {
+        rows.push(
+            { pk: 'match', rk: `match_${suffix}`, name: `Match ${suffix}`, state },
+            { pk: 'user_alice', rk: `match_${suffix}`, result },
+        );
+    }
+    const profile = await output('user', 'user_alice', 'user_alice', rows);
+    assert.match(profile, /<div class="group"><p class="info center description">1 won · 3 lost<\/p>/);
+    assert.match(await output('user', 'user_bob', 'user_bob', rows), /0 won · 0 lost/);
+
+    const match = await output('match', 'user_alice', 'match_win', rows);
+    assert.match(match, /Match win<\/strong><br\s*\/?><span class="description">match<\/span>/);
+});
