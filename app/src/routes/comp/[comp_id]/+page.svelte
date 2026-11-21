@@ -94,10 +94,10 @@
 			{#each entrants as row (row.rk)}
 				{@const ranked = Number(row.seed) > 0}
 				{@const canRank = open && admin && (ranked || seeds.length < 8)}
-				{@const description = competitionPlayerStatus(row, competitionPlayerMatches(id, row.rk))}
+				{@const description = competitionPlayerStatus(row, competitionPlayerMatches(id, row.rk), row.rk === champion)}
 				<RouteLinkHiddenAction href={hrefOf(row.rk)} title={nameOf(row.rk)}
 					image={imageOf(row.rk)} {description}
-					colour={description === 'eliminated' ? 'red' : ranked ? 'green' : 'blue'}>
+					colour={description === 'champion' ? 'green' : description === 'eliminated' ? 'red' : ranked ? 'blue' : 'grey'}>
 					{#if canRank}
 						<ActionQuick inline name={ranked ? 'unrank' : 'rank'}
 							label={ranked ? `Unrank ${nameOf(row.rk)}` : `Rank ${nameOf(row.rk)}`}

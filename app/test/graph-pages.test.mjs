@@ -133,8 +133,8 @@ test('Competition page mirrors ladder controls and scopes requests and ranking b
     ];
     const admin = await output('comp', 'user_admin', undefined, rows);
     assert.match(admin, /elimination • singles • super set • entries open/);
-    assert.match(admin, /data-colour="green"[^>]*><a [^>]*>Alice/);
-    assert.match(admin, /data-colour="blue"[^>]*><a [^>]*>Administrator/);
+    assert.match(admin, /data-colour="blue"[^>]*><a [^>]*>Alice/);
+    assert.match(admin, /data-colour="grey"[^>]*><a [^>]*>Administrator/);
     assert.match(admin, /data-colour="orange"[^>]*><a [^>]*>Bob/);
     assert.equal(hasAction(admin, 'Accept Bob'), true);
     assert.equal(hasAction(admin, 'Unrank Alice'), true);
@@ -143,7 +143,7 @@ test('Competition page mirrors ladder controls and scopes requests and ranking b
     assert.equal(hasAction(admin, 'start draw'), true);
 
     const player = await output('comp', 'user_alice', undefined, rows);
-    assert.match(player, /data-colour="green"[^>]*><a [^>]*>Alice/);
+    assert.match(player, /data-colour="blue"[^>]*><a [^>]*>Alice/);
     assert.match(player, /ranked 1/);
     assert.match(player, /<button[^>]*disabled[^>]*><p>unranked<\/p>/);
     assert.doesNotMatch(player, /waiting to join|Accept Bob|Unrank Alice/);
@@ -230,4 +230,33 @@ test('Competition rounds and user profiles show active matches and elimination s
     assert.match(match, /aria-label="More Options"[\s\S]*aria-label="forfeit"/);
     const adminRows = [...rows, { pk: 'comp_test', rk: 'user_bob', is_admin: true }];
     assert.equal(hasAction(await output('match', 'user_bob', 'match_final', adminRows), 'forfeit'), false);
+
+    rows.find(row => row.pk === 'comp' && row.rk === 'comp_test').state = 'complete';
+    rows.find(row => row.pk === 'match' && row.rk === 'match_final').state = 'complete';
+    rows.find(row => row.pk === 'match_final' && row.rk === 'user_alice').result = 'winner';
+    rows.find(row => row.pk === 'match_final' && row.rk === 'user_admin').result = 'loser';
+    rows.push(
+        { pk: 'user_admin', rk: 'match_final', result: 'loser' },
+        { pk: 'comp_test', rk: 'user_admin', is_participant: true },
+    );
+    const completed = await output('comp', 'user_alice', undefined, rows);
+    assert.match(completed, /data-colour="green"[^>]*><a [^>]*>Alice<\/a><p>champion/);
+    assert.match(completed, /data-colour="red"[^>]*><a [^>]*>Administrator<\/a><p>eliminated/);
+    assert.match(await output('user', 'user_alice', 'user_alice', rows), /Club knockout<\/a><p>champion/);
+    const final = await output('match', 'user_alice', 'match_final', rows);
+    assert.match(final, /champion/);
+    assert.match(final, /eliminated/);
+
+});
+
+test('A comp bye shows the player’s saved name in a centred white group', async () => {
+    const rows = [
+        ...fixture(),
+        { pk: 'comp', rk: 'comp_test', comp_system: 'elimination', state: 'active' },
+        { pk: 'match', rk: 'match_bye', name: 'Alice (bye)', state: 'bye' },
+        { pk: 'match_bye', rk: 'comp_test' },
+        { pk: 'match_bye', rk: 'user_alice', role: 'competitor', slot: 1, result: 'bye' },
+    ];
+    const html = await output('match', 'user_alice', 'match_bye', rows);
+    assert.match(html, /<div class="group"><p class="info center">Alice advances with a bye\.<\/p><\/div>/);
 });

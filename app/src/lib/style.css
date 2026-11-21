@@ -286,5 +286,3 @@ table {
     to { width: 2px; height: 100vh; translate: 100vw 0; }
 }
 .action-link { text-decoration: none; }
-
-.description { text-transform: lowercase; }

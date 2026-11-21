@@ -380,7 +380,7 @@ export async function score(
     // Persist the intended result before changing any relations. A retry can
     // replay the projection, including the inverse links and the next match.
     const pending: PendingResult = {
-        matchId, players: updated, action, excludeUser: admin && !forfeit ? undefined : caller,
+        matchId, players: updated, action, excludeUser: caller,
     };
     await updateComp(id, { pending_result: JSON.stringify(pending) }, []);
     await repairResult(id, pending, context);

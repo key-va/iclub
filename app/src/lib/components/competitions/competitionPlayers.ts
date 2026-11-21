@@ -11,7 +11,8 @@ export function activeCompetitionMatches(matches: GuidRow[]) {
 		.filter((match): match is GuidRow => match?.state === 'active');
 }
 
-export function competitionPlayerStatus(player: GuidRow, matches: GuidRow[]) {
+export function competitionPlayerStatus(player: GuidRow, matches: GuidRow[], isChampion: boolean) {
+	if (isChampion) return 'champion';
 	if (matches.some((row) =>
 		(row.result === 'loser' || row.result === 'forfeiter' || row.result === 'walkover') &&
 		entityOf(row.rk)?.state === 'complete'
