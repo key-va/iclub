@@ -88,7 +88,11 @@
 			badge={futureRounds.length + finalsDates.length}
 		></HiddenOptions>
 		{#each futureRounds as round (round.rk)}
-			<TeamRound {team} {round} />
+			{#if round.state === 'eliminated'}
+				<HiddenOptions title={round.name} description={`eliminated · ${round.date}`} />
+			{:else}
+				<TeamRound {team} {round} />
+			{/if}
 		{/each}
 
 		{#each finalsDates as final}

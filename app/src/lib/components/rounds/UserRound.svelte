@@ -27,7 +27,7 @@
 	const options = $derived(
 		user.rk === $local.caller_id &&
 			isTeamMember(team) &&
-			record.state !== 'complete'
+			!['complete', 'eliminated'].includes(String(record.state))
 			? availabilityOptions(round.role)
 			: []
 	);

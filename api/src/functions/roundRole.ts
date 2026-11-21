@@ -63,6 +63,8 @@ export async function roundRole(
                 return reply(409, "Round must belong to an active team");
             const currentRound = await get("round", id);
             if (!currentRound) return reply(404, "Round not found");
+            if (currentRound.state === "eliminated")
+                return reply(409, "An eliminated round cannot be changed");
             if (
                 currentRound.state === "complete" ||
                 (currentRound.state === undefined &&

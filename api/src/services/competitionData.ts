@@ -110,6 +110,7 @@ export function roundCondition(
     if (row.state === undefined) return String(row.status ?? "scheduled"); // legacy dataset
     if (result === "bye" || result === "washout") return String(result);
     if (row.state === "complete") return "completed";
+    if (row.state === "eliminated") return "eliminated";
     return /postpon/i.test(String(row.ext_status ?? ""))
         ? "postponed"
         : "scheduled";
@@ -147,8 +148,10 @@ export function roundRecord(
         next.ext_match = incoming.external_match;
     const previous = roundCondition(old, relationshipResult);
     const preserveResult =
-        incoming?.status === "scheduled" &&
-        ["completed", "washout", "postponed"].includes(previous);
+        (incoming?.status === "scheduled" &&
+            (["completed", "washout", "postponed"].includes(previous) ||
+                (calendarOnly && previous === "eliminated"))) ||
+        (incoming?.status === "eliminated" && previous === "completed");
     const condition = incoming && !preserveResult ? incoming.status : previous;
     // Only literal source labels belong in ext_status; never store synthetic
     // 'scheduled'/'completed' strings there. An empty source label removes it.
@@ -172,7 +175,7 @@ export function roundRecord(
     }
     next.state = ["completed", "bye", "washout"].includes(condition)
         ? "complete"
-        : "pending";
+        : condition === "eliminated" ? "eliminated" : "pending";
     let result: string | undefined;
     if (condition === "bye" || condition === "washout") result = condition;
     else if (
@@ -196,7 +199,7 @@ export function roundRecord(
     }
     if (incoming && "stage" in incoming) next.ext_stage = incoming.stage;
     const roundName = next.ext_stage ?? `Round ${next.ext_number}`;
-    next.name = next.ext_stage && !next.ext_opponent
+    next.name = next.ext_stage && (!next.ext_opponent || condition === "eliminated")
         ? roundName
         : `${roundName} vs ${next.ext_opponent ?? ""}`;
     return { entity: next, result, is_home };

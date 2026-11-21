@@ -35,6 +35,19 @@ test("published finals matchups use calendar dates and accept missing results or
     assert.equal(semi.home_away, "away");
     assert.equal(semi.status, "scheduled");
 });
+test("a published Grand Final excludes a team only once both finalists are known", () => {
+    const calendar = [{ name: "Grand Final", date: "2026-12-01" }];
+    const standings = ["Lobs", "Battlers", "Royals"].map((name) => ({ name }));
+    const results = `<tr><td colspan="9">Section 1 Grand Final</td></tr>
+        <tr><th>Home Team</th><th>Away Team</th></tr>
+        <tr><td>Battlers</td><td colspan="7">Missing Result</td><td>Royals</td></tr>`;
+    assert.equal(parseResults(results, "Lobs", [], calendar, standings)[0].status, "eliminated");
+    assert.equal(parseResults(results, "Royals", [], calendar, standings)[0].status, "scheduled");
+    assert.deepEqual(
+        parseResults(results.replace("Royals</td>", "Winner SF2</td>"), "Lobs", [], calendar, standings),
+        [],
+    );
+});
 test("live-captured TROLS tables yield independent numbered fixtures, venues, byes, calendar, results and standings", () => {
     const parsed = parseFixture(html("fixture"), name);
     assert.equal(parsed.rounds.length, 14);

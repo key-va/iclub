@@ -235,12 +235,14 @@ export function parseResults(
     teamName: string,
     rounds: OfficialRound[],
     calendar: CompetitionSnapshot["calendar"] = [],
+    standings: Standing[] = [],
 ) {
     if (!/Home Team/.test(html) || !/Away Team/.test(html))
         throw Error("TROLS results table is missing");
     let number: number | undefined;
     let stage: string | undefined;
     const finals: FinalsRound[] = [];
+    const grandFinalTeams: string[][] = [];
     const seen = new Set<number | string>();
     for (const row of rows(html)) {
         const c = row.cells;
@@ -255,6 +257,9 @@ export function parseResults(
             }
             continue;
         }
+        if (stage === "Grand Final" && (c.length === 3 || c.length === 9) &&
+            c[0] !== "Home Team" && c[c.length - 1] !== "Away Team")
+            grandFinalTeams.push([c[0], c[c.length - 1]]);
         if (
             (!number && !stage) ||
             c.length < 3 ||
@@ -311,6 +316,18 @@ export function parseResults(
             /open_match\([^)]*'([A-Za-z0-9]+)'\s*\)/,
         )?.[1];
         if (match) round.external_match = match;
+    }
+    const grandFinalDate = calendar.find(({ name }) => name === "Grand Final")?.date;
+    const [draw] = grandFinalTeams;
+    // A Grand Final has one fixture. Check both names against the section standings
+    // so placeholders in a partially published draw cannot eliminate a team.
+    if (grandFinalDate && grandFinalTeams.length === 1 &&
+        draw[0] !== draw[1] && !draw.includes(teamName) &&
+        draw.every((name) => standings.some((entry) => entry.name === name))) {
+        finals.push({
+            stage: "Grand Final", date: grandFinalDate, opponent: "",
+            home_away: "", venue: "", status: "eliminated",
+        });
     }
     return finals;
 }
@@ -440,8 +457,8 @@ export const trols: CompetitionProvider = {
         selected(fixture, "team", mapping.external_team);
         const team = chosen(fixture, "team", mapping.external_team);
         const parsed = parseFixture(fixture, team.name);
-        const finals = parseResults(results, team.name, parsed.rounds, parsed.calendar);
         const standings = parseStandings(ladder);
+        const finals = parseResults(results, team.name, parsed.rounds, parsed.calendar, standings);
         if (!standings.some((s) => s.name === team.name))
             throw Error("Team is missing from TROLS standings");
         return { ...parsed, finals, standings };
