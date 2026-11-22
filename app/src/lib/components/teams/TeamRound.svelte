@@ -4,6 +4,7 @@
 	import {
 		roundRoleColour,
 		availabilityOptions,
+		roundRoleLabel,
 		isTeamMember
 	} from '#lib/components/rounds/roundRules.ts';
 	import { setRoundRole } from '#lib/stores/remote.ts';
@@ -23,7 +24,7 @@
 			? relationsOf($local.caller_id).find((row) => row.rk === round.rk)?.role
 			: undefined
 	);
-	const roleLabel = $derived(role == null ? 'no status' : String(role));
+	const roleLabel = $derived(roundRoleLabel(role) || 'no status');
 	const description = $derived(
 		round.ext_stage && round.is_home === undefined
 			? `${roleLabel} · ${round.date}`
@@ -46,7 +47,7 @@
 	{#snippet actions()}
 		{#each options as nextRole}<ActionQuick
 				inline
-				name={nextRole}
+				name={roundRoleLabel(nextRole)}
 				action={() => setRoundRole(round.rk, nextRole)}
 			/>{/each}
 	{/snippet}
@@ -56,6 +57,6 @@
 		{description}
 		colour={roundRoleColour[String(role)] ?? 'grey'}
 		children={options.length ? actions : undefined}
-		currentSelection={!options.length && typeof role === 'string' ? role : undefined}
+		currentSelection={!options.length ? roundRoleLabel(role) : undefined}
 	/>
 {/if}

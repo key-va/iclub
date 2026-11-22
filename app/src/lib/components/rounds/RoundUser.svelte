@@ -7,7 +7,7 @@
 		imageOf,
 		type GuidRow
 	} from '#lib/stores/guids.ts';
-	import { roundRoleColour, isTeamAdmin } from './roundRules.ts';
+	import { roundRoleColour, roundRoleLabel, isTeamAdmin } from './roundRules.ts';
 	import { setRoundRole } from '#lib/stores/remote.ts';
 	import RouteLinkHiddenAction from '../RouteLinkHiddenAction.svelte';
 	import ActionQuick from '../ActionQuick.svelte';
@@ -26,7 +26,7 @@
 {#snippet selectionAction()}
 	<ActionQuick
 		inline
-		name={user.role === 'selected' ? 'available' : 'select'}
+		name={user.role === 'selected' ? 'available' : 'nominate'}
 		action={() =>
 			setRoundRole(
 				round.rk,
@@ -38,9 +38,9 @@
 <RouteLinkHiddenAction
 	href={hrefOf(user.rk)}
 	title={nameOf(user.rk)}
-	description={String(user.role)}
+	description={roundRoleLabel(user.role)}
 	image={imageOf(user.rk)}
 	colour={roundRoleColour[String(user.role)] ?? 'grey'}
 	children={selectable ? selectionAction : undefined}
-	currentSelection={!selectable && typeof user.role === 'string' ? user.role : undefined}
+	currentSelection={!selectable ? roundRoleLabel(user.role) : undefined}
 />

@@ -91,10 +91,10 @@ test('round roles drive availability and selection while names come from entitie
     const html = await output('round');
     assert.match(html, /Visitors vs Team A/);
     assert.match(html, /See you on court/);
-    assert.equal(hasAction(html, 'select'), true);
+    assert.equal(hasAction(html, 'nominate'), true);
     const player = await output('round', 'user_alice');
-    assert.equal(hasAction(player, 'unavailable'), true);
-    assert.equal(hasAction(player, 'select'), false);
+    assert.equal(hasAction(player, 'away'), true);
+    assert.equal(hasAction(player, 'nominate'), false);
 });
 test('match defender permissions, competitor names and messages survive the lookup migration', async () => {
     const html = await output('match', 'user_bob');
@@ -110,7 +110,7 @@ test('user home resolves team details and outstanding round role/date separately
     assert.match(html, /Division One • rank 2/);
     assert.match(html, /Round 1/);
     assert.match(html, /2026-11-20/);
-    assert.match(html, /selected/);
+    assert.match(html, /nominated/);
 });
 
 test('pending team/group memberships on user pages retain admin acceptance actions', async () => {

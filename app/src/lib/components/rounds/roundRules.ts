@@ -10,6 +10,12 @@ export const roundRoleColour: Record<string, string> = {
 	unavailable: 'red',
 	pending: 'orange'
 };
+export function roundRoleLabel(role: unknown): string {
+	if (role === 'unavailable') return 'away';
+	if (role === 'selected') return 'nominated';
+	return typeof role === 'string' ? role : '';
+}
+
 export function isTeamAdmin(relation?: Record<string, unknown>): boolean {
 	return typeof relation?.is_admin === 'boolean'
 		? relation.is_admin

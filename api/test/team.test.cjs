@@ -348,7 +348,7 @@ test("own availability transitions allow revisions but selected players can only
                 const p = pushes[0];
                 assert.deepEqual(new Set(p.userIds), new Set([A, B]));
                 assert.match(p.heading, /Lobs/);
-                assert.match(p.content, /user_u is now unavailable/);
+                assert.match(p.content, /user_u is now away/);
                 assert.match(p.content, /Round 14.*replacement/i);
                 assert.equal(p.path, "round/round_r");
                 assert.equal(p.exceptUserId, undefined);
@@ -386,7 +386,7 @@ test("selection authority allows admin self-selection while rejecting outsiders,
     pushes.length = 0;
     assert.equal((await role(A, U, "selected")).status, 200);
     assert.deepEqual(pushes[0].userIds, [U]);
-    assert.match(pushes[0].content, /selected.*Round 14/);
+    assert.match(pushes[0].content, /nominated.*Round 14/);
     assert.equal(pushes[0].path, "round/round_r");
     assert.equal((await role(A, U, "selected")).status, 200);
     assert.equal(pushes.length, 1);

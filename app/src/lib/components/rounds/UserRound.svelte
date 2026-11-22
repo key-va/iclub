@@ -11,6 +11,7 @@
 	import {
 		roundView,
 		availabilityOptions,
+		roundRoleLabel,
 		roundRoleColour,
 		isTeamMember
 	} from './roundRules.ts';
@@ -36,17 +37,17 @@
 {#snippet actions()}
 	{#each options as role}<ActionQuick
 			inline
-			name={role}
+			name={roundRoleLabel(role)}
 			action={() => setRoundRole(round.rk, role)}
 		/>{/each}
 {/snippet}
 <RouteLinkHiddenAction
 	href={hrefOf(round.rk)}
 	title={nameOf(round.rk)}
-	description={String(round.role)}
+	description={roundRoleLabel(round.role)}
 	colour={roundRoleColour[String(round.role)] ?? 'grey'}
 	children={options.length ? actions : undefined}
-	currentSelection={!options.length && typeof round.role === 'string' ? round.role : undefined}
+	currentSelection={!options.length ? roundRoleLabel(round.role) : undefined}
 >
 	{#snippet detail()}{record.date}{/snippet}
 </RouteLinkHiddenAction>
