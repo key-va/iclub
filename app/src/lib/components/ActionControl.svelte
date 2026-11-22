@@ -43,8 +43,6 @@
 	let isError = $state(false);
 	let shown = $state('');
 	let triggerButton: HTMLButtonElement;
-	// a no-confirmation action in flight: shown as a timer icon in the button
-	const quiet = $derived(!confirm && isBusy && !isExpanded);
 
 	let originX = $state(0);
 	let originY = $state(0);
@@ -177,26 +175,11 @@
 		disabled={disabled || isBusy || isExpanded}
 		onclick={start}
 	>
-		{#if (!arrow || showLabel) && !quiet}<p>{name}</p>{/if}
-		{#if quiet}
-			<svg
-				viewBox="0 0 24 24"
-				width="1rem"
-				height="1rem"
-				fill="none"
-				stroke="currentColor"
-				stroke-width="3"
-				stroke-linecap="round"
-				stroke-linejoin="round"
-				role="img"
-				aria-label="working"
-			>
-				<path d="M6 3h12M6 21h12M7 3v4l5 5-5 5v4M17 3v4l-5 5 5 5v4" />
-			</svg>
-		{:else}
+		{#if !confirm || !arrow || showLabel}<p>{name}</p>{/if}
+		{#if confirm}
 			<svg
 				class="action-arrow"
-				class:hidden-arrow={inline && !arrow}
+				aria-hidden="true"
 				viewBox="0 0 24 24"
 				width="1rem"
 				height="1rem"
@@ -215,7 +198,7 @@
 {#if inline}
 	{@render trigger()}
 {:else}
-	<div class="row right">
+	<div class="row right action-row">
 		{@render children?.()}
 		{@render trigger()}
 	</div>
@@ -299,7 +282,4 @@
 		margin-top: 50%;
 	}
 
-	.hidden-arrow {
-		display: none;
-	}
 </style>

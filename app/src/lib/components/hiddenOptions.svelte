@@ -104,7 +104,7 @@
 			<div
 				bind:this={contentNode}
 				class="content inline"
-				class:action-options={moreOptions}
+				class:action-row={moreOptions}
 				role="group"
 				aria-label={`${title} options`}
 				use:trackActions={onActionActivity}
@@ -144,7 +144,7 @@
 	{#if open && !replaceRow}
 		<div
 			class="content details"
-			class:action-options={moreOptions}
+			class:action-row={moreOptions}
 			role="group"
 			aria-label={title}
 			use:trackActions={onActionActivity}
@@ -170,11 +170,4 @@
 		padding: 0.5em 2em;
 	}
 
-	.action-options :global(.action-arrow) {
-		display: none;
-	}
-	.action-options :global(button:last-child > .action-arrow),
-	.action-options :global(a:last-child > .action-arrow) {
-		display: inline-block;
-	}
 </style>

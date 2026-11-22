@@ -286,3 +286,9 @@ table {
     to { width: 2px; height: 100vh; translate: 100vw 0; }
 }
 .action-link { text-decoration: none; }
+
+
+/* Only the last option in a page action row carries an arrow. */
+.action-row > :is(button, a):has(~ :is(button, a)) > .action-arrow {
+    display: none;
+}
