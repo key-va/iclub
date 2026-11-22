@@ -65,7 +65,7 @@
 		})
 	);
 	const canOfferChallenge = $derived(
-		!liveMatches.length && !retired && myPair?.rk !== pairId
+		canChallenge && !liveMatches.length && !retired && myPair?.rk !== pairId
 	);
 	const stateText = $derived(
 		retired
@@ -86,7 +86,6 @@
 				inline
 				name="challenge"
 				action={() => createMatch(ladder.rk, myPair!.rk, pairId)}
-				disabled={!canChallenge}
 			/>
 		{/snippet}
 		<RouteLinkHiddenAction
@@ -96,6 +95,7 @@
 			image={imageOf(ladder.rk)}
 			colour={ladderStateColours[String(ladderRow?.state)] ?? 'grey'}
 			children={canOfferChallenge ? challengeAction : undefined}
+			currentSelection={canOfferChallenge ? undefined : stateText}
 		>
 			{#snippet detail()}{Number(ladderRow?.rank) || 0}{/snippet}
 		</RouteLinkHiddenAction>

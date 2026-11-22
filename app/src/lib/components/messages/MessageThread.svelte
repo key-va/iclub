@@ -11,7 +11,7 @@
 	import { createMessage } from '#lib/stores/remote.ts';
 	import RouteLink from '../routeLink.svelte';
 	import HiddenOptions from '../hiddenOptions.svelte';
-	import ActionQuick from '../ActionQuick.svelte';
+	import ActionConfirmation from '../ActionConfirmation.svelte';
 	let { parentId, showTime = false }: { parentId: string; showTime?: boolean } =
 		$props();
 	const relatedRows = $derived(relationsOf(parentId));
@@ -53,8 +53,10 @@
 		<div class="row right message"><p>{nameOf(message.rk)}</p></div>
 	{/each}
 	{#if $local.caller_id}
-		<ActionQuick
+		<ActionConfirmation
 			name="send"
+			navigate={false}
+			message="Send this message?"
 			arrow
 			action={() => createMessage(parentId, text.trim())}
 			disabled={!valid}
@@ -70,7 +72,7 @@
 				autocomplete="off"
 				bind:value={text}
 			/>
-		</ActionQuick>
+		</ActionConfirmation>
 	{:else}
 		<RouteLink href="/login" title="Log in to send a message" />
 	{/if}

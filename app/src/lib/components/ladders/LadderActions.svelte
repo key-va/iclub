@@ -48,16 +48,19 @@
 	);
 </script>
 
-{#snippet editOption()}<ActionLink
-		href={`/ladder/${ladder.rk}/edit`}
-		name="edit"
-	/>{/snippet}
+{#snippet editOption()}
+	{#if mine?.state === 'pending' && ladder.state === 'active'}
+		<ActionConfirmation inline name="leave ladder" message="Cancel your join request?"
+			action={() => leaveLadder(ladder.rk)} />
+	{/if}
+	{#if mine?.is_admin === true}<ActionLink href={`/ladder/${ladder.rk}/edit`} name="edit" />{/if}
+{/snippet}
 
 <EntityActions
 	{section}
-	options={mine?.is_admin === true ? editOption : undefined}
+	options={mine?.is_admin === true || mine?.state === 'pending' ? editOption : undefined}
 	{summary}
-	more={ladder.state === 'active' && associated}
+	more={ladder.state === 'active' && associated && mine?.state !== 'pending'}
 >
 	{#snippet help()}
 		{#each Object.entries(ladderSettings) as [key, setting]}
@@ -71,7 +74,7 @@
 			</p>
 		{/each}
 	{/snippet}
-	{#if ladder.state === 'pending'}
+	{#if ladder.state === 'pending' && clubAdmin}
 		<ActionConfirmation
 			inline
 			arrow
@@ -79,9 +82,8 @@
 			name="approve this ladder"
 			message={`Approve ${ladder.name} to make it active?`}
 			action={() => activateLadder(ladder.rk)}
-			disabled={!clubAdmin}
 		/>
-	{:else if associated}
+	{:else if associated && mine?.state !== 'pending'}
 		{#if mine?.is_participant === true}
 			{#if mine.state === 'away'}<ActionConfirmation
 					inline
@@ -115,7 +117,7 @@
 			showLabel
 			name="request to join"
 			action={() => joinLadder(ladder.rk)}
-			disabled={!$local.caller_id}
+			disabled={!$local.caller_id || mine?.state === 'pending'}
 		/>
 	{/if}
 </EntityActions>

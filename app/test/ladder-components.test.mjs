@@ -119,12 +119,12 @@ test('singles standings resolve challenge identity, reach, state and self restri
     assert.deepEqual(action(output, 'challenge').data,
         { ladder_id: ladder.rk, challenger_id: 'user_me', defender_id: 'user_other' });
     await load(items, 'user_other');
-    assert.equal(action(html('LadderUser', props), 'challenge').disabled, true);
+    assert.equal(action(html('LadderUser', props), 'challenge'), undefined);
     await load(items, 'user_admin');
-    assert.equal(action(html('LadderUser', props), 'challenge').disabled, true);
+    assert.equal(action(html('LadderUser', props), 'challenge'), undefined);
     await load(items);
     user.state = 'away';
-    assert.equal(action(html('LadderUser', props), 'challenge').disabled, true);
+    assert.equal(action(html('LadderUser', props), 'challenge'), undefined);
 });
 
 test('doubles resolve pair standing and either partner as the same challenger', async () => {
@@ -145,12 +145,12 @@ test('doubles resolve pair standing and either partner as the same challenger', 
         assert.equal(action(output, 'challenge').data.challenger_id, 'pair_mine');
     }
     await load(items, 'user_other');
-    assert.equal(action(html('LadderPair', { ladder, pair }), 'challenge').disabled, true);
+    assert.equal(action(html('LadderPair', { ladder, pair }), 'challenge'), undefined);
     // Retired memberships must never supply an active competitive identity.
     items.find(row => row.pk === ladder.rk && row.rk === 'pair_mine').is_participant = false;
     await load(items, 'user_me');
     assert.equal(rules.ladderMembership( ladder, 'user_me').competitorId, null);
-    assert.equal(action(html('LadderPair', { ladder, pair }), 'challenge').disabled, true);
+    assert.equal(action(html('LadderPair', { ladder, pair }), 'challenge'), undefined);
 });
 
 test('user ladder sections isolate ongoing matches to the viewed user and ladder', async () => {
@@ -181,7 +181,7 @@ test('pending application controls are limited to ladder admins and honour ladde
             assert.equal(action(output, 'accept').endpoint, `ladder/${ladder.rk}/accept`);
             assert.deepEqual(action(output, 'accept').data, { user_id: 'user_partner' });
         } else {
-            assert.match(output, /aria-label="select player"/);
+            assert.doesNotMatch(output, /aria-label="select player"/);
             assert.equal(action(output, 'accept'), undefined);
         }
         await load(items, 'user_other');
@@ -226,7 +226,7 @@ test('ladder approval and join confirmations use the requested labels and permis
     assert.equal(action(renderPage(), 'approve this ladder').disabled, false);
     assert.equal(action(renderPage(), 'approve this ladder').endpoint, `ladder/${ladder.rk}/activate`);
     await load(items, 'user_me');
-    assert.equal(action(renderPage(), 'approve this ladder').disabled, true);
+    assert.equal(action(renderPage(), 'approve this ladder'), undefined);
     ladder.state = 'active';
     await load(items, 'user_outsider');
     assert.equal(action(renderPage(), 'request to join').disabled, false);

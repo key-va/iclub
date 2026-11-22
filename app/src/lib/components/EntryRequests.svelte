@@ -21,7 +21,7 @@
 
 <div class="group">
 	{#each pending as player (player.rk)}
-		<RouteLinkHiddenAction href={hrefOf(player.rk)} title={nameOf(player.rk)} description="waiting to join" image={imageOf(player.rk)} colour={selectedPairUserId === player.rk ? 'green' : 'orange'}>
+		{#snippet actions()}
 			{#if doubles}
 				{#if selectedPairUser && selectedPairUser.rk !== player.rk}
 					<ActionQuick inline name={`accept with ${selectedFirstName}`}
@@ -37,6 +37,9 @@
 				<ActionQuick inline name="accept" label={acceptLabel?.(player.rk)}
 					action={() => acceptPlayer(player.rk)} />
 			{/if}
-		</RouteLinkHiddenAction>
+		{/snippet}
+		<RouteLinkHiddenAction href={hrefOf(player.rk)} title={nameOf(player.rk)} description="waiting to join" image={imageOf(player.rk)} colour={selectedPairUserId === player.rk ? 'green' : 'orange'}
+			children={!doubles || pending.length > 1 ? actions : undefined}
+			currentSelection={doubles && pending.length < 2 ? 'waiting for a partner' : undefined} />
 	{/each}
 </div>

@@ -9,8 +9,8 @@ before(async () => {
         plugins: [{ name: 'expose-page-actions', enforce: 'pre', transform(source, id) {
             const path = id.replaceAll('\\', '/');
             if (path.endsWith('/components/routeLink.svelte') || path.endsWith('/components/RouteLinkHiddenAction.svelte')) return `
-                <script>let { href, title, description, detail, children, colour, isWhite } = $props();</script>
-                <article data-colour={colour} data-white={isWhite}><a {href}>{title}</a><p>{description}</p>{@render detail?.()}{@render children?.()}</article>`;
+                <script>let { href, title, description, detail, children, colour, isWhite, currentSelection } = $props();</script>
+                <article data-colour={colour} data-white={isWhite}><a {href}>{title}</a><p>{description}</p>{@render detail?.()}{@render children?.()}{#if !children && currentSelection}<button disabled><p>{currentSelection}</p></button>{/if}</article>`;
             if (path.endsWith('/components/hiddenOptions.svelte')) return `
                 <script>let { title, children } = $props();</script><section aria-label={title}>{@render children?.()}</section>`;
             if (path.endsWith('/components/apiService.svelte')) return `
@@ -152,7 +152,7 @@ test('Competition page mirrors ladder controls and scopes requests and ranking b
 
     const applicant = await output('comp', 'user_bob', undefined, rows);
     assert.match(applicant, /Bob[\s\S]*join request pending/);
-    assert.equal(hasAction(applicant, 'request to join'), false);
+    assert.match(applicant, /aria-label="request to join"[^>]*disabled/);
     assert.equal(hasAction(applicant, 'Accept Bob'), false);
 
     const extendedRows = [...rows, { pk: 'user', rk: 'user_visitor', name: 'Visitor' }];
@@ -224,7 +224,7 @@ test('doubles comp displays pair seeding and lets either partner access the matc
         link('match_doubles', user, { role: 'participant' });
     const bob = await output('user', 'user_bob', 'user_bob', rows);
     assert.match(bob, /Doubles knockout<\/a><p>ranked 1[\s\S]*Alice and Bob vs Chris and Dana/);
-    assert.equal(hasAction(bob, 'forfeit'), true);
+    assert.equal(hasAction(bob, 'forfeit'), false);
     rows.push({ pk: 'match', rk: 'match_previous', state: 'complete' });
     link('pair_first', 'match_previous', { result: 'loser' });
     const pair = await output('pair', 'user_bob', 'pair_first', rows);
@@ -264,14 +264,14 @@ test('Competition rounds and user profiles show active matches and elimination s
         { pk: 'user_bob', rk: 'comp_test', is_participant: true, seed: 2 }
     ];
     const comp = await output('comp', 'user_alice', undefined, rows);
-    assert.match(comp, /data-colour="orange"[^>]*><a [^>]*>Alice vs Administrator<\/a>[\s\S]*aria-label="forfeit"[\s\S]*aria-label="Players"/);
+    assert.match(comp, /data-colour="orange"[^>]*><a [^>]*>Alice vs Administrator<\/a>[\s\S]*aria-label="Players"/);
     assert.match(comp, /data-colour="red"[^>]*><a [^>]*>Bob<\/a><p>eliminated/);
     assert.match(comp, /aria-label="Club knockout Final"[\s\S]*data-white="true"[^>]*><a [^>]*>Alice vs Administrator/);
     assert.match(comp, /data-white="false"[^>]*><a [^>]*>R1 Pending/);
 
     const alice = await output('user', 'user_alice', 'user_alice', rows);
     assert.match(alice, /Club knockout<\/a><p>ranked 1[\s\S]*data-colour="orange"[^>]*><a [^>]*>Alice vs Administrator/);
-    assert.equal(hasAction(alice, 'forfeit'), true);
+    assert.equal(hasAction(alice, 'forfeit'), false);
     assert.equal(hasAction(await output('user', 'user_visitor', 'user_alice', rows), 'forfeit'), false);
     const bob = await output('user', 'user_bob', 'user_bob', rows);
     assert.match(bob, /Club knockout<\/a><p>eliminated[\s\S]*No pending matches/);

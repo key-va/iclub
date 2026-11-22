@@ -7,6 +7,18 @@ import {
 	nameOf
 } from '#lib/stores/guids.ts';
 
+export function canAcceptLadderMatch(match: GuidRow, callerId: string | null) {
+	if (match.state !== 'pending' || !callerId) return false;
+	const links = relationsOf(match.rk);
+	const ladder = links.find((row) => row.rk.startsWith('ladder_'));
+	if (!ladder) return false;
+	const user = links.find((row) => row.rk === callerId);
+	const defender = links.find((row) => row.role === 'defender');
+	return user?.role === 'defender' ||
+		(!!defender && user?.competitor_id === defender.rk) ||
+		relationsOf(ladder.rk).some((row) => row.rk === callerId && row.is_admin === true);
+}
+
 export function canForfeitCompetitionMatch(match: GuidRow, callerId: string | null) {
 	const [first, second] = competitionSlots(match);
 	return match.state === 'active' && !!first && !!second &&

@@ -15,9 +15,12 @@
 	const description = $derived(challengeDescription(pair, membership.competitorId, eligible));
 </script>
 
-<RouteLinkHiddenAction href={hrefOf(pair.rk)} title={nameOf(pair.rk)} {description} image={imageOf(ladder.rk)} colour={ladderStateColours[String(pair.state)] ?? 'grey'}>
-	{#snippet detail()}rank {rank}{/snippet}
+{#snippet challenge()}
 	<ActionQuick inline name="challenge"
-		action={() => createMatch(ladder.rk, membership.competitorId!, pair.rk)}
-		disabled={!eligible} />
+		action={() => createMatch(ladder.rk, membership.competitorId!, pair.rk)} />
+{/snippet}
+<RouteLinkHiddenAction href={hrefOf(pair.rk)} title={nameOf(pair.rk)} {description}
+	image={imageOf(ladder.rk)} colour={ladderStateColours[String(pair.state)] ?? 'grey'}
+	children={eligible ? challenge : undefined} currentSelection={eligible ? undefined : description}>
+	{#snippet detail()}rank {rank}{/snippet}
 </RouteLinkHiddenAction>

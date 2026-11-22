@@ -26,18 +26,22 @@
 	);
 </script>
 
-{#snippet editOption()}<ActionLink
-		href={`/team/${team.rk}/edit`}
-		name="edit"
-	/>{/snippet}
+{#snippet membershipOptions()}
+	{#if mine && team.state === 'active'}
+		<ActionConfirmation inline name="leave team" message="Leave this team?"
+			action={() => leaveTeam(team.rk)} />
+	{/if}
+	{#if isTeamAdmin(mine)}
+		<ActionLink href={`/team/${team.rk}/edit`} name="edit" />
+	{/if}
+{/snippet}
 
 <EntityActions
 	{section}
-	options={isTeamAdmin(mine) ? editOption : undefined}
+	options={(team.state === 'active' && mine) || isTeamAdmin(mine) ? membershipOptions : undefined}
 	summary={teamDescription(team)}
-	more={team.state === 'active' && !!mine}
 >
-	{#if team.state === 'pending'}
+	{#if team.state === 'pending' && clubAdmin}
 		<ActionConfirmation
 			inline
 			arrow
@@ -45,24 +49,10 @@
 			name="approve team"
 			message={`Approve ${team.name} and import its rounds?`}
 			action={() => activateTeam(team.rk)}
-			disabled={!clubAdmin}
 		/>
-	{:else if team.state === 'active'}
-		{#if mine}<ActionConfirmation
-				inline
-				arrow
-				showLabel
-				name="leave team"
-				message="Leave this team?"
-				action={() => leaveTeam(team.rk)}
-			/>
-		{:else}<ActionConfirmation
-				inline
-				arrow
-				showLabel
-				name="request to join"
-				action={() => joinTeam(team.rk)}
-				disabled={!$local.caller_id}
-			/>{/if}
+	{:else if team.state === 'active' && (!mine || mine.state === 'pending')}
+		<ActionConfirmation inline arrow showLabel name="request to join"
+			action={() => joinTeam(team.rk)}
+			disabled={!$local.caller_id || mine?.state === 'pending'} />
 	{/if}
 </EntityActions>

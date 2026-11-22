@@ -42,4 +42,5 @@
 	image={imageOf(user.rk)}
 	colour={roundRoleColour[String(user.role)] ?? 'grey'}
 	children={selectable ? selectionAction : undefined}
+	currentSelection={!selectable && typeof user.role === 'string' ? user.role : undefined}
 />

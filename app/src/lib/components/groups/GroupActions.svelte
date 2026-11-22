@@ -25,17 +25,21 @@
 	);
 </script>
 
-{#snippet editOption()}<ActionLink
-		href={`/group/${group.rk}/edit`}
-		name="edit"
-	/>{/snippet}
+{#snippet membershipOptions()}
+	{#if mine && group.state === 'active'}
+		<ActionConfirmation inline name="leave group" message="Leave this group?"
+			action={() => leaveGroup(group.rk)} />
+	{/if}
+	{#if mine?.is_admin === true}
+		<ActionLink href={`/group/${group.rk}/edit`} name="edit" />
+	{/if}
+{/snippet}
 
 <EntityActions
 	{section}
-	options={mine?.is_admin === true ? editOption : undefined}
-	more={group.state === 'active' && !!mine}
+	options={(group.state === 'active' && mine) || mine?.is_admin === true ? membershipOptions : undefined}
 >
-	{#if group.state === 'pending'}
+	{#if group.state === 'pending' && clubAdmin}
 		<ActionConfirmation
 			inline
 			arrow
@@ -43,24 +47,10 @@
 			name="approve group"
 			message={`Approve ${group.name}?`}
 			action={() => activateGroup(group.rk)}
-			disabled={!clubAdmin}
 		/>
-	{:else if group.state === 'active'}
-		{#if mine}<ActionConfirmation
-				inline
-				arrow
-				showLabel
-				name="leave group"
-				message="Leave this group?"
-				action={() => leaveGroup(group.rk)}
-			/>
-		{:else}<ActionConfirmation
-				inline
-				arrow
-				showLabel
-				name="request to join"
-				action={() => joinGroup(group.rk)}
-				disabled={!$local.caller_id}
-			/>{/if}
+	{:else if group.state === 'active' && (!mine || mine.state === 'pending')}
+		<ActionConfirmation inline arrow showLabel name="request to join"
+			action={() => joinGroup(group.rk)}
+			disabled={!$local.caller_id || mine?.state === 'pending'} />
 	{/if}
 </EntityActions>

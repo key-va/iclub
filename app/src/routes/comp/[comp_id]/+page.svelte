@@ -41,7 +41,7 @@
 		if (drawing) return 'draw in progress';
 		return elim?.state === 'complete' ? 'complete' : 'draw underway';
 	});
-	const canJoin = $derived(open && !!caller && mine?.is_participant !== true && mine?.state !== 'pending');
+	const canJoin = $derived(open && mine?.is_participant !== true);
 	const canLeave = $derived(open && (mine?.is_participant === true || mine?.state === 'pending'));
 	const canDraw = $derived(admin && (open || drawing));
 	const entrants = $derived(
@@ -73,7 +73,7 @@
 					action={() => competitionEntry(id, 'activate')} />
 			{:else if canJoin}
 				<ActionConfirmation inline arrow showLabel name="request to join" message={`Request to join ${elim.name}?`}
-					action={() => competitionEntry(id, 'join')} />
+					action={() => competitionEntry(id, 'join')} disabled={!caller || mine?.state === 'pending'} />
 			{/if}
 		</EntityActions>
 
@@ -107,17 +107,16 @@
 					{@const ranked = Number(row.seed) > 0}
 					{@const canRank = open && admin && (ranked || seeds.length < 8)}
 					{@const description = competitionPlayerStatus(row, competitionPlayerMatches(id, row.rk), row.rk === champion)}
+					{#snippet rankAction()}
+						<ActionQuick inline name={ranked ? 'unrank' : 'rank'}
+							label={ranked ? `Unrank ${nameOf(row.rk)}` : `Rank ${nameOf(row.rk)}`}
+							action={() => competitionEntry(id, ranked ? 'unseed' : 'seed', row.rk)} />
+					{/snippet}
 					<RouteLinkHiddenAction href={hrefOf(row.rk)} title={nameOf(row.rk)}
 						image={doubles ? pairIcon : imageOf(row.rk)} {description}
-						colour={description === 'champion' ? 'green' : description === 'eliminated' ? 'red' : ranked ? 'blue' : 'grey'}>
-						{#if canRank}
-							<ActionQuick inline name={ranked ? 'unrank' : 'rank'}
-								label={ranked ? `Unrank ${nameOf(row.rk)}` : `Rank ${nameOf(row.rk)}`}
-								action={() => competitionEntry(id, ranked ? 'unseed' : 'seed', row.rk)} />
-						{:else}
-							<button type="button" class="grey" disabled><p>{description}</p></button>
-						{/if}
-					</RouteLinkHiddenAction>
+						currentSelection={canRank ? undefined : description}
+						colour={description === 'champion' ? 'green' : description === 'eliminated' ? 'red' : ranked ? 'blue' : 'grey'}
+						children={canRank ? rankAction : undefined} />
 				{/each}
 			{/if}
 		</div>

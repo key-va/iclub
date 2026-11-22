@@ -56,5 +56,6 @@
 		{description}
 		colour={roundRoleColour[String(role)] ?? 'grey'}
 		children={options.length ? actions : undefined}
+		currentSelection={!options.length && typeof role === 'string' ? role : undefined}
 	/>
 {/if}

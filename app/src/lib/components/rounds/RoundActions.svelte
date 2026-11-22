@@ -14,17 +14,18 @@
 			relationsOf(team.rk).find((row) => row.rk === $local.caller_id)
 		)
 	);
-	const options = $derived(
-		member && !['complete', 'eliminated'].includes(String(round.state)) ? availabilityOptions(mine?.role) : []
-	);
+	const roles = ['unavailable', 'available'] as const;
+	const options = $derived(availabilityOptions(mine?.role));
+	const showActions = $derived(member && !!mine && !['complete', 'eliminated'].includes(String(round.state)));
 </script>
 
-{#if options.length}<EntityActions>
-		{#each options as role}<ActionConfirmation
+{#if showActions}<EntityActions>
+		{#each roles as role}<ActionConfirmation
 				inline
 				arrow={role === 'available'}
 				showLabel
 				name={role}
+				disabled={!options.includes(role)}
 				action={() => confirmRoundRole(round.rk, role)}
 			/>{/each}
 	</EntityActions>{/if}

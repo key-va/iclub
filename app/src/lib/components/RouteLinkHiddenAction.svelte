@@ -11,6 +11,7 @@
 		colour = 'var(--brand-foreground, #FF1493)',
 		isWhite = false,
 		detail,
+		currentSelection,
 		children
 	}: {
 		href?: string;
@@ -21,8 +22,10 @@
 		isWhite?: boolean;
 		detail?: Snippet;
 		children?: Snippet;
+		currentSelection?: string;
 	} = $props();
 
+	const hasOptions = $derived(!!(children || currentSelection));
 	const optionsId = $props.id();
 	let open = $state(false);
 	let pendingActions = $state(0);
@@ -31,7 +34,7 @@
 	let actionsNode = $state<HTMLDivElement>();
 
 	$effect(() => {
-		if (!children) {
+		if (!hasOptions) {
 			open = false;
 			pendingActions = 0;
 		}
@@ -73,7 +76,7 @@
 	}
 </script>
 
-{#if !children}
+{#if !hasOptions}
 	<RouteLink {href} {title} {description} {image} {isWhite} {detail} />
 {:else}
 	<div class={isWhite ? 'group' : ''}>
@@ -87,7 +90,11 @@
 					aria-label={`Actions for ${title}`}
 					use:trackOptions
 				>
-					{@render children()}
+					{#if children}
+						{@render children()}
+					{:else}
+						<button type="button" class="grey" disabled><p>{currentSelection}</p></button>
+					{/if}
 				</div>
 				<button
 					bind:this={closeButton}

@@ -55,7 +55,8 @@
 	const isElimAdmin = $derived(!!elim && relationsOf(elim.rk)
 		.some((row) => row.rk === caller_id && row.is_admin === true));
 	const roundRobin = $derived(elim?.comp_system === 'round_robin');
-	const canCorrect = $derived(!!elim && isElimAdmin && match.state === 'complete' &&
+	const correctionRelevant = $derived(!!elim && isElimAdmin && match.state === 'complete');
+	const canCorrect = $derived(!!elim && correctionRelevant &&
 		(roundRobin ? elim.state !== 'complete' : nextCompetitionMatch(elim.rk, match)?.state !== 'complete'));
 	let correcting = $state(false);
 	const isPlayer = $derived(
@@ -322,12 +323,18 @@
 	image={imageOf((elim ?? ladder)?.rk ?? '')}
 ></RouteLink>
 
-{#if canCorrect}
+{#if correctionRelevant}
 	<EntityActions section="options">
 		{#snippet options()}
-			<button class="blue" onclick={() => correcting ? (correcting = false) : editResult()}>
-				<p>{correcting ? 'cancel correction' : 'correct score'}</p>
-			</button>
+			<ActionConfirmation inline navigate={false}
+				name={correcting ? 'cancel correction' : 'correct score'}
+				message={correcting ? 'Discard the changes to this score?' : 'Edit the recorded score?'}
+				disabled={!canCorrect}
+				action={async () => {
+					if (correcting) correcting = false;
+					else editResult();
+					return { success: true, message: '' };
+				}} />
 		{/snippet}
 	</EntityActions>
 {:else}

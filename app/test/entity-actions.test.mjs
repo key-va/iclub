@@ -31,7 +31,7 @@ test('round page only offers eligible confirmed availability choices for current
  const round={pk:'round',rk:'round_test',state:'pending'},team={pk:'team',rk:'team_test'};
  const rows=[{pk:team.rk,rk:'user_me',is_member:true},{pk:round.rk,rk:'user_me',role:'pending'}];
  let html=await show('round',{round,team},rows);assert.equal(has(html,'available'),true);assert.equal(has(html,'unavailable'),true);assert.equal(has(html,'More Options'),false);
- rows[1].role='selected';html=await show('round',{round,team},rows);assert.equal(has(html,'available'),false);assert.equal(has(html,'unavailable'),true);
+ rows[1].role='selected';html=await show('round',{round,team},rows);assert.match(html,/aria-label="available"[^>]*disabled/);assert.equal(has(html,'unavailable'),true);
  assert.equal(has(await show('round',{round,team},rows,'user_other'),'unavailable'),false);
  assert.equal(has(await show('round',{round:{...round,state:'complete'},team},rows),'unavailable'),false);
 });
