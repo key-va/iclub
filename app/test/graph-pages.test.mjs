@@ -23,7 +23,7 @@ before(async () => {
     render = (await server.ssrLoadModule('svelte/server')).render;
     guids = (await server.ssrLoadModule('/src/lib/stores/guids.ts')).guids;
     local = await server.ssrLoadModule('/src/lib/stores/local.ts');
-    pages = Object.fromEntries(await Promise.all(['group', 'team', 'round', 'match', 'user', 'comp', 'browse'].map(async type =>
+    pages = Object.fromEntries(await Promise.all(['group', 'team', 'round', 'match', 'user', 'comp', 'pair', 'browse'].map(async type =>
         [type, (await server.ssrLoadModule(type === 'browse' ? '/src/routes/browse/+page.svelte' : `/src/routes/${type}/[${type}_id]/+page.svelte`)).default])));
 });
 after(async () => { await server?.close(); });
@@ -225,6 +225,10 @@ test('doubles comp displays pair seeding and lets either partner access the matc
     const bob = await output('user', 'user_bob', 'user_bob', rows);
     assert.match(bob, /Doubles knockout<\/a><p>ranked 1[\s\S]*Alice and Bob vs Chris and Dana/);
     assert.equal(hasAction(bob, 'forfeit'), true);
+    const pair = await output('pair', 'user_bob', 'pair_first', rows);
+    assert.match(pair, /public\/comp_test\.jpg/);
+    assert.match(pair, /Alice<\/a><p>member[\s\S]*Bob<\/a><p>member[\s\S]*Doubles knockout<\/a><p>ranked 1/);
+    assert.match(pair, /aria-label="Match History"/);
     const match = await output('match', 'user_bob', 'match_doubles', rows);
     assert.match(match, /Alice and Bob[\s\S]*Chris and Dana/);
     assert.match(match, /aria-label="Alice and Bob set 3"/);

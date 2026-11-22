@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { entityOf, hrefOf, imageOf, nameOf, type GuidRow } from '#lib/stores/guids.ts';
+	import { entityOf, hrefOf, imageOf, nameOf, typeOf, type GuidRow } from '#lib/stores/guids.ts';
+	import PairMembers from '../pairs/PairMembers.svelte';
 	import UserMatch from '../matches/UserMatch.svelte';
 	import { roundRobinStandings } from './roundRobinStandings.ts';
 	import { competitionChampion } from './competitionBracket.ts';
@@ -8,6 +9,7 @@
 	import { activeCompetitionMatches, competitionPair, competitionPlayerMatches, competitionPlayerStatus } from './competitionPlayers.ts';
 
 	let { user, competition }: { user: GuidRow; competition: GuidRow } = $props();
+	const isPair = $derived(typeOf(user.rk) === 'pair');
 	const matches = $derived(competitionPlayerMatches(competition.rk, user.rk));
 	const active = $derived(activeCompetitionMatches(matches));
 	const comp = $derived(entityOf(competition.rk));
@@ -24,11 +26,12 @@
 </script>
 
 <div class="group">
+	{#if isPair}<PairMembers pairId={user.rk} />{/if}
 	<RouteLink href={hrefOf(competition.rk)} title={nameOf(competition.rk)}
 		description={status} image={imageOf(competition.rk)} />
 	{#each active as match (match.rk)}
 		<UserMatch {match} />
 	{:else}
-		<HiddenOptions title="No pending matches" />
+		{#if !isPair}<HiddenOptions title="No pending matches" />{/if}
 	{/each}
 </div>

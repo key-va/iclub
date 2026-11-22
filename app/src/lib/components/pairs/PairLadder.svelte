@@ -1,5 +1,6 @@
 <script lang="ts">
 	import RouteLinkHiddenAction from '#lib/components/RouteLinkHiddenAction.svelte';
+	import PairMembers from './PairMembers.svelte';
 	import MatchHistory from '#lib/components/matches/MatchHistory.svelte';
 
 	import ActionQuick from '#lib/components/ActionQuick.svelte';
@@ -79,15 +80,7 @@
 
 {#if ladder}
 	<div class="group">
-		{#each members as member (member.rk)}
-			<RouteLink
-				href={hrefOf(member.rk)}
-				title={nameOf(member.rk)}
-				description="member"
-				image={imageOf(member.rk)}
-				isWhite={false}
-			/>
-		{/each}
+		<PairMembers {pairId} />
 		{#snippet challengeAction()}
 			<ActionQuick
 				inline

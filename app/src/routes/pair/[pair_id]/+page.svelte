@@ -5,10 +5,10 @@
 		entityOf,
 		relationsOf,
 		typeOf,
-		nameOf, hrefOf, imageOf
+		imageOf
 	} from '#lib/stores/guids.ts';
 	import EntityHeader from '#lib/components/EntityHeader.svelte';
-	import RouteLink from '#lib/components/routeLink.svelte';
+	import MatchHistory from '#lib/components/matches/MatchHistory.svelte';
 	import UserCompetition from '#lib/components/competitions/UserCompetition.svelte';
 	import PairLadder from '#lib/components/pairs/PairLadder.svelte';
 	const id = $derived(page.params.pair_id ?? '');
@@ -24,15 +24,11 @@
 		<EntityHeader
 			entity={pair}
 			title={pair.name ?? 'Pair'}
-			image={ladderRow ? imageOf(ladderRow.rk) : null}
+			image={comp ? imageOf(comp.rk) : ladderRow ? imageOf(ladderRow.rk) : null}
 		/>
 		{#if comp}
-			<div class="group">
-				{#each relationsOf(id).filter((row) => typeOf(row.rk) === 'user' && row.role === 'member') as member (member.rk)}
-					<RouteLink href={hrefOf(member.rk)} title={nameOf(member.rk)} image={imageOf(member.rk)} />
-				{/each}
-			</div>
 			<UserCompetition user={pair} competition={comp} />
+			<MatchHistory parentId={id} />
 		{:else}
 			<PairLadder {pair} {ladderRow} />
 		{/if}
