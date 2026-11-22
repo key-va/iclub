@@ -59,7 +59,7 @@
 			new CustomEvent('api-action-state', { bubbles: true, detail: true })
 		);
 
-		// without confirmation the button itself shows progress; the overlay only appears for an error
+		// without confirmation the overlay only appears for an error
 		if (confirm) isExpanded = true;
 		else execute();
 	}
@@ -135,6 +135,8 @@
 		isBusy = true;
 		isError = false;
 		shown = '...this may take a moment...';
+		if (!confirm)
+			triggerButton?.dispatchEvent(new CustomEvent('api-action-busy', { bubbles: true, detail: true }));
 
 		try {
 			const result = completed ?? (await (retryAction ?? action)());
@@ -160,6 +162,9 @@
 			isError = true;
 			isBusy = false;
 			isExpanded = true;
+		} finally {
+			if (!confirm)
+				triggerButton?.dispatchEvent(new CustomEvent('api-action-busy', { bubbles: true, detail: false }));
 		}
 	}
 </script>

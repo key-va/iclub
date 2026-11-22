@@ -29,14 +29,17 @@
 	const optionsId = $props.id();
 	let open = $state(false);
 	let pendingActions = $state(0);
+	let busyActions = $state(0);
+	const busy = $derived(busyActions > 0);
 	let dotButton = $state<HTMLButtonElement>();
 	let closeButton = $state<HTMLButtonElement>();
-	let actionsNode = $state<HTMLDivElement>();
+	let actionsNode = $state<HTMLFieldSetElement>();
 
 	$effect(() => {
 		if (!hasOptions) {
 			open = false;
 			pendingActions = 0;
+			busyActions = 0;
 		}
 	});
 
@@ -60,6 +63,9 @@
 		const tracking = trackActions(node, (count) => {
 			pendingActions = count;
 		});
+		const activity = trackActions(node, (count) => {
+			busyActions = count;
+		}, 'api-action-busy');
 		const onkeydown = (event: KeyboardEvent) => {
 			if (event.key === 'Escape' && !pendingActions) {
 				event.preventDefault();
@@ -70,6 +76,7 @@
 		return {
 			destroy() {
 				tracking.destroy();
+				activity.destroy();
 				node.removeEventListener('keydown', onkeydown);
 			}
 		};
@@ -82,11 +89,12 @@
 	<div class={isWhite ? 'group' : ''}>
 		<div class="row right">
 			{#if open}
-				<div
+				<fieldset
 					bind:this={actionsNode}
 					id={optionsId}
 					class="actions"
-					role="group"
+					disabled={busy}
+					aria-busy={busy}
 					aria-label={`Actions for ${title}`}
 					use:trackOptions
 				>
@@ -95,13 +103,13 @@
 					{:else}
 						<button type="button" class="grey" disabled><p>{currentSelection}</p></button>
 					{/if}
-				</div>
+				</fieldset>
 				<button
 					bind:this={closeButton}
 					type="button"
-					class="round-icon-small blue close-button"
-					aria-label={`Close actions for ${title}`}
-					disabled={pendingActions > 0}
+					class={`round-icon-small close-button ${busy ? 'grey' : 'blue'}`}
+					aria-label={busy ? `Action in progress for ${title}` : `Close actions for ${title}`}
+					disabled={busy || pendingActions > 0}
 					onclick={close}
 				>
 					<svg
@@ -115,7 +123,11 @@
 						stroke-linejoin="round"
 						aria-hidden="true"
 					>
-						<path d="M6 6l12 12M18 6 6 18" />
+						{#if busy}
+							<path d="M6 3h12M6 21h12M7 3v4l5 5-5 5v4M17 3v4l-5 5 5 5v4" />
+						{:else}
+							<path d="M6 6l12 12M18 6 6 18" />
+						{/if}
 					</svg>
 				</button>
 			{:else}
@@ -194,11 +206,19 @@
 		border-radius: 50%;
 	}
 	.actions {
+		border: 0;
+		margin: 0;
+		padding: 0;
 		display: flex;
 		flex: 1;
 		min-width: 0;
 		align-items: center;
 		justify-content: flex-end;
 		flex-wrap: wrap;
+	}
+	.actions:disabled > :global(button) {
+		background: lightgrey;
+		color: white;
+		cursor: default;
 	}
 </style>

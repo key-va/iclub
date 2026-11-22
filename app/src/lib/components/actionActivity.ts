@@ -1,4 +1,4 @@
-export function trackActions(node: HTMLElement, onChange: (count: number) => void) {
+export function trackActions(node: HTMLElement, onChange: (count: number) => void, eventName = 'api-action-state') {
 	const pending = new Set<EventTarget>();
 	function update(event: Event) {
 		if (!(event instanceof CustomEvent) || !event.target) return;
@@ -7,6 +7,19 @@ export function trackActions(node: HTMLElement, onChange: (count: number) => voi
 		else return;
 		onChange(pending.size);
 	}
-	node.addEventListener('api-action-state', update);
-	return { destroy: () => node.removeEventListener('api-action-state', update) };
+	const observer = typeof MutationObserver === 'undefined' ? undefined : new MutationObserver(() => {
+		const previousSize = pending.size;
+		for (const target of pending) {
+			if (target instanceof Node && !node.contains(target)) pending.delete(target);
+		}
+		if (pending.size !== previousSize) onChange(pending.size);
+	});
+	node.addEventListener(eventName, update);
+	observer?.observe(node, { childList: true, subtree: true });
+	return {
+		destroy() {
+			node.removeEventListener(eventName, update);
+			observer?.disconnect();
+		}
+	};
 }
