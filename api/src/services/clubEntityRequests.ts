@@ -1,3 +1,4 @@
+import { defaultMatchFormat, isMatchFormat } from "./matchFormats";
 import {
     HttpRequest,
     HttpResponseInit,
@@ -160,7 +161,7 @@ export async function createEntityRequest(request: HttpRequest, context: Invocat
         return reply(400, "Choose a supported competition type");
     if (type === "comp" && (
         (data.format !== undefined && data.format !== "singles" && data.format !== "doubles") ||
-        (data.match_format !== undefined && data.match_format !== "super_set")
+        (data.match_format !== undefined && !isMatchFormat(data.match_format))
     )) return reply(400, "Choose a supported format and match format");
     const edits = entityEdits(data, true, type === "comp");
     if ("status" in edits) return edits;
@@ -188,7 +189,7 @@ export async function createEntityRequest(request: HttpRequest, context: Invocat
     });
     await doUpsertEntity(type, id, {
         name, state: "pending",
-        ...(type === "comp" ? { comp_system: data.comp_system ?? data.competition_type, format: data.format ?? "singles", match_format: "super_set" } : {}),
+        ...(type === "comp" ? { comp_system: data.comp_system ?? data.competition_type, format: data.format ?? "singles", match_format: data.match_format ?? defaultMatchFormat } : {}),
     });
     await doGuidsToPublic();
     const admins = (await relations(club.clubId))

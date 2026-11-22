@@ -73,8 +73,9 @@
 		best_of_three: ['set 1', 'set 2', 'tie break'],
 		fast_four: ['set 1', 'set 2', 'set 3']
 	};
+	const matchFormat = $derived(String((elim ?? ladder)?.match_format ?? 'super_set'));
 	const labels = $derived(
-		setLabels[String(ladder?.match_format ?? 'super_set')] ??
+		setLabels[matchFormat] ??
 			setLabels.super_set
 	);
 	const maxGamesByFormat: Record<string, number> = {
@@ -83,15 +84,12 @@
 		fast_four: 4
 	};
 	const maxGames = $derived(
-		maxGamesByFormat[String(ladder?.match_format ?? 'super_set')] ?? 8
+		maxGamesByFormat[matchFormat] ?? 8
 	);
 	const formatRules = $derived.by(() => {
-		const format = String(
-			ladder?.match_format ?? ladderSettings.match_format.default
-		);
 		const setting = ladderSettings.match_format;
 		const rules =
-			setting.type === 'enum' ? setting.values[format]?.description : '';
+			setting.type === 'enum' ? setting.values[matchFormat]?.description : '';
 		return rules ? `Match format: ${rules}.` : '';
 	});
 	const isComplete = $derived(match?.state === 'complete');
@@ -128,15 +126,15 @@
 	let showHelp = $state(false);
 
 	function editResult() {
-		challengerScores = [recordedChallenger[0] ?? '', '', ''];
-		defenderScores = [recordedDefender[0] ?? '', '', ''];
+		challengerScores = labels.map((_, i) => recordedChallenger[i] ?? '');
+		defenderScores = labels.map((_, i) => recordedDefender[i] ?? '');
 		correcting = true;
 	}
 
 	function submitElimScore() {
 		return recordElimResult(elim!.rk, matchId, correcting ? 'correct' : 'score',
 			challenger!.rk, defender!.rk,
-			{ first_score: challengerSets[0], second_score: defenderSets[0] });
+			{ first_score: challengerSets, second_score: defenderSets });
 	}
 
 
@@ -174,11 +172,9 @@
 			)
 	);
 	// "<winner> wins 6-2 6-3", with each set shown from the winner's side; the winner is whoever takes more sets
+	const challengerWon = $derived(challengerSets.filter((games, i) => games > defenderSets[i]).length);
+	const defenderWon = $derived(defenderSets.filter((games, i) => games > challengerSets[i]).length);
 	const scoreSummary = $derived.by(() => {
-		const won = (mine: number[], theirs: number[]) =>
-			mine.filter((games, i) => games > theirs[i]).length;
-		const challengerWon = won(challengerSets, defenderSets);
-		const defenderWon = won(defenderSets, challengerSets);
 		if (challengerWon === defenderWon)
 			return `${nameOf(challenger?.rk ?? '')} ${challengerSets.join(' ')} - ${defenderSets.join(' ')} ${nameOf(defender?.rk ?? '')}`;
 		const [winner, mine, theirs] =
@@ -293,7 +289,7 @@
 				defender_score: defenderSets
 			})}
 		disabled={!scoreValid || !(isPlayer || isLadderAdmin || isElimAdmin)
-			|| (!!elim && challengerSets[0] === defenderSets[0])}
+			|| (!!elim && challengerWon === defenderWon)}
 		onsuccess={() => { correcting = false; }}
 	>
 		<button

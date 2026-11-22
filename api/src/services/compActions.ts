@@ -1,3 +1,4 @@
+import { matchFormatRules, setsWon } from "./matchFormats";
 import { createHash } from "node:crypto";
 import { HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
 import { DefaultAzureCredential } from "@azure/identity";
@@ -127,14 +128,14 @@ async function writeIfChanged(pk: string, rk: string, attributes: Record<string,
         await doUpsertEntity(pk, rk, attributes);
 }
 
-type Competitor = { id: string; slot: number; result?: string; score?: number };
+type Competitor = { id: string; slot: number; result?: string; score?: number | string };
 
 function competitors(rows: Row[]): Competitor[] {
     return rows.filter(row => row.slot === 1 || row.slot === 2).map(row => ({
         id: row.rowKey,
         slot: Number(row.slot),
         ...(typeof row.result === "string" ? { result: row.result } : {}),
-        ...(typeof row.score === "number" ? { score: row.score } : {}),
+        ...((typeof row.score === "number" || typeof row.score === "string") ? { score: row.score } : {}),
     }));
 }
 
@@ -386,17 +387,29 @@ export async function score(
     if (data.first_id !== first.id || data.second_id !== second.id)
         return reply(409, "The players changed. Refresh the match and try again");
 
-    const a = data.first_score;
-    const b = data.second_score;
-    if (!forfeit && (typeof a !== "number" || typeof b !== "number" || !Number.isInteger(a)
-        || !Number.isInteger(b) || a < 0 || a > 8 || b < 0 || b > 8 || a === b))
-        return reply(400, "Enter two different whole-number scores from 0 to 8");
+    const { maxGames, maxSets } = matchFormatRules(elim.match_format);
+    const games = (score: unknown): number[] | undefined => {
+        const values = Array.isArray(score) ? score : [score];
+        if (values.length < 1 || values.length > maxSets ||
+            !values.every(value => Number.isInteger(value) && value >= 0 && value <= maxGames))
+            return;
+        return values as number[];
+    };
+    const a = forfeit ? [] : games(data.first_score);
+    const b = forfeit ? [] : games(data.second_score);
+    if (!a || !b || a.length !== b.length)
+        return reply(400, `Enter a whole-number score from 0 to ${maxGames} for both sides in each played set`);
+    const firstWon = setsWon(a, b);
+    const secondWon = setsWon(b, a);
+    if (!forfeit && firstWon === secondWon)
+        return reply(400, "The score must decide a winner");
     const winner = forfeit ? (sideIndex === 0 ? second.id : first.id)
-        : Number(a) > Number(b) ? first.id : second.id;
+        : firstWon > secondWon ? first.id : second.id;
+    const scores = [a, b].map(values => values.length === 1 ? values[0] : values.join(","));
     const updated = players.map(player => ({
         id: player.id, slot: player.slot,
         result: player.id === winner ? "winner" : forfeit ? "forfeiter" : "loser",
-        ...(forfeit ? {} : { score: Number(player.slot === 1 ? a : b) }),
+        ...(forfeit ? {} : { score: scores[player.slot - 1] }),
     }));
     if (updated.every((player, index) =>
         player.result === players[index].result && player.score === players[index].score

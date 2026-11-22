@@ -153,7 +153,7 @@ export const recordElimResult = (
 	action: 'score' | 'correct',
 	firstId: string,
 	secondId: string,
-	result: { first_score: number; second_score: number }
+	result: { first_score: number[]; second_score: number[] }
 ) =>
 	mutateWithSubject(`comp/${id}/${action}`, {
 		match_id: matchId,

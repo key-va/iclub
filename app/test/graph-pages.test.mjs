@@ -191,7 +191,7 @@ test('Browse shows active entities and competitions accepting entries', async ()
 test('doubles comp displays pair seeding and lets either partner access the match actions', async () => {
     const rows = [
         ...fixture(),
-        { pk: 'comp', rk: 'comp_test', name: 'Doubles knockout', comp_system: 'elimination', format: 'doubles', state: 'open' },
+        { pk: 'comp', rk: 'comp_test', name: 'Doubles knockout', comp_system: 'elimination', format: 'doubles', match_format: 'fast_four', state: 'open' },
         { pk: 'pair', rk: 'pair_first', name: 'Alice and Bob' },
         { pk: 'pair', rk: 'pair_second', name: 'Chris and Dana' },
         { pk: 'user', rk: 'user_chris', name: 'Chris' },
@@ -209,7 +209,7 @@ test('doubles comp displays pair seeding and lets either partner access the matc
         link('pair_second', user, { role: 'member' });
     }
     const open = await output('comp', 'user_admin', undefined, rows);
-    assert.match(open, /elimination • doubles • super set/);
+    assert.match(open, /elimination • doubles • fast four/);
     assert.match(open, /aria-label="Pairs"/);
     assert.equal(hasAction(open, 'select player'), true);
     assert.equal(hasAction(open, 'Unrank Alice and Bob'), true);
@@ -227,6 +227,8 @@ test('doubles comp displays pair seeding and lets either partner access the matc
     assert.equal(hasAction(bob, 'forfeit'), true);
     const match = await output('match', 'user_bob', 'match_doubles', rows);
     assert.match(match, /Alice and Bob[\s\S]*Chris and Dana/);
+    assert.match(match, /aria-label="Alice and Bob set 3"/);
+    assert.match(match, /pattern="\[0-4\]"/);
     assert.equal(hasAction(match, 'submit'), true);
     assert.equal(hasAction(match, 'forfeit'), true);
     assert.equal(hasAction(await output('match', 'user_admin', 'match_doubles', rows), 'forfeit'), false);

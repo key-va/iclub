@@ -466,16 +466,16 @@ const { elimBracketId, elimDraw } = require("../dist/src/services/elimDraw");
 const elimCall = (id, action, caller, data) => invoke("comp", action, caller, data, id);
 const elimAdmin = "user_creator";
 const clubAdmin = "user_clubadmin";
-async function openElim(format = "singles") {
+async function openElim(format = "singles", match_format) {
     const create = await elimCall(undefined, "create", elimAdmin, {
-        name: "Club knockout", comp_system: "elimination", ...(format === "singles" ? {} : { format }),
+        name: "Club knockout", comp_system: "elimination", ...(format === "singles" ? {} : { format }), match_format,
     });
     assert.equal(create.status, 201);
     const id = create.jsonBody.subject;
     assert.equal(get("comp", id).state, "pending");
     assert.equal(get("comp", id).comp_system, "elimination");
     assert.equal(get("comp", id).format, format);
-    assert.equal(get("comp", id).match_format, "super_set");
+    assert.equal(get("comp", id).match_format, match_format ?? "super_set");
     assert.match(id, /^comp_/);
     assert.equal((await elimCall(id, "activate", elimAdmin)).status, 403);
     assert.equal((await elimCall(id, "activate", clubAdmin)).status, 200);
@@ -636,7 +636,7 @@ test("Competition creation requires a supported type", async () => {
         const response = await elimCall(undefined, "create", elimAdmin, { name: "Club event", comp_system });
         assert.equal(response.status, 400);
     }
-    for (const settings of [{ format: "triples" }, { match_format: "best_of_three" }]) {
+    for (const settings of [{ format: "triples" }, { match_format: "unknown" }]) {
         const response = await elimCall(undefined, "create", elimAdmin, {
             name: "Club event", comp_system: "elimination", ...settings,
         });
@@ -859,4 +859,27 @@ test("Doubles comp pairs enter, seed, withdraw, advance and forfeit as a side", 
     assert.equal((await elimCall(id, "correct", elimAdmin, semiScore)).status, 409);
     mirrors(final, second);
     mirrors(final, secondUsers[0]);
+});
+
+
+test("comp match formats validate set scores and advance the side with more sets", async () => {
+    for (const [format, a, b, invalid] of [
+        ["best_of_three", [0, 6, 1], [6, 4, 0], 8],
+        ["fast_four", [0, 4, 4], [4, 3, 3], 5],
+    ]) {
+        const id = await openElim("singles", format);
+        await enterElim(id, ["user_member", "user_applicant"]);
+        assert.equal((await elimCall(id, "draw", elimAdmin)).status, 200);
+        const matchId = elimBracketId("match", id, 1, 1);
+        const [first, second] = [slot(matchId, 1), slot(matchId, 2)];
+        assert.equal((await elimCall(id, "score", first, scores(matchId, [invalid], [0]))).status, 400);
+        assert.equal((await elimCall(id, "score", first, scores(matchId, [0, 4], [4, 0]))).status, 400);
+        assert.equal((await elimCall(id, "score", first, scores(matchId, a, b))).status, 200);
+        assert.equal(get(matchId, first).result, "winner");
+        assert.equal(get(matchId, first).score, a.join(","));
+        assert.equal(get(matchId, second).score, b.join(","));
+        assert.equal((await elimCall(id, "correct", elimAdmin, scores(matchId, b, a))).status, 200);
+        assert.equal(get(matchId, second).result, "winner");
+        mirrors(matchId, second);
+    }
 });

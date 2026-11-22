@@ -1,3 +1,4 @@
+import { matchFormatRules, setsWon } from "./matchFormats";
 import { doCompetitorUsers } from "./doCompetitorUsers";
 import { DefaultAzureCredential } from "@azure/identity";
 import { TableClient, odata } from "@azure/data-tables";
@@ -55,7 +56,6 @@ function attributesOf(row: Row): Row {
 const sum = (games: number[]) => games.reduce((total, g) => total + g, 0);
 
 // Sets won by the first side over the second, compared set by set
-const setsWon = (a: number[], b: number[]) => a.filter((games, i) => games > (b[i] ?? 0)).length;
 
 // A played-out win in straight sets earns the total game difference; any other win earns a single point
 function pointsAwarded(winner: number[], loser: number[]): number {
@@ -98,8 +98,7 @@ export async function doCompleteMatch(input: CompleteMatchInput, context: Invoca
 
     if (!ladder) return { ok: false, status: 404, message: "Ladder not found" };
 
-    const maxGames = ladder.match_format === "fast_four" ? 4 :
-        ladder.match_format === "best_of_three" ? 7 : 8;
+    const { maxGames } = matchFormatRules(ladder.match_format);
     const scores = [...(challengerScore ?? []), ...(defenderScore ?? [])];
 
     if (scores.some(games => !Number.isInteger(games) || games < 0 || games > maxGames)) {

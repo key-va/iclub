@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { matchFormatSetting } from '#lib/components/ladders/ladderSettings.ts';
 	import { page } from '$app/state';
 	import { local } from '#lib/stores/local.ts';
 	import { entityOf, guids, hrefOf, imageOf, nameOf, relationsOf, typeOf } from '#lib/stores/guids.ts';
@@ -18,6 +19,7 @@
 
 	const id = $derived(page.params.comp_id ?? '');
 	const elim = $derived(entityOf(id));
+	const matchFormat = $derived(String(elim?.match_format ?? matchFormatSetting.default).replaceAll('_', ' '));
 	const links = $derived(relationsOf(id));
 	const caller = $derived($local.caller_id);
 	const mine = $derived(links.find((row) => row.rk === caller));
@@ -59,7 +61,7 @@
 <div class="page">
 	{#if elim && (elim.comp_system ?? elim.competition_type) === 'elimination'}
 		<EntityHeader entity={elim} />
-		<EntityActions section="primary" summary={`elimination • ${doubles ? 'doubles' : 'singles'} • super set • ${status}`}>
+		<EntityActions section="primary" summary={`elimination • ${doubles ? 'doubles' : 'singles'} • ${matchFormat} • ${status}`}>
 			{#if elim.state === 'pending' && canApprove}
 				<ActionConfirmation inline arrow showLabel name="approve" message={`Approve ${elim.name}?`}
 					action={() => competitionEntry(id, 'activate')} />

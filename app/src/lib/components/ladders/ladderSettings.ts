@@ -17,6 +17,30 @@ type LadderSetting =
 			max: number;
 	  };
 
+export const matchFormatSetting = {
+	type: 'enum',
+	label: 'match format',
+	default: 'super_set',
+	description: 'how a challenge match is played',
+	values: {
+		super_set: {
+			label: 'Super set',
+			description:
+				'a single long set played to 8 with a tiebreak at 7 games each'
+		},
+		best_of_three: {
+			label: 'Best of three',
+			description:
+				'first to win two full sets to 6, with super tiebreak to 10 at 1 set each'
+		},
+		fast_four: {
+			label: 'Fast four',
+			description:
+				'first to win two short sets to 4, with tiebreak at 3 games each and one fault per service game'
+		}
+	}
+} as const;
+
 export const ladderSettings: Record<string, LadderSetting> = {
 	format: {
 		type: 'enum',
@@ -28,29 +52,7 @@ export const ladderSettings: Record<string, LadderSetting> = {
 			doubles: { label: 'Doubles', description: 'two players per side' }
 		}
 	},
-	match_format: {
-		type: 'enum',
-		label: 'match format',
-		default: 'super_set',
-		description: 'how a challenge match is played',
-		values: {
-			super_set: {
-				label: 'Super set',
-				description:
-					'a single long set played to 8 with a tiebreak at 7 games each'
-			},
-			best_of_three: {
-				label: 'Best of three',
-				description:
-					'first to win two full sets to 6, with super tiebreak to 10 at 1 set each'
-			},
-			fast_four: {
-				label: 'Fast four',
-				description:
-					'first to win two short sets to 4, with tiebreak at 3 games each and one fault per service game'
-			}
-		}
-	},
+	match_format: matchFormatSetting,
 	ladder_system: {
 		type: 'enum',
 		label: 'ladder system',
