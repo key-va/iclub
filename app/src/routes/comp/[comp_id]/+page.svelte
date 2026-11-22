@@ -2,9 +2,10 @@
 	import { page } from '$app/state';
 	import { local } from '#lib/stores/local.ts';
 	import { entityOf, guids, hrefOf, imageOf, nameOf, relationsOf, typeOf } from '#lib/stores/guids.ts';
-	import { competitionEntry } from '#lib/stores/remote.ts';
+	import { acceptCompetitionPair, competitionEntry } from '#lib/stores/remote.ts';
 	import ActionConfirmation from '#lib/components/ActionConfirmation.svelte';
 	import ActionQuick from '#lib/components/ActionQuick.svelte';
+	import EntryRequests from '#lib/components/EntryRequests.svelte';
 	import EntityActions from '#lib/components/EntityActions.svelte';
 	import HiddenOptions from '#lib/components/hiddenOptions.svelte';
 	import RouteLinkHiddenAction from '#lib/components/RouteLinkHiddenAction.svelte';
@@ -24,6 +25,7 @@
 	const canApprove = $derived(links.some((row) =>
 		typeOf(row.rk) === 'club' && relationsOf(row.rk).some((link) => link.rk === caller && link.is_admin === true)
 	));
+	const doubles = $derived(elim?.format === 'doubles');
 	const open = $derived(elim?.state === 'open');
 	const drawing = $derived(elim?.state === 'drawing');
 	const drawReady = $derived(elim?.state === 'active' || elim?.state === 'complete');
@@ -37,7 +39,7 @@
 	const canLeave = $derived(open && (mine?.is_participant === true || mine?.state === 'pending'));
 	const canDraw = $derived(admin && (open || drawing));
 	const entrants = $derived(
-		links.filter((row) => typeOf(row.rk) === 'user' && row.is_participant === true)
+		links.filter((row) => typeOf(row.rk) === (doubles ? 'pair' : 'user') && row.is_participant === true)
 			.sort((a, b) => nameOf(a.rk).localeCompare(nameOf(b.rk)))
 	);
 	const seeds = $derived(entrants.filter((row) => Number(row.seed) > 0)
@@ -57,7 +59,7 @@
 <div class="page">
 	{#if elim && (elim.comp_system ?? elim.competition_type) === 'elimination'}
 		<EntityHeader entity={elim} />
-		<EntityActions section="primary" summary={`elimination • singles • super set • ${status}`}>
+		<EntityActions section="primary" summary={`elimination • ${doubles ? 'doubles' : 'singles'} • super set • ${status}`}>
 			{#if elim.state === 'pending' && canApprove}
 				<ActionConfirmation inline arrow showLabel name="approve" message={`Approve ${elim.name}?`}
 					action={() => competitionEntry(id, 'activate')} />
@@ -68,15 +70,9 @@
 		</EntityActions>
 
 		{#if open && admin && requests.length}
-			<div class="group">
-				{#each requests as row (row.rk)}
-					<RouteLinkHiddenAction href={hrefOf(row.rk)} title={nameOf(row.rk)}
-						image={imageOf(row.rk)} description="waiting to join" colour="orange">
-						<ActionQuick inline name="accept" label={`Accept ${nameOf(row.rk)}`}
-							action={() => competitionEntry(id, 'accept', row.rk)} />
-					</RouteLinkHiddenAction>
-				{/each}
-			</div>
+			<EntryRequests pending={requests} {doubles} acceptLabel={(playerId) => `Accept ${nameOf(playerId)}`}
+				acceptPlayer={(playerId) => competitionEntry(id, 'accept', playerId)}
+				acceptPair={(ids) => acceptCompetitionPair(id, ids)} />
 		{:else if open && mine?.state === 'pending'}
 			<div class="group">
 				<RouteLink href={hrefOf(mine.rk)} title={nameOf(mine.rk)}
@@ -90,7 +86,7 @@
 					<UserMatch {match} />
 				{/each}
 			{/if}
-			<HiddenOptions title="Players" badge={entrants.length} />
+			<HiddenOptions title={doubles ? 'Pairs' : 'Players'} badge={entrants.length} />
 			{#each entrants as row (row.rk)}
 				{@const ranked = Number(row.seed) > 0}
 				{@const canRank = open && admin && (ranked || seeds.length < 8)}
@@ -126,7 +122,7 @@
 				{#snippet options()}
 					{#if canLeave}
 						<ActionConfirmation inline name={mine?.state === 'pending' ? 'cancel request' : 'withdraw'}
-							message={mine?.state === 'pending' ? 'Cancel your join request?' : 'Withdraw your entry?'}
+							message={mine?.state === 'pending' ? 'Cancel your join request?' : doubles ? 'Withdraw your pair? Your partner will return to the pending list.' : 'Withdraw your entry?'}
 							action={() => competitionEntry(id, 'leave')} />
 					{/if}
 					{#if canDraw}

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { competitionFinal, competitionSlots, nextCompetitionMatch } from '../competitions/competitionBracket.ts';
+	import { entrantIncludesUser } from '../competitions/competitionPlayers.ts';
 	import MatchActions from './MatchActions.svelte';
 	import MessageThread from '#lib/components/messages/MessageThread.svelte';
 	import ActionConfirmation from '#lib/components/ActionConfirmation.svelte';
@@ -57,12 +58,10 @@
 		nextCompetitionMatch(elim.rk, match)?.state !== 'complete');
 	let correcting = $state(false);
 	const isPlayer = $derived(
-		matchUsers.some(
-			(user) =>
-				user.rk === caller_id &&
-				(elim ? user.rk === slots[0]?.rk || user.rk === slots[1]?.rk
-					: ['challenger', 'defender', 'participant'].includes(String(user.role)))
-		)
+		elim
+			? slots.some((slot) => entrantIncludesUser(slot?.rk, caller_id))
+			: matchUsers.some((user) => user.rk === caller_id &&
+				['challenger', 'defender', 'participant'].includes(String(user.role)))
 	);
 	const showScores = $derived(
 		match.state === 'active' ||

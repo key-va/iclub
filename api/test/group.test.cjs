@@ -466,13 +466,15 @@ const { elimBracketId, elimDraw } = require("../dist/src/services/elimDraw");
 const elimCall = (id, action, caller, data) => invoke("comp", action, caller, data, id);
 const elimAdmin = "user_creator";
 const clubAdmin = "user_clubadmin";
-async function openElim() {
-    const create = await elimCall(undefined, "create", elimAdmin, { name: "Club knockout", comp_system: "elimination" });
+async function openElim(format = "singles") {
+    const create = await elimCall(undefined, "create", elimAdmin, {
+        name: "Club knockout", comp_system: "elimination", ...(format === "singles" ? {} : { format }),
+    });
     assert.equal(create.status, 201);
     const id = create.jsonBody.subject;
     assert.equal(get("comp", id).state, "pending");
     assert.equal(get("comp", id).comp_system, "elimination");
-    assert.equal(get("comp", id).format, "singles");
+    assert.equal(get("comp", id).format, format);
     assert.equal(get("comp", id).match_format, "super_set");
     assert.match(id, /^comp_/);
     assert.equal((await elimCall(id, "activate", elimAdmin)).status, 403);
@@ -634,7 +636,7 @@ test("Competition creation requires a supported type", async () => {
         const response = await elimCall(undefined, "create", elimAdmin, { name: "Club event", comp_system });
         assert.equal(response.status, 400);
     }
-    for (const settings of [{ format: "doubles" }, { match_format: "best_of_three" }]) {
+    for (const settings of [{ format: "triples" }, { match_format: "best_of_three" }]) {
         const response = await elimCall(undefined, "create", elimAdmin, {
             name: "Club event", comp_system: "elimination", ...settings,
         });
@@ -779,4 +781,82 @@ test("Drawn comp matches notify both players after publication, including on rec
     assertMatchNotice(drawnNotices()[1], final);
     assert.equal((await elimCall(id, "correct", elimAdmin, scores(matchId, 8, 4))).status, 200);
     assert.equal(drawnNotices().length, 2);
+});
+
+test("Doubles comp pairs enter, seed, withdraw, advance and forfeit as a side", async () => {
+    seed("user", "user_extra", { name: "Extra Player" });
+    const id = await openElim("doubles");
+    const teams = [
+        ["user_member", "user_applicant"], ["user_visitor", "user_otheradmin"],
+        [clubAdmin, "user_extra"],
+    ];
+    const accept = (user_ids, caller = elimAdmin) => elimCall(id, "accept", caller, { user_ids });
+    const pairOf = (users) => [...rows.values()]
+        .find(row => row.partitionKey === id && row.rowKey.startsWith("pair_") &&
+            row.is_participant && users.every(user => get(row.rowKey, user)?.role === "member")).rowKey;
+
+    for (const user of teams.flat())
+        assert.equal((await elimCall(id, "join", user)).status, 200);
+    assert.equal((await accept(teams[0], clubAdmin)).status, 403);
+    assert.equal((await accept([teams[0][0], teams[0][0]])).status, 400);
+    for (const team of teams) {
+        assert.equal((await accept(team)).status, 200);
+        const pair = pairOf(team);
+        mirrors(id, pair);
+        for (const user of team) {
+            mirrors(pair, user);
+            mirrors(id, user);
+        }
+        assert.deepEqual(pushes.at(-1).userIds, team);
+        assert.equal((await elimCall(id, "seed", elimAdmin, { pair_id: pair })).status, 200);
+    }
+    assert.equal((await accept([teams[0][0], teams[1][1]])).status, 409);
+    const [seeded, second, third] = teams.map(pairOf);
+    assert.equal((await elimCall(id, "leave", teams[0][0])).status, 200);
+    assert.equal(get(id, seeded).state, "left");
+    assert.equal(get(id, teams[0][0]).state, "left");
+    assert.equal(get(id, teams[0][1]).state, "pending");
+    assert.equal(get(id, second).seed, 1);
+    assert.equal(get(id, third).seed, 2);
+    assert.equal((await elimCall(id, "join", teams[0][0])).status, 200);
+    assert.equal((await accept(teams[0])).status, 200);
+    assert.equal(pairOf(teams[0]), seeded);
+    assert.equal((await accept(teams[0])).status, 200);
+    assert.equal((await elimCall(id, "draw", elimAdmin)).status, 200);
+    assert.equal((await elimCall(id, "leave", teams[0][0])).status, 409);
+
+    const rounds = [1, 2].map(position => elimBracketId("match", id, 1, position));
+    const bye = rounds.find(match => get("match", match).state === "bye");
+    assert.equal(winner(bye), second);
+    const semi = rounds.find(match => get("match", match).state === "active");
+    const final = elimBracketId("match", id, 2, 1);
+    const semiScore = scores(semi, 8, 2);
+    const usersOf = (pair) => teams.find(team => pairOf(team) === pair);
+    const firstUsers = usersOf(semiScore.first_id);
+    const secondUsers = usersOf(semiScore.second_id);
+    const matchUsers = [...firstUsers, ...secondUsers].sort();
+    assert.deepEqual(pushes.at(-1).userIds.sort(), matchUsers);
+    assert.match(get("match", semi).name, / and .* vs .* and /);
+    assert.equal((await elimCall(id, "forfeit", elimAdmin, semiScore)).status, 403);
+    assert.equal((await elimCall(id, "score", firstUsers[1], semiScore)).status, 200);
+    assert.equal(pushes.at(-1).exceptUserId, firstUsers[1]);
+    assert.deepEqual(pushes.at(-1).userIds.sort(), matchUsers);
+    assert.equal(get(semi, firstUsers[1]).result, "winner");
+    assert.equal(get(semi, secondUsers[1]).result, "loser");
+    assert.equal(get(semi, firstUsers[1]).slot, undefined);
+    mirrors(semi, firstUsers[1]);
+
+    assert.equal((await elimCall(id, "correct", elimAdmin, scores(semi, 1, 8))).status, 200);
+    assert.equal(pushes.at(-1).exceptUserId, elimAdmin);
+    assert.equal(get(final, firstUsers[0]), undefined);
+    assert.equal(get(firstUsers[0], final), undefined);
+    assert.equal(get(final, secondUsers[0]).role, "participant");
+    const finalScore = scores(final, 0, 0);
+    assert.equal((await elimCall(id, "forfeit", secondUsers[1], finalScore)).status, 200);
+    assert.equal(get("comp", id).state, "complete");
+    assert.equal(winner(final), second);
+    assert.equal(get(final, secondUsers[0]).result, "forfeiter");
+    assert.equal((await elimCall(id, "correct", elimAdmin, semiScore)).status, 409);
+    mirrors(final, second);
+    mirrors(final, secondUsers[0]);
 });

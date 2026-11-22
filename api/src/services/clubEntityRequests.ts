@@ -159,7 +159,7 @@ export async function createEntityRequest(request: HttpRequest, context: Invocat
     if (type === "comp" && (data.comp_system ?? data.competition_type) !== "elimination")
         return reply(400, "Choose a supported competition type");
     if (type === "comp" && (
-        (data.format !== undefined && data.format !== "singles") ||
+        (data.format !== undefined && data.format !== "singles" && data.format !== "doubles") ||
         (data.match_format !== undefined && data.match_format !== "super_set")
     )) return reply(400, "Choose a supported format and match format");
     const edits = entityEdits(data, true, type === "comp");
@@ -188,7 +188,7 @@ export async function createEntityRequest(request: HttpRequest, context: Invocat
     });
     await doUpsertEntity(type, id, {
         name, state: "pending",
-        ...(type === "comp" ? { comp_system: data.comp_system ?? data.competition_type, format: "singles", match_format: "super_set" } : {}),
+        ...(type === "comp" ? { comp_system: data.comp_system ?? data.competition_type, format: data.format ?? "singles", match_format: "super_set" } : {}),
     });
     await doGuidsToPublic();
     const admins = (await relations(club.clubId))

@@ -16,7 +16,10 @@
 		format: {
 			label: 'format',
 			description: 'whether players compete alone or in pairs',
-			values: { singles: { label: 'Singles', description: 'one player per side' } }
+			values: {
+				singles: { label: 'Singles', description: 'one player per side' },
+				doubles: { label: 'Doubles', description: 'two players per side' }
+			}
 		},
 		match_format: {
 			label: 'match format',

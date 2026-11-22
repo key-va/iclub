@@ -1,3 +1,4 @@
+import { entrantIncludesUser } from '../competitions/competitionPlayers.ts';
 import { competitionSlots } from '../competitions/competitionBracket.ts';
 import {
 	type GuidRow,
@@ -9,7 +10,7 @@ import {
 export function canForfeitCompetitionMatch(match: GuidRow, callerId: string | null) {
 	const [first, second] = competitionSlots(match);
 	return match.state === 'active' && !!first && !!second &&
-		(callerId === first.rk || callerId === second.rk);
+		(entrantIncludesUser(first.rk, callerId) || entrantIncludesUser(second.rk, callerId));
 }
 
 // Recorded scores are a single number or comma-separated games per set, eg "6,4"

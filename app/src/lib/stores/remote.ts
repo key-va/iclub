@@ -141,8 +141,12 @@ export const createCompetition = (data: Record<string, unknown>) =>
 export const competitionEntry = (
 	id: string,
 	action: 'activate' | 'join' | 'leave' | 'draw' | 'accept' | 'seed' | 'unseed',
-	userId?: string
-) => mutateWithSubject(`comp/${id}/${action}`, userId ? { user_id: userId } : {});
+	entrantId?: string
+) => mutateWithSubject(`comp/${id}/${action}`,
+	entrantId?.startsWith('pair_') ? { pair_id: entrantId } :
+	entrantId ? { user_id: entrantId } : {});
+export const acceptCompetitionPair = (id: string, userIds: string[]) =>
+	mutateWithSubject(`comp/${id}/accept`, { user_ids: userIds });
 export const recordElimResult = (
 	id: string,
 	matchId: string,

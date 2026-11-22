@@ -188,6 +188,50 @@ test('Browse shows active entities and competitions accepting entries', async ()
     assert.doesNotMatch(html, /Pending team|Pending group|Pending comp|Finished draw/);
 });
 
+test('doubles comp displays pair seeding and lets either partner access the match actions', async () => {
+    const rows = [
+        ...fixture(),
+        { pk: 'comp', rk: 'comp_test', name: 'Doubles knockout', comp_system: 'elimination', format: 'doubles', state: 'open' },
+        { pk: 'pair', rk: 'pair_first', name: 'Alice and Bob' },
+        { pk: 'pair', rk: 'pair_second', name: 'Chris and Dana' },
+        { pk: 'user', rk: 'user_chris', name: 'Chris' },
+        { pk: 'user', rk: 'user_dana', name: 'Dana' }
+    ];
+    function link(a, b, attrs) { rows.push({ pk: a, rk: b, ...attrs }, { pk: b, rk: a, ...attrs }); }
+    link('comp_test', 'user_admin', { is_admin: true });
+    link('comp_test', 'pair_first', { is_participant: true, seed: 1 });
+    for (const user of ['user_alice', 'user_bob']) {
+        link('comp_test', user, { is_participant: true });
+        link('pair_first', user, { role: 'member' });
+    }
+    for (const user of ['user_chris', 'user_dana']) {
+        link('comp_test', user, { state: 'pending' });
+        link('pair_second', user, { role: 'member' });
+    }
+    const open = await output('comp', 'user_admin', undefined, rows);
+    assert.match(open, /elimination • doubles • super set/);
+    assert.match(open, /aria-label="Pairs"/);
+    assert.equal(hasAction(open, 'select player'), true);
+    assert.equal(hasAction(open, 'Unrank Alice and Bob'), true);
+    assert.equal(hasAction(open, 'Rank Alice'), false);
+
+    rows.find(row => row.pk === 'comp' && row.rk === 'comp_test').state = 'active';
+    rows.push({ pk: 'match', rk: 'match_doubles', name: 'Alice and Bob vs Chris and Dana', state: 'active' });
+    link('comp_test', 'match_doubles', {});
+    link('match_doubles', 'pair_first', { role: 'competitor', slot: 1 });
+    link('match_doubles', 'pair_second', { role: 'competitor', slot: 2 });
+    for (const user of ['user_alice', 'user_bob', 'user_chris', 'user_dana'])
+        link('match_doubles', user, { role: 'participant' });
+    const bob = await output('user', 'user_bob', 'user_bob', rows);
+    assert.match(bob, /Doubles knockout<\/a><p>ranked 1[\s\S]*Alice and Bob vs Chris and Dana/);
+    assert.equal(hasAction(bob, 'forfeit'), true);
+    const match = await output('match', 'user_bob', 'match_doubles', rows);
+    assert.match(match, /Alice and Bob[\s\S]*Chris and Dana/);
+    assert.equal(hasAction(match, 'submit'), true);
+    assert.equal(hasAction(match, 'forfeit'), true);
+    assert.equal(hasAction(await output('match', 'user_admin', 'match_doubles', rows), 'forfeit'), false);
+});
+
 test('Competition rounds and user profiles show active matches and elimination status', async () => {
     const rows = [
         ...fixture(),
