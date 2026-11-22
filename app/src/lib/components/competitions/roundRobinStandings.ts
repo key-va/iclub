@@ -67,3 +67,8 @@ export function roundRobinStandings(compId: string) {
 	}
 	return ranked;
 }
+
+
+export function roundRobinStandingDescription(standing: Standing, complete: boolean) {
+	return `${standing.won} points • rank ${standing.place}${complete && standing.place === 1 ? ' • champion' : ''}`;
+}

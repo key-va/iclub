@@ -1,4 +1,5 @@
 <script lang="ts">
+	import MatchRecord from '#lib/components/matches/MatchRecord.svelte';
 	import UserCompetition from '#lib/components/competitions/UserCompetition.svelte';
 	import MatchHistory from '#lib/components/matches/MatchHistory.svelte';
 	import UserGroup from '#lib/components/groups/UserGroup.svelte';
@@ -74,24 +75,12 @@
 		relatedRows.filter((row) => typeOf(row.rk) === 'ladder' && entityOf(row.rk))
 	);
 
-	const results = $derived.by(() => {
-		let won = 0;
-		let lost = 0;
-		for (const match of relatedRows) {
-			if (typeOf(match.rk) !== 'match' || entityOf(match.rk)?.state !== 'complete') continue;
-			if (match.result === 'winner') won++;
-			if (['loser', 'forfeiter', 'walkover'].includes(String(match.result))) lost++;
-		}
-		return { won, lost };
-	});
 </script>
 
 <div class="page">
 	{#if user_entity}
 		<EntityHeader entity={user_entity} />
-		<div class="group">
-			<p class="info center description">{results.won} won • lost {results.lost}</p>
-		</div>
+		<MatchRecord parentId={user_id} />
 
 		{#if user_id === caller_id && adminClubs.length > 0}
 			<div class="group">

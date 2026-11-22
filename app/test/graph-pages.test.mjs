@@ -225,7 +225,10 @@ test('doubles comp displays pair seeding and lets either partner access the matc
     const bob = await output('user', 'user_bob', 'user_bob', rows);
     assert.match(bob, /Doubles knockout<\/a><p>ranked 1[\s\S]*Alice and Bob vs Chris and Dana/);
     assert.equal(hasAction(bob, 'forfeit'), true);
+    rows.push({ pk: 'match', rk: 'match_previous', state: 'complete' });
+    link('pair_first', 'match_previous', { result: 'loser' });
     const pair = await output('pair', 'user_bob', 'pair_first', rows);
+    assert.match(pair, /0 won • lost 1/);
     assert.match(pair, /public\/comp_test\.jpg/);
     assert.match(pair, /Alice<\/a><p>member[\s\S]*Bob<\/a><p>member[\s\S]*Doubles knockout<\/a><p>ranked 1/);
     assert.match(pair, /aria-label="Match History"/);
@@ -353,12 +356,12 @@ test('Round Robin shows standings, scheduled fixtures and joint champions withou
     const running = await output('comp', 'user_admin', undefined, rows);
     assert.match(running, /round robin • singles/);
     assert.match(running, /aria-label="Standings"/);
-    assert.match(running, /rank 2 • 2 played • 1 won • 1 lost/);
+    assert.match(running, /1 points • rank 2/);
     assert.match(running, /Fixture 0<\/a><p>scheduled/);
     assert.doesNotMatch(running, /aria-label="(?:Rank|Unrank) /);
     rows.find(row => row.pk === 'comp' && row.rk === 'comp_test').state = 'complete';
     rows.find(row => row.pk === 'match' && row.rk === 'match_robin_0').state = 'complete';
     const complete = await output('comp', 'user_admin', undefined, rows);
-    assert.equal((complete.match(/champion • 2 played/g) ?? []).length, 3);
-    assert.match(await output('user', 'user_alice', 'user_alice', rows), /Club round robin<\/a><p>champion/);
+    assert.equal((complete.match(/1 points • rank 1 • champion/g) ?? []).length, 3);
+    assert.match(await output('user', 'user_alice', 'user_alice', rows), /Club round robin<\/a><p>1 points • rank 1 • champion/);
 });

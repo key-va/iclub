@@ -8,6 +8,7 @@
 		imageOf
 	} from '#lib/stores/guids.ts';
 	import EntityHeader from '#lib/components/EntityHeader.svelte';
+	import MatchRecord from '#lib/components/matches/MatchRecord.svelte';
 	import MatchHistory from '#lib/components/matches/MatchHistory.svelte';
 	import UserCompetition from '#lib/components/competitions/UserCompetition.svelte';
 	import PairLadder from '#lib/components/pairs/PairLadder.svelte';
@@ -26,6 +27,7 @@
 			title={pair.name ?? 'Pair'}
 			image={comp ? imageOf(comp.rk) : ladderRow ? imageOf(ladderRow.rk) : null}
 		/>
+		<MatchRecord parentId={id} />
 		{#if comp}
 			<UserCompetition user={pair} competition={comp} />
 			<MatchHistory parentId={id} />

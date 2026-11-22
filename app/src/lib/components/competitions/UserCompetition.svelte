@@ -2,7 +2,7 @@
 	import { entityOf, hrefOf, imageOf, nameOf, typeOf, type GuidRow } from '#lib/stores/guids.ts';
 	import PairMembers from '../pairs/PairMembers.svelte';
 	import UserMatch from '../matches/UserMatch.svelte';
-	import { roundRobinStandings } from './roundRobinStandings.ts';
+	import { roundRobinStandings, roundRobinStandingDescription } from './roundRobinStandings.ts';
 	import { competitionChampion } from './competitionBracket.ts';
 	import HiddenOptions from '../hiddenOptions.svelte';
 	import RouteLink from '../routeLink.svelte';
@@ -19,9 +19,7 @@
 		? roundRobinStandings(competition.rk).find((row) => row.entry.rk === (pair?.rk ?? user.rk))
 		: undefined);
 	const status = $derived(standing
-		? comp?.state === 'complete' && standing.place === 1
-			? 'champion'
-			: `rank ${standing.place} • ${standing.won} won • ${standing.lost} lost`
+		? roundRobinStandingDescription(standing, comp?.state === 'complete')
 		: competitionPlayerStatus(pair ?? competition, matches, champion === (pair?.rk ?? user.rk)));
 </script>
 

@@ -15,13 +15,14 @@
 	import RouteLink from '#lib/components/routeLink.svelte';
 	import { activeCompetitionMatches, competitionPlayerMatches, competitionPlayerStatus } from '#lib/components/competitions/competitionPlayers.ts';
 	import { competitionChampion, competitionRounds, roundMatches } from '#lib/components/competitions/competitionBracket.ts';
-	import { roundRobinStandings } from '#lib/components/competitions/roundRobinStandings.ts';
+	import { roundRobinStandings, roundRobinStandingDescription } from '#lib/components/competitions/roundRobinStandings.ts';
 	import { matchSummary } from '#lib/components/matches/matchRules.ts';
 
 	const id = $derived(page.params.comp_id ?? '');
 	const elim = $derived(entityOf(id));
 	const matchFormat = $derived(String(elim?.match_format ?? matchFormatSetting.default).replaceAll('_', ' '));
 	const links = $derived(relationsOf(id));
+	const pairIcon = $derived(imageOf(links.find((row) => typeOf(row.rk) === 'club')?.rk ?? id));
 	const caller = $derived($local.caller_id);
 	const mine = $derived(links.find((row) => row.rk === caller));
 	const admin = $derived(mine?.is_admin === true);
@@ -95,9 +96,10 @@
 			{/if}
 			{#if roundRobin}
 				<HiddenOptions title="Standings" badge={standings.length} />
-				{#each standings as { entry, place, won, lost } (entry.rk)}
-					<RouteLink href={hrefOf(entry.rk)} title={nameOf(entry.rk)} image={imageOf(entry.rk)}
-						description={`${elim.state === 'complete' && place === 1 ? 'champion' : `rank ${place}`} • ${won + lost} played • ${won} won • ${lost} lost`} />
+				{#each standings as standing (standing.entry.rk)}
+					{@const { entry } = standing}
+					<RouteLink href={hrefOf(entry.rk)} title={nameOf(entry.rk)} image={doubles ? pairIcon : imageOf(entry.rk)}
+						description={roundRobinStandingDescription(standing, elim.state === 'complete')} />
 				{/each}
 			{:else}
 				<HiddenOptions title={doubles ? 'Pairs' : 'Players'} badge={entrants.length} />
@@ -106,7 +108,7 @@
 					{@const canRank = open && admin && (ranked || seeds.length < 8)}
 					{@const description = competitionPlayerStatus(row, competitionPlayerMatches(id, row.rk), row.rk === champion)}
 					<RouteLinkHiddenAction href={hrefOf(row.rk)} title={nameOf(row.rk)}
-						image={imageOf(row.rk)} {description}
+						image={doubles ? pairIcon : imageOf(row.rk)} {description}
 						colour={description === 'champion' ? 'green' : description === 'eliminated' ? 'red' : ranked ? 'blue' : 'grey'}>
 						{#if canRank}
 							<ActionQuick inline name={ranked ? 'unrank' : 'rank'}
