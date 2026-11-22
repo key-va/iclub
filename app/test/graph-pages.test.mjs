@@ -326,3 +326,35 @@ test('User profiles count completed wins and losses and match headers keep the e
     const match = await output('match', 'user_alice', 'match_win', rows);
     assert.match(match, /Match win<\/strong><br\s*\/?><span class="description">match<\/span>/);
 });
+
+test('Round Robin shows standings, scheduled fixtures and joint champions without seeding', async () => {
+    const rows = [
+        ...fixture(),
+        { pk: 'comp', rk: 'comp_test', name: 'Club round robin', comp_system: 'round_robin', state: 'active' },
+        { pk: 'round', rk: 'round_robin', name: 'Round 1' }
+    ];
+    function link(a, b, attrs = {}) { rows.push({ pk: a, rk: b, ...attrs }, { pk: b, rk: a, ...attrs }); }
+    const players = ['user_alice', 'user_bob', 'user_admin'];
+    for (const player of players) link('comp_test', player, { is_participant: true, is_admin: player === 'user_admin' });
+    link('comp_test', 'round_robin', { bracket_round: 1 });
+    link('round_robin', 'user_admin', { role: 'bye' });
+    for (const [i, winner] of players.entries()) {
+        const match = `match_robin_${i}`;
+        rows.push({ pk: 'match', rk: match, name: `Fixture ${i}`, state: i === 0 ? 'waiting' : 'complete' });
+        link('round_robin', match, { bracket_match: i + 1 });
+        link('comp_test', match);
+        link(match, winner, { role: 'competitor', slot: 1, result: 'winner', score: 8 });
+        link(match, players[(i + 1) % players.length], { role: 'competitor', slot: 2, result: 'loser', score: 4 });
+    }
+    const running = await output('comp', 'user_admin', undefined, rows);
+    assert.match(running, /round robin • singles/);
+    assert.match(running, /aria-label="Standings"/);
+    assert.match(running, /rank 2 • 2 played • 1 won • 1 lost/);
+    assert.match(running, /Fixture 0<\/a><p>scheduled/);
+    assert.doesNotMatch(running, /aria-label="(?:Rank|Unrank) /);
+    rows.find(row => row.pk === 'comp' && row.rk === 'comp_test').state = 'complete';
+    rows.find(row => row.pk === 'match' && row.rk === 'match_robin_0').state = 'complete';
+    const complete = await output('comp', 'user_admin', undefined, rows);
+    assert.equal((complete.match(/champion • 2 played/g) ?? []).length, 3);
+    assert.match(await output('user', 'user_alice', 'user_alice', rows), /Club round robin<\/a><p>champion/);
+});

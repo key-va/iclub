@@ -15,6 +15,7 @@
 	import RouteLink from '#lib/components/routeLink.svelte';
 	import { activeCompetitionMatches, competitionPlayerMatches, competitionPlayerStatus } from '#lib/components/competitions/competitionPlayers.ts';
 	import { competitionChampion, competitionRounds, roundMatches } from '#lib/components/competitions/competitionBracket.ts';
+	import { roundRobinStandings } from '#lib/components/competitions/roundRobinStandings.ts';
 	import { matchSummary } from '#lib/components/matches/matchRules.ts';
 
 	const id = $derived(page.params.comp_id ?? '');
@@ -27,6 +28,8 @@
 	const canApprove = $derived(links.some((row) =>
 		typeOf(row.rk) === 'club' && relationsOf(row.rk).some((link) => link.rk === caller && link.is_admin === true)
 	));
+	const roundRobin = $derived(elim?.comp_system === 'round_robin');
+	const standings = $derived(roundRobin ? roundRobinStandings(id) : []);
 	const doubles = $derived(elim?.format === 'doubles');
 	const open = $derived(elim?.state === 'open');
 	const drawing = $derived(elim?.state === 'drawing');
@@ -48,20 +51,22 @@
 		.sort((a, b) => Number(a.seed) - Number(b.seed)));
 	const requests = $derived(links.filter((row) => typeOf(row.rk) === 'user' && row.state === 'pending'));
 	const rounds = $derived(competitionRounds(id));
-	const champion = $derived(elim ? competitionChampion(elim) : '');
+	const champion = $derived(elim && !roundRobin ? competitionChampion(elim) : '');
 	const yourMatches = $derived(caller
 		? activeCompetitionMatches(competitionPlayerMatches(id, caller))
 		: []);
 	const byes = $derived(2 ** Math.ceil(Math.log2(Math.max(entrants.length, 2))) - entrants.length);
 	const drawMessage = $derived(drawing
 		? 'Resume the draw?'
-		: `Start the draw with ${entrants.length} entrants and ${byes} byes? ${requests.length ? `${requests.length} pending requests will close. ` : ''}${seeds.length ? `Seeds: ${seeds.map((row) => `#${row.seed} ${nameOf(row.rk)}`).join(', ')}.` : 'No seeds assigned.'}`);
+		: roundRobin
+			? `Start the draw with ${entrants.length} entrants, ${entrants.length - 1 + entrants.length % 2} rounds and ${entrants.length * (entrants.length - 1) / 2} matches? ${requests.length ? `${requests.length} pending requests will close.` : ''}`
+			: `Start the draw with ${entrants.length} entrants and ${byes} byes? ${requests.length ? `${requests.length} pending requests will close. ` : ''}${seeds.length ? `Seeds: ${seeds.map((row) => `#${row.seed} ${nameOf(row.rk)}`).join(', ')}.` : 'No seeds assigned.'}`);
 </script>
 
 <div class="page">
-	{#if elim && (elim.comp_system ?? elim.competition_type) === 'elimination'}
+	{#if elim && (roundRobin || (elim.comp_system ?? elim.competition_type) === 'elimination')}
 		<EntityHeader entity={elim} />
-		<EntityActions section="primary" summary={`elimination • ${doubles ? 'doubles' : 'singles'} • ${matchFormat} • ${status}`}>
+		<EntityActions section="primary" summary={`${roundRobin ? 'round robin' : 'elimination'} • ${doubles ? 'doubles' : 'singles'} • ${matchFormat} • ${status}`}>
 			{#if elim.state === 'pending' && canApprove}
 				<ActionConfirmation inline arrow showLabel name="approve" message={`Approve ${elim.name}?`}
 					action={() => competitionEntry(id, 'activate')} />
@@ -88,31 +93,43 @@
 					<UserMatch {match} />
 				{/each}
 			{/if}
-			<HiddenOptions title={doubles ? 'Pairs' : 'Players'} badge={entrants.length} />
-			{#each entrants as row (row.rk)}
-				{@const ranked = Number(row.seed) > 0}
-				{@const canRank = open && admin && (ranked || seeds.length < 8)}
-				{@const description = competitionPlayerStatus(row, competitionPlayerMatches(id, row.rk), row.rk === champion)}
-				<RouteLinkHiddenAction href={hrefOf(row.rk)} title={nameOf(row.rk)}
-					image={imageOf(row.rk)} {description}
-					colour={description === 'champion' ? 'green' : description === 'eliminated' ? 'red' : ranked ? 'blue' : 'grey'}>
-					{#if canRank}
-						<ActionQuick inline name={ranked ? 'unrank' : 'rank'}
-							label={ranked ? `Unrank ${nameOf(row.rk)}` : `Rank ${nameOf(row.rk)}`}
-							action={() => competitionEntry(id, ranked ? 'unseed' : 'seed', row.rk)} />
-					{:else}
-						<button type="button" class="grey" disabled><p>{description}</p></button>
-					{/if}
-				</RouteLinkHiddenAction>
-			{/each}
+			{#if roundRobin}
+				<HiddenOptions title="Standings" badge={standings.length} />
+				{#each standings as { entry, place, won, lost } (entry.rk)}
+					<RouteLink href={hrefOf(entry.rk)} title={nameOf(entry.rk)} image={imageOf(entry.rk)}
+						description={`${elim.state === 'complete' && place === 1 ? 'champion' : `rank ${place}`} • ${won + lost} played • ${won} won • ${lost} lost`} />
+				{/each}
+			{:else}
+				<HiddenOptions title={doubles ? 'Pairs' : 'Players'} badge={entrants.length} />
+				{#each entrants as row (row.rk)}
+					{@const ranked = Number(row.seed) > 0}
+					{@const canRank = open && admin && (ranked || seeds.length < 8)}
+					{@const description = competitionPlayerStatus(row, competitionPlayerMatches(id, row.rk), row.rk === champion)}
+					<RouteLinkHiddenAction href={hrefOf(row.rk)} title={nameOf(row.rk)}
+						image={imageOf(row.rk)} {description}
+						colour={description === 'champion' ? 'green' : description === 'eliminated' ? 'red' : ranked ? 'blue' : 'grey'}>
+						{#if canRank}
+							<ActionQuick inline name={ranked ? 'unrank' : 'rank'}
+								label={ranked ? `Unrank ${nameOf(row.rk)}` : `Rank ${nameOf(row.rk)}`}
+								action={() => competitionEntry(id, ranked ? 'unseed' : 'seed', row.rk)} />
+						{:else}
+							<button type="button" class="grey" disabled><p>{description}</p></button>
+						{/if}
+					</RouteLinkHiddenAction>
+				{/each}
+			{/if}
 		</div>
 
 		{#if drawReady}
 			{#each rounds as { entity: round } (round.rk)}
 				<HiddenOptions title={round.name}>
+					{#if roundRobin}
+						{@const bye = relationsOf(round.rk).find((row) => row.role === 'bye')}
+						{#if bye}<HiddenOptions title={nameOf(bye.rk)} description="bye" />{/if}
+					{/if}
 					{#each roundMatches(round.rk) as { entity: match } (match.rk)}
 						<RouteLink href={hrefOf(match.rk)} title={match.name} isWhite={match.state === 'active'}
-							description={match.state === 'bye' ? 'bye' : matchSummary(match.rk) || (match.state === 'waiting' ? 'awaiting players' : 'ready to play')}
+							description={match.state === 'bye' ? 'bye' : match.state === 'waiting' ? (roundRobin ? 'scheduled' : 'awaiting players') : matchSummary(match.rk) || 'ready to play'}
 						/>
 					{/each}
 				</HiddenOptions>

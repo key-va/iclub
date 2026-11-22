@@ -1,3 +1,4 @@
+import { roundRobinDraw } from "./roundRobinDraw";
 import { matchFormatRules, setsWon } from "./matchFormats";
 import { createHash } from "node:crypto";
 import { HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
@@ -172,7 +173,7 @@ function winnerOf(players: Competitor[]) {
     return players.find(player => player.result === "winner" || player.result === "bye")?.id ?? "";
 }
 
-async function projectMatch(matchId: string, label: string, players: Competitor[]) {
+async function projectMatch(matchId: string, label: string, players: Competitor[], open = true) {
     const bye = players.some(player => player.result === "bye");
     let name = `${label} Pending`;
     if (players.length === 2 || bye) {
@@ -181,12 +182,55 @@ async function projectMatch(matchId: string, label: string, players: Competitor[
     }
     await writeCompetitors(matchId, players);
     await writeIfChanged("match", matchId, {
-        name, state: bye ? "bye" : winnerOf(players) ? "complete" : players.length === 2 ? "active" : "waiting",
+        name, state: bye ? "bye" : winnerOf(players) ? "complete" : players.length === 2 && open ? "active" : "waiting",
     });
+}
+
+async function prepareDrawMatch(
+    compId: string, round: number, position: number, label: string,
+    players: Competitor[], open = true,
+) {
+    const matchId = elimBracketId("match", compId, round, position);
+    // The match row is committed last so an interrupted projection can resume.
+    const existing = await get("match", matchId);
+    if (existing && sameAttributes(existing, { name: existing.name, state: existing.state }))
+        return;
+    await doUpsertRelation(compId, matchId);
+    await doUpsertRelation(elimBracketId("round", compId, round), matchId, { bracket_match: position });
+    await projectMatch(matchId, label, players, open);
+}
+
+async function startRoundRobin(comp: Row, entrants: Row[], renewGuard: () => Promise<void>) {
+    const id = comp.rowKey;
+    const schedule = roundRobinDraw(entrants.map(row => row.rowKey));
+    for (const [index, round] of schedule.entries()) {
+        const number = index + 1;
+        const roundId = elimBracketId("round", id, number);
+        const label = `Round ${number}`;
+        await renewGuard();
+        await writeIfChanged("round", roundId, { name: `${comp.name} ${label}` });
+        await doUpsertRelation(id, roundId, { bracket_round: number });
+        if (round.bye) await doUpsertRelation(roundId, round.bye, { role: "bye" });
+        // Wait for every in-flight write before releasing the comp guard on failure.
+        for (let offset = 0; offset < round.matches.length; offset += 8) {
+            await renewGuard();
+            const batch = await Promise.allSettled(round.matches.slice(offset, offset + 8)
+                .map(([first, second], i) => prepareDrawMatch(
+                    id, number, offset + i + 1, label, assignedPlayers(first, second), index === 0,
+                )));
+            for (const result of batch)
+                if (result.status === "rejected") throw result.reason;
+        }
+    }
 }
 
 export async function startDraw(elim: Row, entrants: Row[], renewGuard: () => Promise<void>) {
     const id = elim.rowKey;
+    if (elim.comp_system === "round_robin") {
+        await startRoundRobin(elim, entrants, renewGuard);
+        await updateComp(id, { state: "active", draw_notifications_pending: true }, ["draw_version"]);
+        return;
+    }
     const { rounds, slots } = elimDraw(id, entrants.map(row => ({
         id: row.rowKey, seed: Number(row.seed ?? 0),
     })));
@@ -208,14 +252,7 @@ export async function startDraw(elim: Row, entrants: Row[], renewGuard: () => Pr
                 players[0].result = "bye";
                 winners.set(matchId, players[0].id);
             }
-            // The clean match row is committed last. Its presence means the
-            // deterministic slots and mirrored links were fully written.
-            const existing = await get("match", matchId);
-            if (existing && sameAttributes(existing, { name: existing.name, state: existing.state }))
-                continue;
-            await doUpsertRelation(id, matchId);
-            await doUpsertRelation(roundId, matchId, { bracket_match: position });
-            await projectMatch(matchId, label, players);
+            await prepareDrawMatch(id, round, position, label, players);
         }
     }
     await updateComp(id, { state: "active", draw_notifications_pending: true }, ["draw_version"]);
@@ -234,7 +271,8 @@ export async function publishDraw(id: string, context: InvocationContext, renewG
     await doGuidsToPublic();
     const comp = await get("comp", id);
     if (comp?.draw_notifications_pending !== true) return;
-    for (const match of await links(id, "match")) {
+    const parent = comp.comp_system === "round_robin" ? elimBracketId("round", id, 1) : id;
+    for (const match of await links(parent, "match")) {
         await renewGuard();
         await notifyDrawnMatch(match.rowKey, context);
     }
@@ -269,6 +307,7 @@ type PendingResult = {
     action: string;
     excludeUser?: string;
     drawnMatchId?: string;
+    openedRoundId?: string;
 };
 
 function legacyPlayers(match: Row): Competitor[] {
@@ -325,11 +364,38 @@ export async function migrateComp(elim: Row, renewGuard: () => Promise<void>) {
         ...(elim.state === "drawing" ? [] : ["draw_version"])]);
 }
 
+async function advanceRoundRobin(id: string, round: number, rounds: number, pending: PendingResult) {
+    if (!pending.openedRoundId) {
+        const matches = await links(elimBracketId("round", id, round), "match");
+        const allComplete = (await Promise.all(matches.map(link => get("match", link.rowKey))))
+            .every(match => match?.state === "complete");
+        if (!allComplete) return;
+        if (round === rounds) {
+            await updateComp(id, { state: "complete" }, []);
+            return;
+        }
+        const next = elimBracketId("round", id, round + 1);
+        const nextMatches = await links(next, "match");
+        const states = await Promise.all(nextMatches.map(link => get("match", link.rowKey)));
+        if (!states.some(match => match?.state === "waiting")) return;
+        pending.openedRoundId = next;
+        await updateComp(id, { pending_result: JSON.stringify(pending) }, []);
+    }
+    for (const link of await links(pending.openedRoundId, "match")) {
+        const match = await get("match", link.rowKey);
+        if (match?.state === "waiting")
+            await writeIfChanged("match", link.rowKey, { name: match.name, state: "active" });
+    }
+}
+
 export async function repairResult(id: string, pending: PendingResult, context: InvocationContext) {
     const { matchId, players } = pending;
     const { round, position, rounds } = await matchPlacement(id, matchId);
-    await projectMatch(matchId, elimRoundName(round, rounds), players);
-    if (round === rounds) {
+    const roundRobin = (await get("comp", id))?.comp_system === "round_robin";
+    await projectMatch(matchId, roundRobin ? `Round ${round}` : elimRoundName(round, rounds), players);
+    if (roundRobin) {
+        await advanceRoundRobin(id, round, rounds, pending);
+    } else if (round === rounds) {
         await updateComp(id, { state: "complete" }, []);
     } else {
         const nextPosition = Math.ceil(position / 2);
@@ -349,6 +415,9 @@ export async function repairResult(id: string, pending: PendingResult, context: 
     }
     await doGuidsToPublic();
     if (pending.drawnMatchId) await notifyDrawnMatch(pending.drawnMatchId, context);
+    if (pending.openedRoundId)
+        for (const link of await links(pending.openedRoundId, "match"))
+            await notifyDrawnMatch(link.rowKey, context);
     const match = await get("match", matchId);
     const notice = pending.action === "forfeit" ? "The match was forfeited"
         : pending.action === "walkover" ? "A walkover was recorded"
@@ -421,9 +490,16 @@ export async function score(
         return reply(409, "Enter the initial score first");
     if (match.state === "complete" && action !== "correct")
         return reply(409, "This match already has a result");
-    const { round, position, rounds } = await matchPlacement(id, matchId);
-    if (round < rounds) {
-        const next = await get("match", elimBracketId("match", id, round + 1, Math.ceil(position / 2)));
+    if (elim.comp_system === "round_robin") {
+        if (elim.state === "complete" && action === "correct")
+            return reply(409, "This Round Robin is complete");
+        if (match.state === "waiting")
+            return reply(409, "This round has not opened yet");
+    } else {
+        const { round, position, rounds } = await matchPlacement(id, matchId);
+        const next = round < rounds
+            ? await get("match", elimBracketId("match", id, round + 1, Math.ceil(position / 2)))
+            : undefined;
         if (next?.state === "complete")
             return reply(409, "The next match already has a recorded result");
     }
@@ -475,8 +551,8 @@ export async function withComp(request: HttpRequest, context: InvocationContext,
     if (!id?.startsWith("comp_")) return reply(400, "comp_id is required");
     const elim = await get("comp", id);
     if (!elim) return reply(404, "Competition not found");
-    if ((elim.comp_system ?? elim.competition_type) !== "elimination")
-        return reply(409, "This action requires an elimination competition");
+    if (!["elimination", "round_robin"].some(system => system === (elim.comp_system ?? elim.competition_type)))
+        return reply(409, "Choose a supported competition type");
     if (elim.state === "pending") return reply(409, "The competition is awaiting club approval");
     const leaseLength = 300_000;
     let guard = Date.now() + leaseLength;

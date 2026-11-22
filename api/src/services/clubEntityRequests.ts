@@ -157,7 +157,7 @@ export async function createEntityRequest(request: HttpRequest, context: Invocat
     const signed = await signedEntityRequest(request, context, type);
     if ("status" in signed) return signed;
     const { data, caller, caller_id, notify } = signed;
-    if (type === "comp" && (data.comp_system ?? data.competition_type) !== "elimination")
+    if (type === "comp" && !["elimination", "round_robin"].some(system => system === (data.comp_system ?? data.competition_type)))
         return reply(400, "Choose a supported competition type");
     if (type === "comp" && (
         (data.format !== undefined && data.format !== "singles" && data.format !== "doubles") ||

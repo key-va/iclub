@@ -466,14 +466,14 @@ const { elimBracketId, elimDraw } = require("../dist/src/services/elimDraw");
 const elimCall = (id, action, caller, data) => invoke("comp", action, caller, data, id);
 const elimAdmin = "user_creator";
 const clubAdmin = "user_clubadmin";
-async function openElim(format = "singles", match_format) {
+async function openElim(format = "singles", match_format, comp_system = "elimination") {
     const create = await elimCall(undefined, "create", elimAdmin, {
-        name: "Club knockout", comp_system: "elimination", ...(format === "singles" ? {} : { format }), match_format,
+        name: "Club knockout", comp_system, ...(format === "singles" ? {} : { format }), match_format,
     });
     assert.equal(create.status, 201);
     const id = create.jsonBody.subject;
     assert.equal(get("comp", id).state, "pending");
-    assert.equal(get("comp", id).comp_system, "elimination");
+    assert.equal(get("comp", id).comp_system, comp_system);
     assert.equal(get("comp", id).format, format);
     assert.equal(get("comp", id).match_format, match_format ?? "super_set");
     assert.match(id, /^comp_/);
@@ -882,4 +882,50 @@ test("comp match formats validate set scores and advance the side with more sets
         assert.equal(get(matchId, second).result, "winner");
         mirrors(matchId, second);
     }
+});
+
+test("25 Round Robin entrants play 300 unique matches across 25 rounds and each has one bye", () => {
+    const { roundRobinDraw } = require("../dist/src/services/roundRobinDraw");
+    const entrants = Array.from({ length: 25 }, (_, i) => `user_${i}`);
+    const rounds = roundRobinDraw(entrants);
+    assert.equal(rounds.length, 25);
+    assert.equal(new Set(rounds.map(round => round.bye)).size, 25);
+    assert.deepEqual(roundRobinDraw([...entrants].reverse()), rounds);
+    for (const round of rounds) {
+        assert.equal(round.matches.length, 12);
+        assert.equal(new Set([...round.matches.flat(), round.bye]).size, 25);
+    }
+    assert.equal(new Set(rounds.flatMap(round => round.matches.map(pair => [...pair].sort().join(":")))).size, 300);
+});
+
+test("Round Robin publishes fixtures, opens one round at a time and allows corrections while running", async () => {
+    const id = await openElim("singles", "super_set", "round_robin");
+    const stock = ["user_member", "user_applicant", "user_visitor", "user_otheradmin"];
+    await enterElim(id, stock);
+    assert.equal((await elimCall(id, "seed", elimAdmin, { user_id: stock[0] })).status, 409);
+    assert.equal((await elimCall(id, "draw", elimAdmin)).status, 200);
+    const matches = Array.from({ length: 3 }, (_, i) =>
+        [1, 2].map(position => elimBracketId("match", id, i + 1, position)));
+    const state = matchId => get("match", matchId).state;
+    const scoreMatch = matchId => elimCall(id, "score", slot(matchId, 1), scores(matchId, 8, 3));
+    const notices = () => pushes.filter(push => push.content === "Get ready, your next comp match is drawn");
+    assert.deepEqual(matches.map(round => round.map(state)), [
+        ["active", "active"], ["waiting", "waiting"], ["waiting", "waiting"],
+    ]);
+    assert.equal(notices().length, 2);
+    assert.equal((await scoreMatch(matches[1][0])).status, 409);
+    assert.equal((await scoreMatch(matches[0][0])).status, 200);
+    assert.equal(state(matches[1][0]), "waiting");
+    failPublish = true;
+    await assert.rejects(scoreMatch(matches[0][1]), /Publishing interrupted/);
+    assert.equal(notices().length, 2);
+    assert.equal((await scoreMatch(matches[0][1])).status, 200);
+    assert.equal(notices().length, 4);
+    assert.equal((await elimCall(id, "correct", elimAdmin, scores(matches[0][0], 3, 8))).status, 200);
+    assert.equal(notices().length, 4);
+    for (const match of matches.slice(1).flat()) assert.equal((await scoreMatch(match)).status, 200);
+    assert.equal(notices().length, 6);
+    assert.equal(get("comp", id).state, "complete");
+    assert.equal((await elimCall(id, "correct", elimAdmin, scores(matches[0][0], 8, 3))).status, 409);
+    assert.equal(get(matches[0][0], slot(matches[0][0], 2)).result, "winner");
 });

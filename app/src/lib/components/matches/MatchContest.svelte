@@ -54,8 +54,9 @@
 	);
 	const isElimAdmin = $derived(!!elim && relationsOf(elim.rk)
 		.some((row) => row.rk === caller_id && row.is_admin === true));
+	const roundRobin = $derived(elim?.comp_system === 'round_robin');
 	const canCorrect = $derived(!!elim && isElimAdmin && match.state === 'complete' &&
-		nextCompetitionMatch(elim.rk, match)?.state !== 'complete');
+		(roundRobin ? elim.state !== 'complete' : nextCompetitionMatch(elim.rk, match)?.state !== 'complete'));
 	let correcting = $state(false);
 	const isPlayer = $derived(
 		elim
@@ -100,7 +101,7 @@
 			: String(player.score).split(',');
 	const recordedChallenger = $derived(recordedGames(challenger));
 	const recordedDefender = $derived(recordedGames(defender));
-	const isFinal = $derived(!!elim && competitionFinal(elim.rk)?.rk === matchId);
+	const isFinal = $derived(!!elim && !roundRobin && competitionFinal(elim.rk)?.rk === matchId);
 	function roleText(player: Record<string, unknown>, fallback: string) {
 		if (!isComplete) return fallback;
 		if (isFinal && player.result) return player.result === 'winner' ? 'champion' : 'eliminated';
@@ -311,7 +312,7 @@
 		<p class="info center">{nameOf(slots.find((player) => player)?.rk ?? '')} advances with a bye.</p>
 	</div>
 {:else if elim && match.state === 'waiting'}
-	<p class="info">Waiting for earlier results.</p>
+	<p class="info">{roundRobin ? 'Waiting for this round to open.' : 'Waiting for earlier results.'}</p>
 {/if}
 
 <RouteLink

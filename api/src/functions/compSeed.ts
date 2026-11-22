@@ -3,6 +3,7 @@ import { withOpenComp, entrantRows, props, reply, saveMembership } from "../serv
 
 export async function compSeed(request: HttpRequest, context: InvocationContext) {
     return withOpenComp(request, context, true, async ({ id, elim, data, members }) => {
+        if (elim.comp_system === "round_robin") return reply(409, "Round Robin does not use seeds");
         const entrants = entrantRows(elim, members);
         const member = entrants.find(row => row.rowKey === (elim.format === "doubles" ? data.pair_id : data.user_id));
         if (member?.is_participant !== true)

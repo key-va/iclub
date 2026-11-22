@@ -26,7 +26,10 @@
 		comp_system: {
 			label: 'comp system',
 			description: 'how match results determine who advances',
-			values: { elimination: { label: 'Elimination', description: 'the winner advances and the loser is eliminated' } }
+			values: {
+				elimination: { label: 'Elimination', description: 'the winner advances and the loser is eliminated' },
+				round_robin: { label: 'Round Robin', description: 'each entrant plays every other entrant once. Final standings decide the champion' }
+			}
 		}
 	};
 	let values = $state<Record<string, string>>({
