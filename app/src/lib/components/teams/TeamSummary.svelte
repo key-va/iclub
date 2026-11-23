@@ -88,14 +88,14 @@
 	<HiddenOptions title="Future Rounds" isWhite>
 		{#each laterRounds as round (round.rk)}
 			{#if round.state === 'eliminated'}
-				<HiddenOptions title={round.name} description={`eliminated · ${round.date}`} />
+				<HiddenOptions title={round.name} description={`eliminated • ${round.date}`} />
 			{:else}
 				<TeamRound {team} {round} />
 			{/if}
 		{/each}
 
 		{#each finalsDates as final}
-			<HiddenOptions title={final.name} description={`pending · ${final.date}`} />
+			<HiddenOptions title={final.name} description={`pending • ${final.date}`} />
 		{/each}
 	</HiddenOptions>
 

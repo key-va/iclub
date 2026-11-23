@@ -37,7 +37,7 @@
 				`${counts.available} available`
 			].filter(Boolean).join(' • ')
 			: round.ext_stage && round.is_home === undefined
-				? `${roleLabel} · ${round.date}`
+				? `${roleLabel} • ${round.date}`
 				: `${roleLabel} • ${round.is_home ? 'home' : 'away'} • ${round.date}`
 	);
 	const options = $derived(
