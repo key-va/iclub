@@ -22,7 +22,7 @@
 		<div class="row right">
 			<p class="truncate">
 				<strong>{title}</strong>{#if description || detail}<br /><span
-						class="description"
+						class="description route-link-description"
 					>
 						{description}{#if description && detail}{' • '}{/if}{@render detail?.()}
 					</span>{/if}

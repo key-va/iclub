@@ -299,3 +299,7 @@ table {
 .action-row > :is(button, a):has(~ :is(button, a)) > .action-arrow {
     display: none;
 }
+
+.route-link-description {
+    color: #808080;
+}
