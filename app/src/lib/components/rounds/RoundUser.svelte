@@ -26,7 +26,7 @@
 {#snippet selectionAction()}
 	<ActionQuick
 		inline
-		name={user.role === 'selected' ? 'available' : 'nominate'}
+		name={user.role === 'selected' ? 'available' : 'mark playing'}
 		action={() =>
 			setRoundRole(
 				round.rk,

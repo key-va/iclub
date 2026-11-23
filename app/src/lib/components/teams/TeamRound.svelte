@@ -33,7 +33,7 @@
 		featured
 			? [
 				typeof round.is_home === 'boolean' ? (round.is_home ? 'home' : 'away') : '',
-				`${counts.nominated} nominated`,
+				`${counts.playing} playing`,
 				`${counts.available} available`
 			].filter(Boolean).join(' • ')
 			: round.ext_stage && round.is_home === undefined

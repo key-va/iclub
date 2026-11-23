@@ -270,10 +270,10 @@ test('team summaries include association, section and rank, omitting competition
 });
 
 test("team round dots follow total nominations and availability", () => {
-    for (const [nominated, available, colour] of [
+    for (const [playing, available, colour] of [
         [4, 0, "green"], [5, 1, "green"], [3, 1, "blue"],
         [0, 4, "blue"], [0, 3, "orange"], [0, 0, "orange"], [1, 2, "red"],
     ]) {
-        assert.equal(rounds.roundAvailabilityColour({ nominated, available }), colour);
+        assert.equal(rounds.roundAvailabilityColour({ playing, available }), colour);
     }
 });

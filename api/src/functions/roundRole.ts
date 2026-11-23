@@ -84,13 +84,13 @@ export async function roundRole(
                 if (!isTeamAdmin(caller))
                     return reply(
                         403,
-                        "Only an administrator can nominate a player",
+                        "Only an administrator can mark a player as playing",
                     );
                 if (old !== "available" && old !== "selected")
-                    return reply(409, "Only available players can be nominated");
+                    return reply(409, "Only available players can be marked as playing");
             } else if (old === "selected" && role === "available") {
                 if (!isTeamAdmin(caller))
-                    return reply(403, "Only an administrator can return a nominated player to available");
+                    return reply(403, "Only an administrator can return a player marked as playing to available");
             } else if (user !== caller_id)
                 return reply(403, "You may only update your own availability");
             if (old === role) {
@@ -124,8 +124,8 @@ export async function roundRole(
                                 r.rowKey.startsWith("user_") && isTeamAdmin(r),
                         )
                         .map((r) => r.rowKey),
-                    `Player away — ${team.name}`,
-                    `${unavailablePlayer?.name || "A player"} is now away for ${roundName}. A replacement player is needed.`,
+                    `Player out — ${team.name}`,
+                    `${unavailablePlayer?.name || "A player"} is now out for ${roundName}. A replacement player is needed.`,
                     `round/${id}`,
                     context,
                 );
@@ -133,7 +133,7 @@ export async function roundRole(
                 await push(
                     [user],
                     String(team.name),
-                    `You have been nominated for ${roundName}.`,
+                    `You are playing in ${roundName}.`,
                     `round/${id}`,
                     context,
                 );

@@ -89,7 +89,7 @@ test('team member roles and derived round details survive raw relation lookups',
     items.find((row) => row.pk === 'round' && row.rk === 'round_test').ext_number = 1;
     const html = await output('team', 'user_admin', undefined, items);
     assert.match(html, /Team A/);
-    assert.match(html, /data-colour="red" data-white="true"[^>]*><a href="\/round\/round_test">Round 1<\/a><p>away • 1 nominated • 1 available/);
+    assert.match(html, /data-colour="red" data-white="true"[^>]*><a href="\/round\/round_test">Round 1<\/a><p>away • 1 playing • 1 available/);
     assert.match(html, /1 available[\s\S]*aria-label="Leaderboard"[\s\S]*aria-label="Future Rounds"[\s\S]*Round 2[\s\S]*aria-label="refresh data"[\s\S]*aria-label="Members"[\s\S]*aria-label="Past Rounds"/);
     assert.match(html, /Round 1/);
     assert.match(html, /2026-11-27/);
@@ -101,16 +101,16 @@ test('team member roles and derived round details survive raw relation lookups',
     assert.match(visitor, /Round 1<\/a>[\s\S]*?<button[^>]*disabled[^>]*><p>no actions<\/p><\/button>/);
     assert.match(visitor, /Round 2<\/a>[\s\S]*?<button[^>]*disabled[^>]*><p>no actions<\/p><\/button>/);
     assert.equal(hasAction(visitor, 'available'), false);
-    assert.equal(hasAction(visitor, 'away'), false);
+    assert.equal(hasAction(visitor, 'out'), false);
 });
 test('round roles drive availability and selection while names come from entities', async () => {
     const html = await output('round');
     assert.match(html, /Visitors vs Team A/);
     assert.match(html, /See you on court/);
-    assert.equal(hasAction(html, 'nominate'), true);
+    assert.equal(hasAction(html, 'mark playing'), true);
     const player = await output('round', 'user_alice');
-    assert.equal(hasAction(player, 'away'), true);
-    assert.equal(hasAction(player, 'nominate'), false);
+    assert.equal(hasAction(player, 'out'), true);
+    assert.equal(hasAction(player, 'mark playing'), false);
 });
 test('match defender permissions, competitor names and messages survive the lookup migration', async () => {
     const html = await output('match', 'user_bob');
@@ -126,7 +126,7 @@ test('user home resolves team details and outstanding round role/date separately
     assert.match(html, /Division One • rank 2/);
     assert.match(html, /Round 1/);
     assert.match(html, /2026-11-20/);
-    assert.match(html, /nominated/);
+    assert.match(html, /playing/);
 });
 
 test('pending team/group memberships on user pages retain admin acceptance actions', async () => {
