@@ -17,6 +17,7 @@
 		isTeamMember,
 		isTeamAdmin,
 		jsonArray,
+		roundAvailability,
 		roundView,
 		teamView
 	} from '#lib/components/rounds/roundRules.ts';
@@ -65,24 +66,20 @@
 		round.state !== 'complete' && round.state !== 'eliminated' &&
 		typeof round.opponent === 'string' && !!round.opponent
 	));
-	const nextRoundPlayers = $derived(nextRound
-		? relationsOf(nextRound.rk).filter((row) => typeOf(row.rk) === 'user')
-		: []);
-	const nominated = $derived(nextRoundPlayers.filter((row) => row.role === 'selected').length);
-	const available = $derived(nextRoundPlayers.filter((row) => row.role === 'available').length);
+	const counts = $derived(nextRound ? roundAvailability(nextRound.rk) : undefined);
 	let syncMessage = $state('');
 </script>
 
 <TeamActions {team} section="primary" />
 {#if team.state === 'active'}
-	{#if nextRound}
+	{#if nextRound && counts}
 		<RouteLink
 			href={hrefOf(nextRound.rk)}
 			title={nextRound.name}
 			description={[
 				typeof nextRound.is_home === 'boolean' ? (nextRound.is_home ? 'home' : 'away') : '',
-				`${nominated} nominated`,
-				`${available} available`
+				`${counts.nominated} nominated`,
+				`${counts.available} available`
 			].filter(Boolean).join(' • ')}
 			isWhite
 		/>

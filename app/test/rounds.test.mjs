@@ -268,3 +268,12 @@ test('team summaries include association, section and rank, omitting competition
  assert.equal(rounds.teamDescription({pk:'team',rk:'team_test',ext_section_name:'Section 1',ext_rank:0}), 'Section 1 • rank 0');
  assert.equal(rounds.teamDescription(), '');
 });
+
+test("team round dots follow total nominations and availability", () => {
+    for (const [nominated, available, colour] of [
+        [4, 0, "green"], [5, 1, "green"], [3, 1, "blue"],
+        [0, 4, "blue"], [0, 3, "orange"], [0, 0, "orange"], [1, 2, "red"],
+    ]) {
+        assert.equal(rounds.roundAvailabilityColour({ nominated, available }), colour);
+    }
+});

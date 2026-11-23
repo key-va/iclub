@@ -10,6 +10,19 @@ export const roundRoleColour: Record<string, string> = {
 	unavailable: 'red',
 	pending: 'orange'
 };
+export function roundAvailability(roundId: string) {
+	const players = relationsOf(roundId).filter((row) => typeOf(row.rk) === 'user');
+	const nominated = players.filter((row) => row.role === 'selected').length;
+	const available = players.filter((row) => row.role === 'available').length;
+	return { nominated, available };
+}
+
+export function roundAvailabilityColour({ nominated, available }: ReturnType<typeof roundAvailability>) {
+	if (nominated >= 4) return 'green';
+	if (nominated + available >= 4) return 'blue';
+	return nominated === 0 ? 'orange' : 'red';
+}
+
 export function roundRoleLabel(role: unknown): string {
 	if (role === 'unavailable') return 'away';
 	if (role === 'selected') return 'nominated';

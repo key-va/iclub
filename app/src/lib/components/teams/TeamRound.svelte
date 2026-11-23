@@ -2,7 +2,8 @@
 	import { local } from '#lib/stores/local.ts';
 	import { relationsOf, hrefOf, type GuidRow } from '#lib/stores/guids.ts';
 	import {
-		roundRoleColour,
+		roundAvailability,
+		roundAvailabilityColour,
 		availabilityOptions,
 		roundRoleLabel,
 		isTeamMember
@@ -55,7 +56,7 @@
 		href={hrefOf(round.rk)}
 		title={round.name}
 		{description}
-		colour={roundRoleColour[String(role)] ?? 'grey'}
+		colour={roundAvailabilityColour(roundAvailability(round.rk))}
 		children={options.length ? actions : undefined}
 		currentSelection={!options.length ? roundRoleLabel(role) : undefined}
 	/>
