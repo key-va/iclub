@@ -21,6 +21,7 @@
 	const mine = $derived(
 		relationsOf(team.rk).find((row) => row.rk === $local.caller_id)
 	);
+	const member = $derived(isTeamMember(mine));
 	const role = $derived(
 		$local.caller_id
 			? relationsOf($local.caller_id).find((row) => row.rk === round.rk)?.role
@@ -40,7 +41,7 @@
 				: `${roleLabel} • ${round.is_home ? 'home' : 'away'} • ${round.date}`
 	);
 	const options = $derived(
-		isTeamMember(mine) && round.state !== 'complete'
+		member && round.state !== 'complete'
 			? availabilityOptions(role)
 			: []
 	);
@@ -66,8 +67,7 @@
 		{description}
 		colour={roundAvailabilityColour(counts)}
 		isWhite={featured}
-		showDot={featured}
 		children={options.length ? actions : undefined}
-		currentSelection={!options.length ? roundRoleLabel(role) : undefined}
+		currentSelection={options.length ? undefined : (member && roundRoleLabel(role)) || 'no actions'}
 	/>
 {/if}

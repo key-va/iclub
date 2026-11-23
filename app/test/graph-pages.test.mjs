@@ -97,6 +97,11 @@ test('team member roles and derived round details survive raw relation lookups',
     assert.match(html, /href="\/user\/user_alice">Alice/);
     assert.equal(hasAction(html, 'accept'), true);
     assert.equal(hasAction(await output('team', 'user_alice'), 'accept'), false);
+    const visitor = await output('team', 'user_visitor', undefined, items);
+    assert.match(visitor, /Round 1<\/a>[\s\S]*?<button[^>]*disabled[^>]*><p>no actions<\/p><\/button>/);
+    assert.match(visitor, /Round 2<\/a>[\s\S]*?<button[^>]*disabled[^>]*><p>no actions<\/p><\/button>/);
+    assert.equal(hasAction(visitor, 'available'), false);
+    assert.equal(hasAction(visitor, 'away'), false);
 });
 test('round roles drive availability and selection while names come from entities', async () => {
     const html = await output('round');
