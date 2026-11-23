@@ -85,6 +85,13 @@ svg {
     background-color: gainsboro;
 }
 
+.blank-icon-small,
+.round-icon-small,
+.round-icon-mid,
+.round-icon-big {
+    flex-shrink: 0;
+}
+
 .blank-icon-small{
     width: 3rem; min-height: 3rem; margin:0.5rem;
     display: inline-flex; align-items: center; justify-content: center; line-height: 0;
