@@ -17,7 +17,7 @@
 	} = $props();
 </script>
 
-<div class="row right">
+<div class="row right entity-header">
 	<p class:truncate>
 		<strong>{entity?.name ?? title}</strong><br /><span class="description">{entity?.pk ?? subtitle}</span>
 	</p>

@@ -300,6 +300,12 @@ table {
     display: none;
 }
 
-.row-description {
+.row-description,
+.entity-header .description {
+    color: lightgrey;
+}
+
+.group .row-description,
+.group .entity-header .description {
     color: #808080;
 }
