@@ -15,8 +15,8 @@ before(async () => {
                 const path = id.replaceAll('\\', '/');
                 // Exercise feature logic independently of reveal/confirmation mechanics.
                 if (path.endsWith('/components/routeLink.svelte') || path.endsWith('/components/RouteLinkHiddenAction.svelte')) return `
-                    <script>let { href, title, description, image, detail, children } = $props();</script>
-                    <article><a {href} data-image={image}>{title}</a><p>{description}</p>
+                    <script>let { href, title, description, image, detail, children, colour, currentSelection } = $props();</script>
+                    <article data-colour={colour} data-current-selection={currentSelection}><a {href} data-image={image}>{title}</a><p>{description}</p>
                     {@render detail?.()}{@render children?.()}</article>`;
                 if (path.endsWith('/components/hiddenOptions.svelte')) return `
                     <script>let { title, children } = $props();</script>
@@ -122,9 +122,17 @@ test('singles standings resolve challenge identity, reach, state and self restri
     assert.equal(action(html('LadderUser', props), 'challenge'), undefined);
     await load(items, 'user_admin');
     assert.equal(action(html('LadderUser', props), 'challenge'), undefined);
+    for (const [state, colour] of [['away', 'red'], ['busy', 'orange'], ['cooling', 'blue'], ['active', 'green']]) {
+        const visitor = html('LadderUser', { ladder, user: { ...user, state } });
+        assert.match(visitor, new RegExp(`data-colour="${colour}" data-current-selection="no actions"`));
+    }
     await load(items);
+    assert.match(html('LadderUser', { ladder, user: { ...user, rank: 99, state: 'away' } }), /data-colour="grey"/);
+    const own = graph.relationsOf(ladder.rk).find(row => row.rk === 'user_me');
+    assert.match(html('LadderUser', { ladder, user: own }), /data-colour="green"/);
     user.state = 'away';
     assert.equal(action(html('LadderUser', props), 'challenge'), undefined);
+    assert.match(html('LadderUser', props), /data-colour="red"/);
 });
 
 test('doubles resolve pair standing and either partner as the same challenger', async () => {

@@ -87,6 +87,18 @@ export const ladderStateColours: Record<string, string> = {
 	active: 'green'
 };
 
+export function ladderStandingColour(
+	ladder: GuidRow,
+	membership: ReturnType<typeof ladderMembership>,
+	target: ChallengeTarget
+) {
+	const { relation, competitorId } = membership;
+	if (relation?.is_participant === true && target.rk !== competitorId &&
+		!inReach(ladder, relation, competitorId, target))
+		return 'grey';
+	return ladderStateColours[String(target.relation.state)] ?? 'grey';
+}
+
 export function challengeDescription(
 	target: GuidRow,
 	competitorId: string | null,
