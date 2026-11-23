@@ -10,6 +10,7 @@
 		image = '',
 		colour = 'var(--brand-foreground, #FF1493)',
 		isWhite = false,
+		showDot = false,
 		detail,
 		currentSelection,
 		children
@@ -20,6 +21,7 @@
 		image?: string;
 		colour?: string;
 		isWhite?: boolean;
+		showDot?: boolean;
 		detail?: Snippet;
 		children?: Snippet;
 		currentSelection?: string;
@@ -83,7 +85,7 @@
 	}
 </script>
 
-{#if !hasOptions}
+{#if !hasOptions && !showDot}
 	<RouteLink {href} {title} {description} {image} {isWhite} {detail} />
 {:else}
 	<div class={isWhite ? 'group' : ''}>
@@ -138,18 +140,24 @@
 							{description}{#if description && detail}{' • '}{/if}{@render detail?.()}
 						</span>{/if}
 				</p>
-				<button
-					bind:this={dotButton}
-					type="button"
-					class="dot-button"
-					aria-label={`Actions for ${title}`}
-					aria-expanded={false}
-					aria-controls={optionsId}
-					onclick={reveal}
-				>
-					<span class="action-dot" style:background={colour} aria-hidden="true"
-					></span>
-				</button>
+				{#if hasOptions}
+					<button
+						bind:this={dotButton}
+						type="button"
+						class="dot-button"
+						aria-label={`Actions for ${title}`}
+						aria-expanded={false}
+						aria-controls={optionsId}
+						onclick={reveal}
+					>
+						<span class="action-dot" style:background={colour} aria-hidden="true"
+						></span>
+					</button>
+				{:else}
+					<span class="static-dot" aria-hidden="true">
+						<span class="action-dot" style:background={colour}></span>
+					</span>
+				{/if}
 				<a
 					class="round-icon-small blue entity-link"
 					{href}
@@ -187,6 +195,11 @@
 		margin: 0;
 		border: 0;
 		background: none;
+	}
+	.static-dot {
+		display: grid;
+		place-items: center;
+		flex: 0 0 44px;
 	}
 	.action-dot {
 		width: 1.5rem;

@@ -15,8 +15,9 @@
 	let {
 		team,
 		round,
-		past = false
-	}: { team: GuidRow; round: GuidRow; past?: boolean } = $props();
+		past = false,
+		featured = false
+	}: { team: GuidRow; round: GuidRow; past?: boolean; featured?: boolean } = $props();
 	const mine = $derived(
 		relationsOf(team.rk).find((row) => row.rk === $local.caller_id)
 	);
@@ -26,10 +27,17 @@
 			: undefined
 	);
 	const roleLabel = $derived(roundRoleLabel(role) || 'no status');
+	const counts = $derived(roundAvailability(round.rk));
 	const description = $derived(
-		round.ext_stage && round.is_home === undefined
-			? `${roleLabel} · ${round.date}`
-			: `${roleLabel} • ${round.is_home ? 'home' : 'away'} • ${round.date}`
+		featured
+			? [
+				typeof round.is_home === 'boolean' ? (round.is_home ? 'home' : 'away') : '',
+				`${counts.nominated} nominated`,
+				`${counts.available} available`
+			].filter(Boolean).join(' • ')
+			: round.ext_stage && round.is_home === undefined
+				? `${roleLabel} · ${round.date}`
+				: `${roleLabel} • ${round.is_home ? 'home' : 'away'} • ${round.date}`
 	);
 	const options = $derived(
 		isTeamMember(mine) && round.state !== 'complete'
@@ -56,7 +64,9 @@
 		href={hrefOf(round.rk)}
 		title={round.name}
 		{description}
-		colour={roundAvailabilityColour(roundAvailability(round.rk))}
+		colour={roundAvailabilityColour(counts)}
+		isWhite={featured}
+		showDot={featured}
 		children={options.length ? actions : undefined}
 		currentSelection={!options.length ? roundRoleLabel(role) : undefined}
 	/>

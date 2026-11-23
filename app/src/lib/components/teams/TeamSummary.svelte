@@ -17,7 +17,6 @@
 		isTeamMember,
 		isTeamAdmin,
 		jsonArray,
-		roundAvailability,
 		roundView,
 		teamView
 	} from '#lib/components/rounds/roundRules.ts';
@@ -66,24 +65,13 @@
 		round.state !== 'complete' && round.state !== 'eliminated' &&
 		typeof round.opponent === 'string' && !!round.opponent
 	));
-	const counts = $derived(nextRound ? roundAvailability(nextRound.rk) : undefined);
+	const laterRounds = $derived(futureRounds.filter((round) => round.rk !== nextRound?.rk));
 	let syncMessage = $state('');
 </script>
 
 <TeamActions {team} section="primary" />
 {#if team.state === 'active'}
-	{#if nextRound && counts}
-		<RouteLink
-			href={hrefOf(nextRound.rk)}
-			title={nextRound.name}
-			description={[
-				typeof nextRound.is_home === 'boolean' ? (nextRound.is_home ? 'home' : 'away') : '',
-				`${counts.nominated} nominated`,
-				`${counts.available} available`
-			].filter(Boolean).join(' • ')}
-			isWhite
-		/>
-	{/if}
+	{#if nextRound}<TeamRound {team} round={nextRound} featured />{/if}
 	{#if standings.length}
 		<div class="group">
 			<HiddenOptions title="Leaderboard" badge={standings.length} />
@@ -96,6 +84,20 @@
 			{/each}
 		</div>
 	{/if}
+
+	<HiddenOptions title="Future Rounds" isWhite>
+		{#each laterRounds as round (round.rk)}
+			{#if round.state === 'eliminated'}
+				<HiddenOptions title={round.name} description={`eliminated · ${round.date}`} />
+			{:else}
+				<TeamRound {team} {round} />
+			{/if}
+		{/each}
+
+		{#each finalsDates as final}
+			<HiddenOptions title={final.name} description={`pending · ${final.date}`} />
+		{/each}
+	</HiddenOptions>
 
 	{#if admin && pending.length}
 		<div class="group">
@@ -136,20 +138,6 @@
 	<HiddenOptions title="Members">
 		{#each members as user (user.rk)}
 			<TeamUser {team} {user} />
-		{/each}
-	</HiddenOptions>
-
-	<HiddenOptions title="Future Rounds" badge={futureRounds.length + finalsDates.length}>
-		{#each futureRounds as round (round.rk)}
-			{#if round.state === 'eliminated'}
-				<HiddenOptions title={round.name} description={`eliminated · ${round.date}`} />
-			{:else}
-				<TeamRound {team} {round} />
-			{/if}
-		{/each}
-
-		{#each finalsDates as final}
-			<HiddenOptions title={final.name} description={`pending · ${final.date}`} />
 		{/each}
 	</HiddenOptions>
 
