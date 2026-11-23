@@ -201,7 +201,18 @@ test('Browse shows active entities and competitions accepting entries', async ()
     assert.match(html, /Open ladder/);
     assert.match(html, /Open entries<\/a><p>comp<\/p>/);
     assert.match(html, /Active draw/);
-    assert.doesNotMatch(html, /Pending team|Pending group|Pending comp|Finished draw/);
+    assert.doesNotMatch(html, /data-white="true"|Pending team|Pending group|Pending comp|Finished draw/);
+    const profile = await output('user', 'user_admin', 'user_admin', [
+        ...fixture(), ...rows,
+        ...rows.flatMap((row) => [
+            { pk: 'user_admin', rk: row.rk, is_participant: true },
+            { pk: 'club_test', rk: row.rk }
+        ])
+    ]);
+    assert.match(profile, /Open ladder/);
+    assert.match(profile, /Open entries/);
+    assert.match(profile, /Active draw/);
+    assert.doesNotMatch(profile, /Pending team|Pending group|Pending comp|Finished draw/);
 });
 
 test('doubles comp displays pair seeding and lets either partner access the match actions', async () => {
@@ -313,7 +324,7 @@ test('Competition rounds and user profiles show active matches and elimination s
     const completed = await output('comp', 'user_alice', undefined, rows);
     assert.match(completed, /data-colour="green"[^>]*><a [^>]*>Alice<\/a><p>champion/);
     assert.match(completed, /data-colour="red"[^>]*><a [^>]*>Administrator<\/a><p>eliminated/);
-    assert.match(await output('user', 'user_alice', 'user_alice', rows), /Club knockout<\/a><p>champion/);
+    assert.doesNotMatch(await output('user', 'user_alice', 'user_alice', rows), /Club knockout/);
     const final = await output('match', 'user_alice', 'match_final', rows);
     assert.match(final, /champion/);
     assert.match(final, /eliminated/);
@@ -381,5 +392,5 @@ test('Round Robin shows standings, scheduled fixtures and joint champions withou
     rows.find(row => row.pk === 'match' && row.rk === 'match_robin_0').state = 'complete';
     const complete = await output('comp', 'user_admin', undefined, rows);
     assert.equal((complete.match(/1 points • rank 1 • champion/g) ?? []).length, 3);
-    assert.match(await output('user', 'user_alice', 'user_alice', rows), /Club round robin<\/a><p>1 points • rank 1 • champion/);
+    assert.doesNotMatch(await output('user', 'user_alice', 'user_alice', rows), /Club round robin/);
 });

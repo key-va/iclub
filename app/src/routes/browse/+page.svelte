@@ -2,7 +2,7 @@
 	import { branding } from '#lib/stores/branding.ts';
 	import EntityHeader from '#lib/components/EntityHeader.svelte';
 	import { local } from '#lib/stores/local.ts';
-	import { entities, hrefOf, imageOf } from '#lib/stores/guids.ts';
+	import { entities, hrefOf, imageOf, isBrowsableEntity } from '#lib/stores/guids.ts';
 
 	import RouteLink from '#lib/components/routeLink.svelte';
 
@@ -13,13 +13,7 @@
 		filter = '';
 	}
 
-	const browsable = $derived(
-		$entities.filter(
-			(entity) =>
-				['ladder', 'team', 'group', 'comp'].includes(entity.pk) &&
-				(entity.state === 'active' || (entity.pk === 'comp' && entity.state === 'open'))
-		)
-	);
+	const browsable = $derived($entities.filter(isBrowsableEntity));
 
 	const filtered = $derived.by(() => {
 		const q = filter.trim().toLowerCase();
@@ -68,7 +62,6 @@
 			href={hrefOf(entity.rk)}
 			title={entity.name ?? 'no name'}
 			description={entity.pk}
-			isWhite={true}
 			image={imageOf(entity.rk)}
 		/>
 	{/each}
@@ -86,7 +79,6 @@
 		<RouteLink
 			href={hrefOf(entity.rk)}
 			title={entity.name ?? 'no name'}
-			isWhite={entity.pk === 'comp'}
 			description={entity.pk}
 			image={imageOf(entity.rk)}
 		/>
