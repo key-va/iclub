@@ -116,7 +116,7 @@
 		{:else}
 			<p class="truncate">
 				<strong>{title}</strong>{#if description || detail}<br /><span
-						class="description"
+						class="description row-description"
 					>
 						{description}{@render detail?.()}
 					</span>{/if}
