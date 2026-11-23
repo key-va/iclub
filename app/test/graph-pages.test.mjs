@@ -79,8 +79,13 @@ test('group names, participants, pending approvals and message senders resolve s
     assert.equal(hasAction(await output('group', 'user_alice'), 'accept'), false);
 });
 test('team member roles and derived round details survive raw relation lookups', async () => {
-    const html = await output('team');
+    const items = fixture();
+    items.find((row) => row.pk === 'team').ext_standings =
+        JSON.stringify([{ name: 'Team A', points: 9, wins: 2, rank: 2 }]);
+    const html = await output('team', 'user_admin', undefined, items);
     assert.match(html, /Team A/);
+    assert.match(html, /data-white="true"[^>]*><a href="\/round\/round_test">Round 1<\/a><p>away • 1 nominated • 1 available/);
+    assert.match(html, /1 available[\s\S]*aria-label="Leaderboard"[\s\S]*aria-label="Members"[\s\S]*aria-label="Future Rounds"[\s\S]*aria-label="Past Rounds"/);
     assert.match(html, /Round 1/);
     assert.match(html, /2026-11-20/);
     assert.match(html, /href="\/user\/user_alice">Alice/);

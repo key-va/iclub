@@ -17,7 +17,8 @@
 		isTeamMember,
 		isTeamAdmin,
 		jsonArray,
-		roundView
+		roundView,
+		teamView
 	} from '#lib/components/rounds/roundRules.ts';
 	import ActionConfirmation from '#lib/components/ActionConfirmation.svelte';
 	import { syncTeam } from '#lib/stores/remote.ts';
@@ -59,47 +60,35 @@
 	);
 	const members = $derived(users.filter((u) => isTeamMember(u)));
 	const pending = $derived(users.filter((u) => u.state === 'pending'));
-	const standings = $derived(jsonArray(team?.standings));
+	const standings = $derived(jsonArray(teamView(team).standings));
+	const nextRound = $derived(futureRounds.find((round) =>
+		round.state !== 'complete' && round.state !== 'eliminated' &&
+		typeof round.opponent === 'string' && !!round.opponent
+	));
+	const nextRoundPlayers = $derived(nextRound
+		? relationsOf(nextRound.rk).filter((row) => typeOf(row.rk) === 'user')
+		: []);
+	const nominated = $derived(nextRoundPlayers.filter((row) => row.role === 'selected').length);
+	const available = $derived(nextRoundPlayers.filter((row) => row.role === 'available').length);
 	let syncMessage = $state('');
 </script>
 
 <TeamActions {team} section="primary" />
 {#if team.state === 'active'}
-	{#if admin}
-		<div class="group">
-			{#each pending as user (user.rk)}
-				<TeamUser {team} {user} />
-			{/each}
-		</div>
+	{#if nextRound}
+		<RouteLink
+			href={hrefOf(nextRound.rk)}
+			title={nextRound.name}
+			description={[
+				typeof nextRound.is_home === 'boolean' ? (nextRound.is_home ? 'home' : 'away') : '',
+				`${nominated} nominated`,
+				`${available} available`
+			].filter(Boolean).join(' • ')}
+			isWhite
+		/>
 	{/if}
-
-	<div class="group">
-		{#if mine?.state === 'pending'}
-			{@const viewer = users.find((user) => user.rk === $local.caller_id)}
-			<RouteLink
-				href={hrefOf(viewer?.rk ?? '')}
-				title={nameOf(viewer?.rk ?? '')}
-				description="waiting to join"
-				image={imageOf(viewer?.rk ?? '')}
-			/>
-		{/if}
-		<HiddenOptions
-			title="Future Rounds"
-			badge={futureRounds.length + finalsDates.length}
-		></HiddenOptions>
-		{#each futureRounds as round (round.rk)}
-			{#if round.state === 'eliminated'}
-				<HiddenOptions title={round.name} description={`eliminated · ${round.date}`} />
-			{:else}
-				<TeamRound {team} {round} />
-			{/if}
-		{/each}
-
-		{#each finalsDates as final}
-			<HiddenOptions title={final.name} description={`pending · ${final.date}`} />
-		{/each}
-
-		{#if standings.length}
+	{#if standings.length}
+		<div class="group">
 			<HiddenOptions title="Leaderboard" badge={standings.length} />
 			{#each standings as standing (String(standing.name))}
 				<HiddenOptions
@@ -108,8 +97,27 @@
 					badge={String(standing.rank)}
 				></HiddenOptions>
 			{/each}
-		{/if}
-	</div>
+		</div>
+	{/if}
+
+	{#if admin && pending.length}
+		<div class="group">
+			{#each pending as user (user.rk)}
+				<TeamUser {team} {user} />
+			{/each}
+		</div>
+	{/if}
+
+	{#if mine?.state === 'pending'}
+		<div class="group">
+			<RouteLink
+				href={hrefOf(mine.rk)}
+				title={nameOf(mine.rk)}
+				description="waiting to join"
+				image={imageOf(mine.rk)}
+			/>
+		</div>
+	{/if}
 
 	{#if isTeamMember(mine)}
 		<ActionConfirmation
@@ -131,6 +139,20 @@
 	<HiddenOptions title="Members">
 		{#each members as user (user.rk)}
 			<TeamUser {team} {user} />
+		{/each}
+	</HiddenOptions>
+
+	<HiddenOptions title="Future Rounds" badge={futureRounds.length + finalsDates.length}>
+		{#each futureRounds as round (round.rk)}
+			{#if round.state === 'eliminated'}
+				<HiddenOptions title={round.name} description={`eliminated · ${round.date}`} />
+			{:else}
+				<TeamRound {team} {round} />
+			{/if}
+		{/each}
+
+		{#each finalsDates as final}
+			<HiddenOptions title={final.name} description={`pending · ${final.date}`} />
 		{/each}
 	</HiddenOptions>
 

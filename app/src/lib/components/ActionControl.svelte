@@ -180,8 +180,8 @@
 		disabled={disabled || isBusy || isExpanded}
 		onclick={start}
 	>
-		{#if !confirm || !arrow || showLabel}<p>{name}</p>{/if}
-		{#if confirm}
+		{#if !arrow || showLabel || (!confirm && inline)}<p>{name}</p>{/if}
+		{#if confirm || (!inline && arrow)}
 			<svg
 				class="action-arrow"
 				aria-hidden="true"
