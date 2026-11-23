@@ -194,7 +194,11 @@
 				stroke-linecap="round"
 				stroke-linejoin="round"
 			>
-				<path d="M5 12h14M13 5l7 7-7 7" />
+				{#if !confirm && isBusy}
+					<path d="M6 3h12M6 21h12M7 3v4l5 5-5 5v4M17 3v4l-5 5 5 5v4" />
+				{:else}
+					<path d="M5 12h14M13 5l7 7-7 7" />
+				{/if}
 			</svg>
 		{/if}
 	</button>
