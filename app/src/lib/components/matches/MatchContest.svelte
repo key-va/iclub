@@ -25,6 +25,8 @@
 	import RouteLink from '#lib/components/routeLink.svelte';
 
 	let { match, ladder, elim }: { match: GuidRow; ladder?: GuidRow; elim?: GuidRow } = $props();
+	const parent = $derived(elim ?? ladder);
+	const pairImageId = $derived(parent?.format === 'doubles' ? parent.rk : undefined);
 	const caller_id = $derived($local.caller_id);
 	const matchId = $derived(match.rk);
 	const players = $derived(
@@ -194,13 +196,13 @@
 				href: hrefOf(challenger.rk),
 				title: nameOf(challenger.rk),
 				description: roleText(challenger, elim ? 'competitor' : 'challenger'),
-				image: imageOf(ladder?.format === 'doubles' ? ladder.rk : challenger.rk)
+				image: imageOf(pairImageId ?? challenger.rk)
 			}}
 			right={{
 				href: hrefOf(defender.rk),
 				title: nameOf(defender.rk),
 				description: roleText(defender, elim ? 'competitor' : 'defender'),
-				image: imageOf(ladder?.format === 'doubles' ? ladder.rk : defender.rk)
+				image: imageOf(pairImageId ?? defender.rk)
 			}}
 		/>
 		{#if isComplete && completeSummary}

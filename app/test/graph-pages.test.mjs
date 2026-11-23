@@ -249,6 +249,8 @@ test('doubles comp displays pair seeding and lets either partner access the matc
     assert.match(pair, /Alice<\/a><p>member[\s\S]*Bob<\/a><p>member[\s\S]*Doubles knockout<\/a><p>ranked 1/);
     assert.match(pair, /aria-label="Match History"/);
     const match = await output('match', 'user_bob', 'match_doubles', rows);
+    assert.equal((match.match(/background-image: url\('[^']*\/comp_test\.jpg'\)/g) ?? []).length >= 2, true);
+    assert.doesNotMatch(match, /\/pair_(?:first|second)\.jpg/);
     assert.match(match, /Alice and Bob[\s\S]*Chris and Dana/);
     assert.match(match, /aria-label="Alice and Bob set 3"/);
     assert.match(match, /pattern="\[0-4\]"/);
