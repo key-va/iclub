@@ -17,7 +17,7 @@ class TableClient {
     async updateEntity(row, mode, options) {
         const id=key(row.partitionKey,row.rowKey), current=get(row.partitionKey,row.rowKey);
         if(options?.etag !== undefined && options.etag !== String(versions.get(id) ?? 0)) throw {statusCode:412};
-        versions.set(id,(versions.get(id) ?? 0)+1);rows.set(id,{...current,...row});
+        versions.set(id,(versions.get(id) ?? 0)+1);rows.set(id,{...(mode === "Merge" ? current : {}),...row});
     }
     async submitTransaction(updates) {
         for (const [, row, , options] of updates) {
@@ -39,7 +39,7 @@ class TableClient {
         if (!rows.delete(key(pk, rk))) throw { statusCode: 404 };
     }
     async *listEntities({queryOptions:{filter}}) {
-        const fields = [...filter.text.matchAll(/(PartitionKey|state) eq /g)].map(m => m[1] === 'PartitionKey' ? 'partitionKey' : m[1]);
+        const fields = [...filter.text.matchAll(/(PartitionKey|RowKey|state) eq /g)].map(m => m[1] === 'PartitionKey' ? 'partitionKey' : m[1] === 'RowKey' ? 'rowKey' : m[1]);
         for (const row of [...rows.values()]) if (fields.every((field,i) => row[field] === filter.values[i])) yield {...row};
     }
 }
@@ -441,9 +441,22 @@ test('a doubles rejection clears only the selected request and the pair cannot b
     for (const user of [A, B]) assert.equal((await call(join, user, {}, params)).status, 200);
     assert.equal((await call(reject, B, { user_id: A }, params)).status, 403);
     assert.equal((await call(reject, ADMIN, { user_id: A }, params)).status, 200);
-    assert.equal(get(L, A).state, 'left');
-    assert.equal(get(A, L).state, 'left');
+    assert.equal(get(L, A), undefined);
+    assert.equal(get(A, L), undefined);
     assert.equal(get(L, B).state, 'pending');
     assert.deepEqual(pushes.at(-1).userIds, [A]);
     assert.equal((await call(accept, ADMIN, { user_ids: [A, B] }, params)).status, 409);
+});
+
+test('rejecting a playing application preserves existing ladder administration', async () => {
+    seed();
+    const reject = load('ladderReject');
+    const params = { ladder_id: L };
+    relation(L, A, { is_admin: true, state: 'pending', is_participant: false });
+    assert.equal((await call(reject, ADMIN, { user_id: A }, params)).status, 200);
+    for (const [pk, rk] of [[L, A], [A, L]]) {
+        assert.equal(get(pk, rk).is_admin, true);
+        assert.equal(get(pk, rk).state, undefined);
+        assert.equal(get(pk, rk).is_participant, undefined);
+    }
 });

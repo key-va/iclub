@@ -84,6 +84,7 @@ export async function membershipAction(
 	const entity = await get(type, id);
 	if (!entity) return reply(404, `${type} not found`);
 	const mine = await get(id, caller_id);
+	if (mine?.state === 'rejecting') return reply(409, 'Your request is being cleared');
 	if (!mine || mine.state === 'left')
 		return reply(409, `You are not associated with this ${type}`);
 
@@ -106,6 +107,7 @@ export async function membershipAction(
 	}
 	try {
 		const current = await get(id, caller_id);
+		if (current?.state === 'rejecting') return reply(409, 'Your request is being cleared');
 		if (!current || current.state === 'left')
 			return reply(409, `You are not associated with this ${type}`);
 		return await changeMembership(

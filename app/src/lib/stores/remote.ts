@@ -269,4 +269,4 @@ export const rejectJoinRequest = (id: string, userId: string) =>
 	mutate(`${typeOf(id)}/${id}/reject`, { user_id: userId });
 
 export const rejectCreationRequest = (id: string) =>
-	mutate(`${typeOf(id)}/${id}/reject-creation`);
+	mutateWithSubject(`${typeOf(id)}/${id}/reject-creation`);

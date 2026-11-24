@@ -27,9 +27,10 @@
 	const caller = $derived($local.caller_id);
 	const mine = $derived(links.find((row) => row.rk === caller));
 	const admin = $derived(mine?.is_admin === true);
-	const canApprove = $derived(links.some((row) =>
-		typeOf(row.rk) === 'club' && relationsOf(row.rk).some((link) => link.rk === caller && link.is_admin === true)
-	));
+	const club = $derived(links.find((row) => typeOf(row.rk) === 'club')?.rk ?? elim?.rejection_club);
+	const canApprove = $derived(typeof club === 'string' &&
+		relationsOf(club).some((link) => link.rk === caller && link.is_admin === true)
+	);
 	const roundRobin = $derived(elim?.comp_system === 'round_robin');
 	const standings = $derived(roundRobin ? roundRobinStandings(id) : []);
 	const doubles = $derived(elim?.format === 'doubles');
@@ -74,6 +75,8 @@
 				<RejectCreationRequest {id} />
 				<ActionConfirmation inline arrow showLabel name="approve" message={`approve ${elim.name}?`}
 					action={() => competitionEntry(id, 'activate')} />
+			{:else if elim.state === 'rejected' && elim.rejection_club && canApprove}
+				<RejectCreationRequest {id} resuming />
 			{:else if canJoin}
 				<ActionConfirmation inline arrow showLabel name="request to join" message={`request to join ${elim.name}?`}
 					action={() => competitionEntry(id, 'join')} disabled={!caller || mine?.state === 'pending'} />

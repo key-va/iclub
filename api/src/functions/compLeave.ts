@@ -3,6 +3,7 @@ import { withOpenComp, clearSeed, entrantRows, entryUsers, props, reply, saveMem
 
 export async function compLeave(request: HttpRequest, context: InvocationContext) {
     return withOpenComp(request, context, false, async ({ id, elim, caller, mine, members }) => {
+        if (mine?.state === "rejecting") return reply(409, "Your request is being cleared");
         if (!mine) return reply(409, "This player is not an accepted entrant");
         if (elim.format === "doubles" && mine.is_participant === true) {
             const entrants = entrantRows(elim, members);

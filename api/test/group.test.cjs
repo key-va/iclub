@@ -6,7 +6,7 @@ const original = Module._load;
 const rows = new Map(),
     blobs = new Map(),
     pushes = [];
-let exportsCount, rejectSignature, failPush, failWrite, failPublish;
+let exportsCount, rejectSignature, failPush, failWrite, failPublish, failDelete;
 const key = (pk, rk) => `${pk}|${rk}`;
 const seed = (pk, rk, attrs = {}) =>
     rows.set(key(pk, rk), {
@@ -48,11 +48,15 @@ class TableClient {
         }
     }
     async deleteEntity(pk, rk) {
+        if (key(pk, rk) === failDelete) {
+            failDelete = undefined;
+            throw new Error("Table delete interrupted");
+        }
         if (!rows.delete(key(pk, rk))) throw { statusCode: 404 };
     }
     async *listEntities({ queryOptions: { filter } }) {
-        const fields = [...filter.text.matchAll(/(PartitionKey|url) eq /g)].map(
-            (m) => (m[1] === "PartitionKey" ? "partitionKey" : m[1]),
+        const fields = [...filter.text.matchAll(/(PartitionKey|RowKey|url) eq /g)].map(
+            (m) => (m[1] === "PartitionKey" ? "partitionKey" : m[1] === "RowKey" ? "rowKey" : m[1]),
         );
         for (const row of rows.values())
             if (fields.every((field, i) => row[field] === filter.values[i]))
@@ -163,6 +167,7 @@ beforeEach(() => {
     failPush = false;
     failWrite = undefined;
     failPublish = false;
+    failDelete = undefined;
     seed("club", "club_home", { name: "Club", url: "club.example" });
     seed("club", "club_other", { url: "other.example" });
     for (const id of [
@@ -937,8 +942,8 @@ test("group admins can reject only pending applicants and notify them once", asy
     assert.equal((await call("reject", "user_clubadmin", data)).status, 403);
     assert.equal((await call("reject", "user_creator", { user_id: "user_member" })).status, 409);
     assert.equal((await call("reject", "user_creator", data)).status, 200);
-    assert.equal(get("group_g", data.user_id).state, "left");
-    mirrors("group_g", data.user_id);
+    assert.equal(get("group_g", data.user_id), undefined);
+    assert.equal(get(data.user_id, "group_g"), undefined);
     assert.deepEqual(pushes.at(-1).userIds, [data.user_id]);
     assert.equal(pushes.at(-1).content,
         `your pending request was rejected, please review the ${get("group", "group_g").name} rules or reach out to your club admin`);
@@ -956,10 +961,20 @@ test("a club admin can reject a pending comp creation and prevent later approval
     const id = created.jsonBody.subject;
     assert.equal((await elimCall(id, "reject-creation", elimAdmin)).status, 403);
     assert.equal((await elimCall(id, "reject-creation", "user_otheradmin")).status, 403);
-    assert.equal((await elimCall(id, "reject-creation", clubAdmin)).status, 200);
+    seed("user_visitor", id, { orphan: true });
+    failDelete = key("user_visitor", id);
+    await assert.rejects(elimCall(id, "reject-creation", clubAdmin), /Table delete interrupted/);
     assert.equal(get("comp", id).state, "rejected");
+    assert.equal(get(id, "club_home"), undefined);
+    assert.equal((await elimCall(id, "reject-creation", "user_otheradmin")).status, 403);
+    assert.equal((await elimCall(id, "reject-creation", clubAdmin)).status, 200);
+    assert.equal(get("comp", id), undefined);
+    assert.equal(get(id, elimAdmin), undefined);
+    assert.equal(get(elimAdmin, id), undefined);
+    assert.equal(get("user_visitor", id), undefined);
+    assert.equal(pushes.at(-1).path, "browse");
     assert.deepEqual(pushes.at(-1).userIds, [elimAdmin]);
-    assert.equal((await elimCall(id, "activate", clubAdmin)).status, 409);
+    assert.equal((await elimCall(id, "activate", clubAdmin)).status, 404);
 });
 
 test("rejecting a doubles comp request leaves the other applicant pending", async () => {
@@ -970,8 +985,8 @@ test("rejecting a doubles comp request leaves the other applicant pending", asyn
     const data = { user_id: "user_applicant" };
     assert.equal((await elimCall(id, "reject", clubAdmin, data)).status, 403);
     assert.equal((await elimCall(id, "reject", elimAdmin, data)).status, 200);
-    assert.equal(get(id, data.user_id).state, "left");
-    mirrors(id, data.user_id);
+    assert.equal(get(id, data.user_id), undefined);
+    assert.equal(get(data.user_id, id), undefined);
     assert.equal(get(id, "user_visitor").state, "pending");
     assert.deepEqual(pushes.at(-1).userIds, [data.user_id]);
 });

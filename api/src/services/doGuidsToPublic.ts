@@ -30,6 +30,7 @@ export async function doGuidsToPublic(): Promise<number> {
             rowKey,
             timestamp,
             etag,
+            rejection_recipients,
             ...properties
         } = entity;
 
@@ -37,6 +38,8 @@ export async function doGuidsToPublic(): Promise<number> {
             pk: partitionKey,
             rk: rowKey,
             ...properties,
+            // Keep the reject control available if request cleanup needs a retry.
+            ...(properties.state === "rejecting" ? { state: "pending" } : {}),
             ...(timestamp ? { ts: timestamp } : {}),
             ...(etag ? { et: etag } : {})
         });

@@ -17,11 +17,11 @@
 		)
 	);
 	const club = $derived(
-		relationsOf(team.rk).find((row) => row.rk.startsWith('club_'))
+		relationsOf(team.rk).find((row) => row.rk.startsWith('club_'))?.rk ?? team.rejection_club
 	);
 	const clubAdmin = $derived(
-		!!club &&
-			relationsOf(club.rk).some(
+		typeof club === 'string' &&
+			relationsOf(club).some(
 				(row) => row.rk === $local.caller_id && row.is_admin === true
 			)
 	);
@@ -44,6 +44,7 @@
 >
 	{#if team.state === 'rejected'}
 		<p class="description">creation request rejected</p>
+		{#if clubAdmin && team.rejection_club}<RejectCreationRequest id={team.rk} resuming />{/if}
 	{:else if team.state === 'pending' && clubAdmin}
 		<RejectCreationRequest id={team.rk} />
 		<ActionConfirmation
