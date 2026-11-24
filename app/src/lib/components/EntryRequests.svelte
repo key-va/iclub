@@ -1,10 +1,12 @@
 <script lang="ts">
+	import RejectJoinRequest from '#lib/components/RejectJoinRequest.svelte';
 	import { hrefOf, imageOf, nameOf, type GuidRow } from '#lib/stores/guids.ts';
 	import type { ApiResponse } from '#lib/stores/remote.ts';
 	import RouteLinkHiddenAction from './RouteLinkHiddenAction.svelte';
 	import ActionQuick from './ActionQuick.svelte';
 
-	let { pending, doubles, acceptPlayer, acceptPair, acceptLabel }: {
+	let { entityId, pending, doubles, acceptPlayer, acceptPair, acceptLabel }: {
+		entityId: string;
 		pending: GuidRow[];
 		doubles: boolean;
 		acceptPlayer: (id: string) => Promise<ApiResponse>;
@@ -22,7 +24,9 @@
 <div class="group">
 	{#each pending as player (player.rk)}
 		{#snippet actions()}
-			{#if doubles}
+			{#if doubles && pending.length < 2}
+				<button class="grey" disabled><p>waiting for a partner</p></button>
+			{:else if doubles}
 				{#if selectedPairUser && selectedPairUser.rk !== player.rk}
 					<ActionQuick inline name={`accept with ${selectedFirstName}`}
 						action={() => acceptPair([selectedPairUser!.rk, player.rk])}
@@ -37,9 +41,9 @@
 				<ActionQuick inline name="accept" label={acceptLabel?.(player.rk)}
 					action={() => acceptPlayer(player.rk)} />
 			{/if}
+			<RejectJoinRequest {entityId} userId={player.rk} />
 		{/snippet}
 		<RouteLinkHiddenAction href={hrefOf(player.rk)} title={nameOf(player.rk)} description="waiting to join" image={imageOf(player.rk)} colour={selectedPairUserId === player.rk ? 'green' : 'orange'}
-			children={!doubles || pending.length > 1 ? actions : undefined}
-			currentSelection={doubles && pending.length < 2 ? 'waiting for a partner' : undefined} />
+			children={actions} />
 	{/each}
 </div>

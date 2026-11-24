@@ -929,3 +929,49 @@ test("Round Robin publishes fixtures, opens one round at a time and allows corre
     assert.equal((await elimCall(id, "correct", elimAdmin, scores(matches[0][0], 8, 3))).status, 409);
     assert.equal(get(matches[0][0], slot(matches[0][0], 2)).result, "winner");
 });
+
+test("group admins can reject only pending applicants and notify them once", async () => {
+    require("../dist/src/functions/groupReject");
+    const data = { user_id: "user_applicant" };
+    assert.equal((await call("join", data.user_id)).status, 200);
+    assert.equal((await call("reject", "user_clubadmin", data)).status, 403);
+    assert.equal((await call("reject", "user_creator", { user_id: "user_member" })).status, 409);
+    assert.equal((await call("reject", "user_creator", data)).status, 200);
+    assert.equal(get("group_g", data.user_id).state, "left");
+    mirrors("group_g", data.user_id);
+    assert.deepEqual(pushes.at(-1).userIds, [data.user_id]);
+    assert.equal(pushes.at(-1).content,
+        `your pending request was rejected, please review the ${get("group", "group_g").name} rules or reach out to your club admin`);
+    const notified = pushes.length;
+    assert.equal((await call("reject", "user_creator", data)).status, 409);
+    assert.equal(pushes.length, notified);
+    assert.equal((await call("join", data.user_id)).status, 200);
+});
+
+test("a club admin can reject a pending comp creation and prevent later approval", async () => {
+    require("../dist/src/functions/compRejectCreation");
+    const created = await elimCall(undefined, "create", elimAdmin, {
+        name: "Club knockout", comp_system: "elimination",
+    });
+    const id = created.jsonBody.subject;
+    assert.equal((await elimCall(id, "reject-creation", elimAdmin)).status, 403);
+    assert.equal((await elimCall(id, "reject-creation", "user_otheradmin")).status, 403);
+    assert.equal((await elimCall(id, "reject-creation", clubAdmin)).status, 200);
+    assert.equal(get("comp", id).state, "rejected");
+    assert.deepEqual(pushes.at(-1).userIds, [elimAdmin]);
+    assert.equal((await elimCall(id, "activate", clubAdmin)).status, 409);
+});
+
+test("rejecting a doubles comp request leaves the other applicant pending", async () => {
+    require("../dist/src/functions/compReject");
+    const id = await openElim("doubles");
+    for (const user of ["user_applicant", "user_visitor"])
+        assert.equal((await elimCall(id, "join", user, {})).status, 200);
+    const data = { user_id: "user_applicant" };
+    assert.equal((await elimCall(id, "reject", clubAdmin, data)).status, 403);
+    assert.equal((await elimCall(id, "reject", elimAdmin, data)).status, 200);
+    assert.equal(get(id, data.user_id).state, "left");
+    mirrors(id, data.user_id);
+    assert.equal(get(id, "user_visitor").state, "pending");
+    assert.deepEqual(pushes.at(-1).userIds, [data.user_id]);
+});

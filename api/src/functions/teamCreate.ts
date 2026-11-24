@@ -92,6 +92,7 @@ export async function teamCreate(request: HttpRequest, context: InvocationContex
                 },
             })) {
                 if (
+                    old.state !== "rejected" &&
                     (await teamContext(old.rowKey)).clubId ===
                         brand.clubId &&
                     [

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import RejectCreationRequest from '#lib/components/RejectCreationRequest.svelte';
 	import ActionLink from '../ActionLink.svelte';
 	import { teamDescription, isTeamAdmin } from '../rounds/roundRules.ts';
 	import EntityActions from '../EntityActions.svelte';
@@ -41,7 +42,10 @@
 	options={(team.state === 'active' && mine) || isTeamAdmin(mine) ? membershipOptions : undefined}
 	summary={teamDescription(team)}
 >
-	{#if team.state === 'pending' && clubAdmin}
+	{#if team.state === 'rejected'}
+		<p class="description">creation request rejected</p>
+	{:else if team.state === 'pending' && clubAdmin}
+		<RejectCreationRequest id={team.rk} />
 		<ActionConfirmation
 			inline
 			arrow

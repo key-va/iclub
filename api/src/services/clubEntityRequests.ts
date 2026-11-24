@@ -41,7 +41,7 @@ export async function get(pk: string, rk: string) {
         throw error;
     }
 }
-async function relations(id: string) {
+export async function relations(id: string) {
     const rows = [];
     for await (const row of client.listEntities({
         queryOptions: { filter: odata`PartitionKey eq ${id}` },
@@ -52,7 +52,7 @@ async function relations(id: string) {
 
 type EntityType = "group" | "comp";
 
-export async function signedEntityRequest(request: HttpRequest, context: InvocationContext, type: EntityType) {
+export async function signedEntityRequest(request: HttpRequest, context: InvocationContext, type: EntityType | "ladder" | "team") {
     let body;
     try {
         body = (await request.json()) as {

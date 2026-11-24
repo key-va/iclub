@@ -1,4 +1,5 @@
 <script lang="ts">
+	import RejectCreationRequest from '#lib/components/RejectCreationRequest.svelte';
 	import ActionLink from '../ActionLink.svelte';
 	import EntityActions from '../EntityActions.svelte';
 	import ActionConfirmation from '../ActionConfirmation.svelte';
@@ -74,7 +75,10 @@
 			</p>
 		{/each}
 	{/snippet}
-	{#if ladder.state === 'pending' && clubAdmin}
+	{#if ladder.state === 'rejected'}
+		<p class="description">creation request rejected</p>
+	{:else if ladder.state === 'pending' && clubAdmin}
+		<RejectCreationRequest id={ladder.rk} />
 		<ActionConfirmation
 			inline
 			arrow

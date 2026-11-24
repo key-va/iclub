@@ -433,3 +433,17 @@ test('either doubles partner reserves the same pair and a failed write releases 
     assert.equal(pushes.length, 1);
     mirrored();
 });
+
+test('a doubles rejection clears only the selected request and the pair cannot be accepted', async () => {
+    seed();
+    const reject = load('ladderReject');
+    const params = { ladder_id: L };
+    for (const user of [A, B]) assert.equal((await call(join, user, {}, params)).status, 200);
+    assert.equal((await call(reject, B, { user_id: A }, params)).status, 403);
+    assert.equal((await call(reject, ADMIN, { user_id: A }, params)).status, 200);
+    assert.equal(get(L, A).state, 'left');
+    assert.equal(get(A, L).state, 'left');
+    assert.equal(get(L, B).state, 'pending');
+    assert.deepEqual(pushes.at(-1).userIds, [A]);
+    assert.equal((await call(accept, ADMIN, { user_ids: [A, B] }, params)).status, 409);
+});

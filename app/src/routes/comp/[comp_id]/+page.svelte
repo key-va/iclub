@@ -1,4 +1,5 @@
 <script lang="ts">
+	import RejectCreationRequest from '#lib/components/RejectCreationRequest.svelte';
 	import { matchFormatSetting } from '#lib/components/ladders/ladderSettings.ts';
 	import { page } from '$app/state';
 	import { local } from '#lib/stores/local.ts';
@@ -36,6 +37,7 @@
 	const drawing = $derived(elim?.state === 'drawing');
 	const drawReady = $derived(elim?.state === 'active' || elim?.state === 'complete');
 	const status = $derived.by(() => {
+		if (elim?.state === 'rejected') return 'creation request rejected';
 		if (elim?.state === 'pending') return 'awaiting club approval';
 		if (open) return 'entries open';
 		if (drawing) return 'draw in progress';
@@ -69,6 +71,7 @@
 		<EntityHeader entity={elim} />
 		<EntityActions section="primary" summary={`${roundRobin ? 'round robin' : 'elimination'} • ${doubles ? 'doubles' : 'singles'} • ${matchFormat} • ${status}`}>
 			{#if elim.state === 'pending' && canApprove}
+				<RejectCreationRequest {id} />
 				<ActionConfirmation inline arrow showLabel name="approve" message={`approve ${elim.name}?`}
 					action={() => competitionEntry(id, 'activate')} />
 			{:else if canJoin}
@@ -78,7 +81,7 @@
 		</EntityActions>
 
 		{#if open && admin && requests.length}
-			<EntryRequests pending={requests} {doubles} acceptLabel={(playerId) => `Accept ${nameOf(playerId)}`}
+			<EntryRequests entityId={id} pending={requests} {doubles} acceptLabel={(playerId) => `Accept ${nameOf(playerId)}`}
 				acceptPlayer={(playerId) => competitionEntry(id, 'accept', playerId)}
 				acceptPair={(ids) => acceptCompetitionPair(id, ids)} />
 		{:else if open && mine?.state === 'pending'}

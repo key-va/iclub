@@ -1,4 +1,5 @@
 <script lang="ts">
+	import RejectJoinRequest from '#lib/components/RejectJoinRequest.svelte';
 	import HiddenOptions from '../hiddenOptions.svelte';
 	import {
 		relationsOf,
@@ -78,6 +79,7 @@
 		detail={Number.isFinite(rank) && rank > 0 ? rankDetail : undefined}
 	/>
 	{#if canAccept}
+		<RejectJoinRequest entityId={ladder.rk} userId={user.rk} inline={false} />
 		{#if ladder.format === 'doubles'}<div class="row right">
 				<button class="grey" disabled><p>pending pair</p></button>
 			</div>

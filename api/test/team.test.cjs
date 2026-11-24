@@ -1254,3 +1254,27 @@ test("The team join alias takes its team ID from the route", async () => {
     assert.equal(result.status, 200);
     assert.equal(result.jsonBody.subject, T);
 });
+
+test("team join and creation rejection use separate admin permissions", async () => {
+    require("../dist/src/functions/teamReject");
+    require("../dist/src/functions/teamRejectCreation");
+    const reject = (action, caller, data = {}) =>
+        routes.get(`team/{team_id}/${action}`).handler(
+            request(caller, data, { team_id: T }), context,
+        );
+    seed();
+    get("team", T).state = "pending";
+    assert.equal((await reject("reject-creation", A)).status, 403);
+    assert.equal((await reject("reject-creation", CLUBADMIN)).status, 200);
+    assert.equal(get("team", T).state, "rejected");
+    assert.deepEqual(pushes.at(-1).userIds, [A]);
+    assert.equal((await call("activate", CLUBADMIN)).status, 409);
+
+    get("team", T).state = "active";
+    relation(T, OUT, { state: "pending" });
+    assert.equal((await reject("reject", CLUBADMIN, { user_id: OUT })).status, 403);
+    assert.equal((await reject("reject", A, { user_id: OUT })).status, 200);
+    assert.equal(get(T, OUT).state, "left");
+    assert.equal(get(OUT, T).state, "left");
+    assert.deepEqual(pushes.at(-1).userIds, [OUT]);
+});

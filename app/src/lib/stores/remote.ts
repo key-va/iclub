@@ -1,4 +1,4 @@
-import { guids, hrefOf } from '#lib/stores/guids.ts';
+import { guids, hrefOf, typeOf } from '#lib/stores/guids.ts';
 import { API_URL } from '#lib/config.ts';
 import { signRequest } from '#lib/stores/auth.ts';
 
@@ -264,3 +264,9 @@ export const acceptTeamMemberConfirmation = (id: string, user: string) =>
 
 export const updateTeam = (id: string, data: { image: string }) =>
 	mutateWithSubject(`team/${id}/update`, data);
+
+export const rejectJoinRequest = (id: string, userId: string) =>
+	mutate(`${typeOf(id)}/${id}/reject`, { user_id: userId });
+
+export const rejectCreationRequest = (id: string) =>
+	mutate(`${typeOf(id)}/${id}/reject-creation`);

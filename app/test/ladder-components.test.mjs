@@ -25,6 +25,8 @@ before(async () => {
                     export const acceptTeamMember = (id, user) => ({ endpoint: 'team/accept', data: { team_id: id, user_id: user } });
                     export const acceptGroupMember = (id, user) => ({ endpoint: 'group/' + id + '/accept', data: { user_id: user } });
                     export const setRoundRole = (id, role) => ({ endpoint: 'round/role', data: { round_id: id, role } });
+                    export const rejectJoinRequest = (id, user) => ({ endpoint: 'ladder/' + id + '/reject', data: { user_id: user } });
+                    export const rejectCreationRequest = id => ({ endpoint: 'ladder/' + id + '/reject-creation', data: {} });
                     export const activateLadder = id => ({ endpoint: 'ladder/' + id + '/activate', data: {} });
                     export const joinLadder = id => ({ endpoint: 'ladder/' + id + '/join', data: {} });
                     export const acceptLadderMember = (id, user) => ({ endpoint: 'ladder/' + id + '/accept', data: { user_id: user } });
@@ -44,7 +46,7 @@ before(async () => {
                 if (/\/components\/Action(?:Quick|Confirmation)\.svelte$/.test(path)) return `
                     <script>let { name, action, disabled = false } = $props();
                     const request = $derived(action());</script>
-                    <button aria-label={name} {disabled} data-endpoint={request.endpoint}
+                    <button aria-label={name} {disabled} data-confirmation="${path.endsWith('/ActionConfirmation.svelte')}" data-endpoint={request.endpoint}
                         data-payload={JSON.stringify(request.data)}>{name}</button>`;
                 if (path.endsWith('/components/apiService.svelte')) return `
                     <script>let { name, endpoint, data, disabled = false } = $props();</script>
@@ -185,6 +187,9 @@ test('pending application controls are limited to ladder admins and honour ladde
         if (format === 'singles') assert.equal(action(html('LadderRequests', { ladder }), 'accept'), undefined);
         await load(items, 'user_admin');
         const output = html('LadderRequests', { ladder });
+        assert.equal(action(output, 'reject').endpoint, `ladder/${ladder.rk}/reject`);
+        assert.deepEqual(action(output, 'reject').data, { user_id: 'user_partner' });
+        assert.match(output, /aria-label="reject"[^>]*data-confirmation="true"/);
         if (format === 'singles') {
             assert.equal(action(output, 'accept').endpoint, `ladder/${ladder.rk}/accept`);
             assert.deepEqual(action(output, 'accept').data, { user_id: 'user_partner' });
@@ -193,7 +198,7 @@ test('pending application controls are limited to ladder admins and honour ladde
             assert.equal(action(output, 'accept'), undefined);
         }
         await load(items, 'user_other');
-        assert.doesNotMatch(html('LadderRequests', { ladder }), /aria-label="(?:accept|select player)"/);
+        assert.doesNotMatch(html('LadderRequests', { ladder }), /aria-label="(?:accept|reject|select player)"/);
     }
 });
 
@@ -233,8 +238,11 @@ test('ladder approval and join confirmations use the requested labels and permis
     await load(items, 'user_admin');
     assert.equal(action(renderPage(), 'approve this ladder').disabled, false);
     assert.equal(action(renderPage(), 'approve this ladder').endpoint, `ladder/${ladder.rk}/activate`);
+    assert.equal(action(renderPage(), 'reject').endpoint, `ladder/${ladder.rk}/reject-creation`);
+    assert.match(renderPage(), /aria-label="reject"[^>]*data-confirmation="true"/);
     await load(items, 'user_me');
     assert.equal(action(renderPage(), 'approve this ladder'), undefined);
+    assert.equal(action(renderPage(), 'reject'), undefined);
     ladder.state = 'active';
     await load(items, 'user_outsider');
     assert.equal(action(renderPage(), 'request to join').disabled, false);

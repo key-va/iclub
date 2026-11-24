@@ -1,6 +1,6 @@
 import { app, HttpRequest, InvocationContext } from "@azure/functions";
-import { get, reply, withGroup } from "../services/clubEntityRequests";
-import { doUpsertRelation } from "../services/doUpsertRelation";
+import { client, get, reply, withGroup } from "../services/clubEntityRequests";
+import { pendingApplicant, updateIfCurrent } from "../services/joinRejection";
 import { doGuidsToPublic } from "../services/doGuidsToPublic";
 
 export async function groupAccept(request: HttpRequest, context: InvocationContext) {
@@ -16,11 +16,14 @@ export async function groupAccept(request: HttpRequest, context: InvocationConte
         )
             return reply(400, "A valid user_id is required");
         const applicant = links.find((row) => row.rowKey === userId);
-        if (applicant?.state !== "pending" || applicant.is_participant === true)
+        if (!pendingApplicant(applicant))
             return reply(409, "This player has no pending request");
         const { partitionKey, rowKey, etag, timestamp, state, ...attributes } =
             applicant;
-        await doUpsertRelation(id, userId, { ...attributes, is_participant: true });
+        const membership = { ...attributes, is_participant: true };
+        if (!(await updateIfCurrent(applicant, membership, "Replace")))
+            return reply(409, "This join request has already changed");
+        await client.upsertEntity({ partitionKey: userId, rowKey: id, ...membership }, "Replace");
         await doGuidsToPublic();
         await notify(
             [userId],

@@ -1,11 +1,12 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
 import { DefaultAzureCredential } from "@azure/identity";
-import { TableClient, odata } from "@azure/data-tables";
+import { TableClient, odata, type TransactionAction } from "@azure/data-tables";
 import { doSignatureVerification } from "../services/doSignatureVerification";
 import { doNewGuid } from "../services/doNewGuid";
 import { doUpsertEntity } from "../services/doUpsertEntity";
 import { doUpsertRelation } from "../services/doUpsertRelation";
 import { doGuidsToPublic } from "../services/doGuidsToPublic";
+import { updateIfCurrent } from "../services/joinRejection";
 import { doSendPush } from "../services/doSendPush";
 
 import { resourceName, resourceSuffix } from "../stores/resourceNames";
@@ -18,7 +19,7 @@ const guidsClient = new TableClient(
     new DefaultAzureCredential()
 );
 
-async function getRelation(a: string, b: string): Promise<Record<string, unknown> | undefined> {
+async function getRelation(a: string, b: string) {
     try {
         return await guidsClient.getEntity(a, b);
     } catch (err: any) {
@@ -134,12 +135,34 @@ export async function ladderAccept(request: HttpRequest, context: InvocationCont
         const rank = lastRank + 1;
         const points = ladder.ladder_system === "win_points" ? rank : 0;
 
+        const accepted = memberships.map(member => {
+            const { partitionKey, rowKey, timestamp, etag, ...attributes } = member!;
+            return { etag, attributes: { ...attributes, is_participant: true, state: "active" } };
+        });
+        // Prepare the pair before committing either request, so a failed setup leaves both pending.
         await doUpsertEntity("pair", pairId, { name, ladder_id: ladderId });
         for (const id of ids) await doUpsertRelation(pairId, id, { role: "member" });
+        // Commit both applicants together so rejection cannot race one half of a pair.
+        const changes: TransactionAction[] = accepted.map(({ etag, attributes }, index) =>
+            ["update", { partitionKey: ladderId, rowKey: ids[index], ...attributes }, "Replace", { etag }]);
+        try {
+            await guidsClient.submitTransaction(changes);
+        } catch (error: any) {
+            if (![404, 412].includes(error?.statusCode)) throw error;
+            await Promise.allSettled([
+                guidsClient.deleteEntity("pair", pairId),
+                ...ids.flatMap(id => [
+                    guidsClient.deleteEntity(pairId, id),
+                    guidsClient.deleteEntity(id, pairId),
+                ]),
+            ]);
+            return { status: 409, jsonBody: { success: false, message: "A join request has already changed" } };
+        }
         await doUpsertRelation(ladderId, pairId, { is_participant: true, rank, points, state: "active" });
-        for (let i = 0; i < ids.length; i++) {
-            const { partitionKey, rowKey, timestamp, etag, ...attributes } = memberships[i]!;
-            await doUpsertRelation(ladderId, ids[i], { ...attributes, is_participant: true, state: "active" });
+        for (const [index, user] of ids.entries()) {
+            await guidsClient.upsertEntity({
+                partitionKey: user, rowKey: ladderId, ...accepted[index].attributes,
+            }, "Replace");
         }
         await doGuidsToPublic();
         await doSendPush({
@@ -180,7 +203,10 @@ export async function ladderAccept(request: HttpRequest, context: InvocationCont
     // Keep existing attributes (for example is_admin) as the upsert replaces the row
     const { partitionKey, rowKey, timestamp, etag, ...attributes } = playerRelation;
 
-    await doUpsertRelation(ladderId, userId, { ...attributes, is_participant: true, rank, points, state: "active" });
+    const membership = { ...attributes, is_participant: true, rank, points, state: "active" };
+    if (!(await updateIfCurrent(playerRelation, membership, "Replace")))
+        return { status: 409, jsonBody: { success: false, message: "This join request has already changed" } };
+    await guidsClient.upsertEntity({ partitionKey: userId, rowKey: ladderId, ...membership }, "Replace");
 
     await doGuidsToPublic();
 

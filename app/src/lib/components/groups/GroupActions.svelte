@@ -1,4 +1,5 @@
 <script lang="ts">
+	import RejectCreationRequest from '#lib/components/RejectCreationRequest.svelte';
 	import ActionLink from '../ActionLink.svelte';
 	import EntityActions from '../EntityActions.svelte';
 	import ActionConfirmation from '../ActionConfirmation.svelte';
@@ -39,7 +40,10 @@
 	{section}
 	options={(group.state === 'active' && mine) || mine?.is_admin === true ? membershipOptions : undefined}
 >
-	{#if group.state === 'pending' && clubAdmin}
+	{#if group.state === 'rejected'}
+		<p class="description">creation request rejected</p>
+	{:else if group.state === 'pending' && clubAdmin}
+		<RejectCreationRequest id={group.rk} />
 		<ActionConfirmation
 			inline
 			arrow

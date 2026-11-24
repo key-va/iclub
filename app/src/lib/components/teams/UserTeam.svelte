@@ -1,4 +1,5 @@
 <script lang="ts">
+	import RejectJoinRequest from '#lib/components/RejectJoinRequest.svelte';
 	import { local } from '#lib/stores/local.ts';
 	import {
 		entityOf,
@@ -47,7 +48,9 @@
 		{description}
 		image={imageOf(team.rk)}
 	/>
-	{#if canAccept}<ActionConfirmation
+	{#if canAccept}
+		<RejectJoinRequest entityId={team.rk} userId={user.rk} inline={false} />
+		<ActionConfirmation
 			arrow
 			showLabel
 			name="accept joiner"

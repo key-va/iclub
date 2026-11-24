@@ -11,7 +11,7 @@
 </script>
 
 {#if isLadderAdmin && pending.length > 0}
-	<EntryRequests {pending} doubles={ladder.format === 'doubles'}
+	<EntryRequests entityId={ladder.rk} {pending} doubles={ladder.format === 'doubles'}
 		acceptPlayer={(id) => acceptLadderMember(ladder.rk, id)}
 		acceptPair={(ids) => acceptLadderPair(ladder.rk, ids)} />
 {:else}

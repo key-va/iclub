@@ -554,6 +554,7 @@ export async function withComp(request: HttpRequest, context: InvocationContext,
     if (!["elimination", "round_robin"].some(system => system === (elim.comp_system ?? elim.competition_type)))
         return reply(409, "Choose a supported competition type");
     if (elim.state === "pending") return reply(409, "The competition is awaiting club approval");
+    if (elim.state === "rejected") return reply(409, "The comp creation request was rejected");
     const leaseLength = 300_000;
     let guard = Date.now() + leaseLength;
     if (Number(elim.operation_guard ?? 0) > Date.now())
