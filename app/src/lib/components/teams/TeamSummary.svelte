@@ -71,6 +71,25 @@
 
 <TeamActions {team} section="primary" />
 {#if team.state === 'active'}
+	{#if admin && pending.length}
+		<div class="group">
+			{#each pending as user (user.rk)}
+				<TeamUser {team} {user} />
+			{/each}
+		</div>
+	{/if}
+
+	{#if mine?.state === 'pending'}
+		<div class="group">
+			<RouteLink
+				href={hrefOf(mine.rk)}
+				title={nameOf(mine.rk)}
+				description="waiting to join"
+				image={imageOf(mine.rk)}
+			/>
+		</div>
+	{/if}
+
 	{#if nextRound}<TeamRound {team} round={nextRound} featured />{/if}
 	{#if standings.length}
 		<div class="group">
@@ -98,25 +117,6 @@
 			<HiddenOptions title={final.name} description={`pending • ${final.date}`} />
 		{/each}
 	</HiddenOptions>
-
-	{#if admin && pending.length}
-		<div class="group">
-			{#each pending as user (user.rk)}
-				<TeamUser {team} {user} />
-			{/each}
-		</div>
-	{/if}
-
-	{#if mine?.state === 'pending'}
-		<div class="group">
-			<RouteLink
-				href={hrefOf(mine.rk)}
-				title={nameOf(mine.rk)}
-				description="waiting to join"
-				image={imageOf(mine.rk)}
-			/>
-		</div>
-	{/if}
 
 	{#if isTeamMember(mine)}
 		<ActionConfirmation
