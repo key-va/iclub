@@ -47,7 +47,7 @@
 	description={roundRoleLabel(round.role)}
 	colour={roundRoleColour[String(round.role)] ?? 'grey'}
 	children={options.length ? actions : undefined}
-	currentSelection={!options.length ? roundRoleLabel(round.role) : undefined}
+	currentSelection={!options.length ? roundRoleLabel(round.role) || 'no actions' : undefined}
 >
 	{#snippet detail()}{record.date}{/snippet}
 </RouteLinkHiddenAction>

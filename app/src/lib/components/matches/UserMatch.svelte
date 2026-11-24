@@ -3,13 +3,16 @@
 	import {
 		nameOf,
 		hrefOf,
+		relationsOf,
 		type GuidRow
 	} from '#lib/stores/guids.ts';
-	import { canAcceptLadderMatch } from './matchRules.ts';
+	import { canAcceptLadderMatch, isMatchDefender } from './matchRules.ts';
 	import MatchActions from './MatchActions.svelte';
 	import RouteLinkHiddenAction from '../RouteLinkHiddenAction.svelte';
 	let { match }: { match: GuidRow } = $props();
 	const actionable = $derived(canAcceptLadderMatch(match, $local.caller_id));
+	const needsMyAcceptance = $derived(actionable && isMatchDefender(relationsOf(match.rk), $local.caller_id));
+	const active = $derived(match.state === 'active');
 </script>
 
 {#snippet actions()}<MatchActions {match} quick />{/snippet}
@@ -17,6 +20,7 @@
 	href={hrefOf(match.rk)}
 	title={nameOf(match.rk)}
 	description={`${match.state} match`}
-	colour="orange"
+	colour={active ? 'green' : needsMyAcceptance ? 'red' : 'orange'}
+	currentSelection={actionable ? undefined : active ? 'active' : 'pending'}
 	children={actionable ? actions : undefined}
 />

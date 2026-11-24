@@ -112,6 +112,29 @@ test('round roles drive availability and selection while names come from entitie
     assert.equal(hasAction(player, 'out'), true);
     assert.equal(hasAction(player, 'mark playing'), false);
 });
+test('profile ladder match dots distinguish active, defending and waiting viewers', async () => {
+    const rows = fixture();
+    rows.push(
+        { pk: 'user_bob', rk: 'ladder_test', is_participant: true, state: 'busy', rank: 1 },
+        { pk: 'user_bob', rk: 'match_test', role: 'defender' },
+        { pk: 'user_alice', rk: 'ladder_test', is_participant: true, state: 'busy', rank: 2 },
+        { pk: 'user_alice', rk: 'match_test', role: 'challenger' }
+    );
+    const defender = await output('user', 'user_bob', 'user_bob', rows);
+    assert.match(defender, /data-colour="red"[^>]*><a [^>]*>Alice versus Bob/);
+    assert.equal(hasAction(defender, 'accept'), true);
+    for (const viewer of ['user_alice', 'user_visitor']) {
+        const waiting = await output('user', viewer, 'user_alice', rows);
+        assert.match(waiting, /data-colour="orange"[^>]*><a [^>]*>Alice versus Bob/);
+        assert.match(waiting, /<button[^>]*disabled[^>]*><p>pending<\/p>/);
+        assert.equal(hasAction(waiting, 'accept'), false);
+    }
+    rows.find((row) => row.pk === 'match' && row.rk === 'match_test').state = 'active';
+    const active = await output('user', 'user_bob', 'user_bob', rows);
+    assert.match(active, /data-colour="green"[^>]*><a [^>]*>Alice versus Bob/);
+    assert.match(active, /<button[^>]*disabled[^>]*><p>active<\/p>/);
+    assert.equal(hasAction(active, 'accept'), false);
+});
 test('match defender permissions, competitor names and messages survive the lookup migration', async () => {
     const html = await output('match', 'user_bob');
     assert.match(html, /Alice versus Bob/);
@@ -293,13 +316,13 @@ test('Competition rounds and user profiles show active matches and elimination s
         { pk: 'user_bob', rk: 'comp_test', is_participant: true, seed: 2 }
     ];
     const comp = await output('comp', 'user_alice', undefined, rows);
-    assert.match(comp, /data-colour="orange"[^>]*><a [^>]*>Alice vs Administrator<\/a>[\s\S]*aria-label="Players"/);
+    assert.match(comp, /data-colour="green"[^>]*><a [^>]*>Alice vs Administrator<\/a>[\s\S]*aria-label="Players"/);
     assert.match(comp, /data-colour="red"[^>]*><a [^>]*>Bob<\/a><p>eliminated/);
     assert.match(comp, /aria-label="Club knockout Final"[\s\S]*data-white="true"[^>]*><a [^>]*>Alice vs Administrator/);
     assert.match(comp, /data-white="false"[^>]*><a [^>]*>R1 Pending/);
 
     const alice = await output('user', 'user_alice', 'user_alice', rows);
-    assert.match(alice, /Club knockout<\/a><p>ranked 1[\s\S]*data-colour="orange"[^>]*><a [^>]*>Alice vs Administrator/);
+    assert.match(alice, /Club knockout<\/a><p>ranked 1[\s\S]*data-colour="green"[^>]*><a [^>]*>Alice vs Administrator/);
     assert.equal(hasAction(alice, 'forfeit'), false);
     assert.equal(hasAction(await output('user', 'user_visitor', 'user_alice', rows), 'forfeit'), false);
     const bob = await output('user', 'user_bob', 'user_bob', rows);
