@@ -17,6 +17,7 @@ export interface OfficialRound {
     opponent: string;
     home_away: string;
     venue: string;
+    venue_address?: string;
     venue_latitude?: number;
     venue_longitude?: number;
     court_type?: string;

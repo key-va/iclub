@@ -23,7 +23,7 @@ const teamFields = {
     points: "points",
     percentage: "percentage",
 };
-const venueDetailFields = ["venue_latitude", "venue_longitude", "court_type"];
+const venueDetailFields = ["venue_address", "venue_latitude", "venue_longitude", "court_type"];
 const roundFields = [
     "number",
     "date",

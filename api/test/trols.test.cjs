@@ -202,7 +202,9 @@ test("snapshot fetches all sources freshly, verifies selection/season and reject
             if (club !== "Hurlingham Park") return { ok: false };
             return { ok: true, text: async () =>
                 '<select name="club"><option value="Hurlingham Park" selected>Hurlingham Park</option></select>' +
-                '<table><tr><td>6 Mod Grass courts (4 under Lights)</td></tr></table>' };
+                '<table><tr><td>Francis Street<br><br>Brighton East,&nbsp;&nbsp;</td><td>PO Box 1</td>' +
+                '<td><a onclick="pop_map(\'Hurlingham Park\',-37.9094,145.0132)">67-J10</a></td><td></td></tr>' +
+                '<tr><td>6 Mod Grass courts (4 under Lights)</td></tr></table>' };
         }
         return {
             ok: true,
@@ -223,6 +225,7 @@ test("snapshot fetches all sources freshly, verifies selection/season and reject
     assert.equal(result.rounds.length, 14);
     assert.equal(result.standings.length, 7);
     assert.equal(result.rounds.find(round => round.venue === "Hurlingham Park").court_type, "Mod Grass");
+    assert.equal(result.rounds.find(round => round.venue === "Hurlingham Park").venue_address, "Francis Street, Brighton East");
     assert.equal(result.rounds.find(round => round.venue === "Maccabi").court_type, undefined);
     assert.equal(requests.filter(({ params }) => params.club === "Hurlingham Park").length, 1);
     assert.equal(requests[0].params.which, "2");

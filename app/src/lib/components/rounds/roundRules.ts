@@ -71,6 +71,7 @@ export function roundView<T extends GuidRow>(
 		'date',
 		'opponent',
 		'venue',
+		'venue_address',
 		'venue_latitude',
 		'venue_longitude',
 		'court_type',

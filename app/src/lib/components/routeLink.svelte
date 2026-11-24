@@ -6,9 +6,7 @@
 		description = '',
 		image = '',
 		isWhite = false,
-		detail,
-		icon,
-		label
+		detail
 	}: {
 		href?: string;
 		title?: string;
@@ -16,13 +14,11 @@
 		image?: string;
 		isWhite?: boolean;
 		detail?: Snippet;
-		icon?: Snippet;
-		label?: string;
 	} = $props();
 </script>
 
 <div class={isWhite ? 'group' : ''}>
-	<a class="route-link" {href} aria-label={label}>
+	<a class="route-link" {href}>
 		<div class="row right">
 			<p class="truncate">
 				<strong>{title}</strong>{#if description || detail}<br /><span
@@ -32,12 +28,10 @@
 					</span>{/if}
 			</p>
 			<div
-				class="round-icon-small"
-				class:blue={!icon}
-				class:neutral-icon={!!icon}
-				style:background-image={image && !icon ? `url('${image}')` : undefined}
+				class="round-icon-small blue"
+				style="background-image: url('{image}');"
 			>
-				{#if icon || !image}
+				{#if !image}
 					<svg
 						viewBox="0 0 24 24"
 						width="1rem"
@@ -49,7 +43,7 @@
 						stroke-linejoin="round"
 						aria-hidden="true"
 					>
-						{#if icon}{@render icon()}{:else}<path d="M5 12h14M13 5l7 7-7 7" />{/if}
+						<path d="M5 12h14M13 5l7 7-7 7" />
 					</svg>
 				{/if}
 			</div>
@@ -61,10 +55,5 @@
 	.route-link {
 		color: inherit;
 		text-decoration: none;
-	}
-	.neutral-icon {
-		background: gainsboro;
-		color: #0d0d0d;
-		border-color: white;
 	}
 </style>

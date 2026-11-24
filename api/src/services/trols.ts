@@ -371,7 +371,7 @@ export function parseStandings(html: string): Standing[] {
         throw Error("Invalid TROLS standings");
     return standings;
 }
-async function courtType(venue: string): Promise<string | undefined> {
+async function venueDetails(venue: string): Promise<Pick<OfficialRound, "venue_address" | "court_type">> {
     try {
         const response = await fetch("https://trols.org.au/brta/clubs.php", {
             method: "POST",
@@ -379,29 +379,34 @@ async function courtType(venue: string): Promise<string | undefined> {
             signal: AbortSignal.timeout(5000),
             redirect: "error",
         });
-        if (!response.ok) return;
+        if (!response.ok) return {};
         const html = await response.text();
-        if (html.length > 2_000_000) return;
+        if (html.length > 2_000_000) return {};
         selected(html, "club", venue);
-        const surfaces = rows(html)
+        const directoryRows = rows(html);
+        const addressRow = directoryRows.find(row =>
+            row.cells.length === 4 && text(row.html.match(/pop_map\('([^']+)'/)?.[1] ?? "") === venue);
+        const addressCell = addressRow?.html.match(/^\s*<td\b[^>]*>([\s\S]*?)<\/td>/i)?.[1];
+        const address = addressCell?.split(/<br\s*\/?\s*>|,/i).map(text).filter(Boolean).join(", ");
+        const surfaces = directoryRows
             .filter(row => row.cells.length === 1)
             .flatMap(row => [...row.cells[0].matchAll(/(?:^|[,;]|\band\b)\s*\d+\s+([\w -]+?)\s+courts?\b/gi)]
                 .map(match => match[1].trim()));
-        return [...new Set(surfaces)].join(" / ") || undefined;
+        return {
+            venue_address: address || undefined,
+            court_type: [...new Set(surfaces)].join(" / ") || undefined,
+        };
     } catch {
-        // Court information is optional and must never block fixture import.
-        return undefined;
+        // Venue directory information is optional and must never block fixture import.
+        return {};
     }
 }
 
-async function addCourtTypes(rounds: OfficialRound[]) {
+async function addVenueDetails(rounds: OfficialRound[]) {
     const venues = [...new Set(rounds.map(round => round.venue).filter(Boolean))];
-    const surfaces = new Map(await Promise.all(venues.map(async venue =>
-        [venue, await courtType(venue)] as const)));
-    for (const round of rounds) {
-        const surface = surfaces.get(round.venue);
-        if (surface) round.court_type = surface;
-    }
+    const details = new Map(await Promise.all(venues.map(async venue =>
+        [venue, await venueDetails(venue)] as const)));
+    for (const round of rounds) Object.assign(round, details.get(round.venue));
 }
 
 export const trols: CompetitionProvider = {
@@ -508,7 +513,7 @@ export const trols: CompetitionProvider = {
         const finals = parseResults(results, team.name, parsed.rounds, parsed.calendar, standings);
         if (!standings.some((s) => s.name === team.name))
             throw Error("Team is missing from TROLS standings");
-        await addCourtTypes(parsed.rounds);
+        await addVenueDetails(parsed.rounds);
         return { ...parsed, finals, standings };
     },
 };
