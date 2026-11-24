@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import RouteLink from '../routeLink.svelte';
 	import RoundActions from './RoundActions.svelte';
 
 	import { nameOf, type GuidRow } from '#lib/stores/guids.ts';
@@ -74,36 +75,16 @@
 		</p>
 	{:else}
 		<p class="info center description">{round.date}</p>
-		{#if venue || venueDetails}
-			<p class="info center">
-				{#if venue}
-					<a class="venue-link" href={mapUrl} aria-label={`Open ${venue} in Maps`}>
-						<svg viewBox="0 0 24 24" width="1.2em" height="1.2em" fill="none"
-							stroke="currentColor" stroke-width="2" aria-hidden="true">
-							<path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z" />
-							<circle cx="12" cy="10" r="2.5" />
-						</svg>
-						{venue}
-					</a>
-				{/if}
-				{#if venueDetails}
-					{#if venue}<br />{/if}<span class="description">{venueDetails}</span>
-				{/if}
-			</p>
+		{#if venue}
+			<RouteLink href={mapUrl} title={venue} description={venueDetails} label={`Open ${venue} in Maps`}>
+				{#snippet icon()}
+					<path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z" />
+					<circle cx="12" cy="10" r="2.5" />
+				{/snippet}
+			</RouteLink>
+		{:else if venueDetails}
+			<p class="info center description">{venueDetails}</p>
 		{/if}
 	{/if}
 </div>
 <RoundActions {round} {team} />
-
-<style>
-	.venue-link {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.35rem;
-		padding: 0.4rem 0;
-		color: inherit;
-	}
-	.venue-link svg {
-		flex-shrink: 0;
-	}
-</style>
