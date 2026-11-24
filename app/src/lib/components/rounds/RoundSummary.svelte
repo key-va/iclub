@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import RouteLink from '../routeLink.svelte';
 	import RoundActions from './RoundActions.svelte';
 
 	import { nameOf, type GuidRow } from '#lib/stores/guids.ts';
@@ -71,35 +72,22 @@
 			{/if}
 		</p>
 	{:else}
-		<p class="info center description">{round.date}</p>
+		<p class="info center description">
+			{round.date}{#if address}<br />{address}{/if}
+		</p>
 		{#if mapUrl}
+			<RouteLink href={mapUrl} title={venue || 'Venue'} description={venueDetails}>
+				{#snippet icon()}
+					<path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z" />
+					<circle cx="12" cy="10" r="2.5" />
+				{/snippet}
+			</RouteLink>
+		{:else if venue || venueDetails}
 			<p class="info center">
-				<a class="round-icon-small blue map-pin" href={mapUrl}
-					aria-label={venue ? `Open ${venue} in Maps` : 'Open venue in Maps'}>
-					<svg viewBox="0 0 24 24" width="1rem" height="1rem" fill="none"
-						stroke="currentColor" stroke-width="3" stroke-linecap="round"
-						stroke-linejoin="round" aria-hidden="true">
-						<path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z" />
-						<circle cx="12" cy="10" r="2.5" />
-					</svg>
-				</a>
-			</p>
-		{/if}
-		{#if address || venue || venueDetails}
-			<p class="info center">
-				{#if address || venue}{address || venue}{/if}
-				{#if venueDetails}
-					{#if address || venue}<br />{/if}<span class="description">{venueDetails}</span>
-				{/if}
+				{venue}{#if venue && venueDetails}<br />{/if}
+				{#if venueDetails}<span class="description">{venueDetails}</span>{/if}
 			</p>
 		{/if}
 	{/if}
 </div>
 <RoundActions {round} {team} />
-
-<style>
-	.map-pin {
-		border-color: white;
-		text-decoration: none;
-	}
-</style>
