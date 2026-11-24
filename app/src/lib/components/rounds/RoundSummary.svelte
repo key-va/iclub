@@ -10,10 +10,17 @@
 		`${round?.opponent} vs ${nameOf(team?.rk ?? '')}`
 	);
 	const result = $derived.by(() => {
-		if (!round || !team) return { name: '', outcome: '', scores: '' };
+		if (!round || !team) return { name: '', outcome: '', points: '', scores: '' };
 		if (round.result === 'bye' || round.result === 'washout')
-			return { name: nameOf(team.rk), outcome: round.result, scores: '' };
+			return { name: nameOf(team.rk), outcome: round.result, points: '', scores: '' };
 		const opponentWon = round.result === 'loser';
+		const score = (key: 'points' | 'sets' | 'games', label: string) => {
+			const first = round[`${key}_${opponentWon ? 'against' : 'for'}`];
+			const second = round[`${key}_${opponentWon ? 'for' : 'against'}`];
+			return typeof first === 'number' && typeof second === 'number'
+				? `${first}-${second} ${label}`
+				: '';
+		};
 		return {
 			name: opponentWon ? String(round.opponent) : nameOf(team.rk),
 			outcome:
@@ -22,17 +29,8 @@
 					: ['winner', 'loser'].includes(String(round.result))
 						? 'wins'
 						: 'result',
-			scores: ['points', 'sets', 'games']
-				.filter(
-					(key) =>
-						typeof round[`${key}_for`] === 'number' &&
-						typeof round[`${key}_against`] === 'number'
-				)
-				.map(
-					(key) =>
-						`${round[`${key}_${opponentWon ? 'against' : 'for'}`]}-${round[`${key}_${opponentWon ? 'for' : 'against'}`]} ${key}`
-				)
-				.join(' • ')
+			points: score('points', 'Points'),
+			scores: [score('sets', 'sets'), score('games', 'games')].filter(Boolean).join(' . ')
 		};
 	});
 </script>
@@ -41,8 +39,13 @@
 	<p class="info center"><strong>{fixtureName}</strong></p>
 	{#if complete}
 		<p class="info center">
-			{result.name}<br />
-			<span class="description">{result.outcome} {result.scores}</span>
+			{#if round.result === 'bye' || round.result === 'washout'}
+				{result.name}<br />
+				<span class="description">{result.outcome}</span>
+			{:else}
+				{result.name} {result.outcome}{result.points ? ` ${result.points}` : ''}
+				{#if result.scores}<br /><span class="description">{result.scores}</span>{/if}
+			{/if}
 		</p>
 	{:else}
 		<p class="info center description">
