@@ -50,7 +50,7 @@
 
 {#snippet editOption()}
 	{#if mine?.state === 'pending' && ladder.state === 'active'}
-		<ActionConfirmation inline name="leave ladder" message="Cancel your join request?"
+		<ActionConfirmation inline name="leave ladder" message={`leave ${ladder.name}? Ongoing matches will be forfeited`}
 			action={() => leaveLadder(ladder.rk)} />
 	{/if}
 	{#if mine?.is_admin === true}<ActionLink href={`/ladder/${ladder.rk}/edit`} name="edit" />{/if}
@@ -80,7 +80,7 @@
 			arrow
 			showLabel
 			name="approve this ladder"
-			message={`Approve ${ladder.name} to make it active?`}
+			message={`approve ${ladder.name} to make it active?`}
 			action={() => activateLadder(ladder.rk)}
 		/>
 	{:else if associated && mine?.state !== 'pending'}
@@ -90,7 +90,7 @@
 					arrow
 					showLabel
 					name="return"
-					message="Return from away? Cooling begins when all partners are back."
+					message="set your status as available?"
 					action={() => returnLadder(ladder.rk)}
 				/>
 			{:else}<ActionConfirmation
@@ -98,7 +98,7 @@
 					arrow
 					showLabel
 					name="away"
-					message="Go away and forfeit ongoing matches?"
+					message="set your status as away? Ongoing matches will be forfeited"
 					action={() => awayLadder(ladder.rk)}
 				/>{/if}
 		{/if}
@@ -107,7 +107,7 @@
 			arrow
 			showLabel
 			name="leave ladder"
-			message="Leave this ladder and forfeit ongoing matches? In doubles, both partners leave."
+			message={`leave ${ladder.name}? Ongoing matches will be forfeited`}
 			action={() => leaveLadder(ladder.rk)}
 		/>
 	{:else if ladder.state === 'active'}
@@ -115,7 +115,7 @@
 			inline
 			arrow
 			showLabel
-			name="request to join"
+			name="request to join" message={`request to join ${ladder.name}?`}
 			action={() => joinLadder(ladder.rk)}
 			disabled={!$local.caller_id || mine?.state === 'pending'}
 		/>

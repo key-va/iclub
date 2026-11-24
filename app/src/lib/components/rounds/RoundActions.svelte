@@ -25,6 +25,7 @@
 				arrow={role === 'available'}
 				showLabel
 				name={roundRoleLabel(role)}
+				message={`mark yourself as ${roundRoleLabel(role)}?`}
 				disabled={!options.includes(role)}
 				action={() => confirmRoundRole(round.rk, role)}
 			/>{/each}

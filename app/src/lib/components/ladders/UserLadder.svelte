@@ -85,6 +85,7 @@
 				arrow
 				showLabel
 				name="accept joiner"
+				message={`accept ${nameOf(user.rk)} into ${nameOf(ladder.rk)}?`}
 				action={() => acceptLadderMemberConfirmation(ladder.rk, user.rk)}
 			/>{/if}
 	{:else if matches.length}
@@ -96,6 +97,7 @@
 			arrow
 			showLabel
 			name="issue challenge"
+			message={`challenge ${nameOf(user.rk)} in ${nameOf(ladder.rk)}?`}
 			action={() =>
 				createMatchConfirmation(
 					ladder.rk,

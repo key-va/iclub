@@ -51,6 +51,7 @@
 			arrow
 			showLabel
 			name="accept joiner"
+			message={`accept ${nameOf(user.rk)} into ${nameOf(team.rk)}?`}
 			action={() => acceptTeamMemberConfirmation(team.rk, user.rk)}
 		/>{/if}
 

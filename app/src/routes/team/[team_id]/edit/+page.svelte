@@ -89,7 +89,7 @@
 		<p class="info center">The team name is fixed. You can change its icon.</p>
 		<ActionConfirmation
 			name="update"
-			message="Update the team icon?"
+			message={`update the ${team.name} icon?`}
 			action={() => updateTeam(teamId, { image })}
 			disabled={!image}
 			onsuccess={clearForm}

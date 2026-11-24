@@ -28,7 +28,7 @@
 
 {#snippet membershipOptions()}
 	{#if mine && team.state === 'active'}
-		<ActionConfirmation inline name="leave team" message="Leave this team?"
+		<ActionConfirmation inline name="leave team" message={`leave ${team.name}?`}
 			action={() => leaveTeam(team.rk)} />
 	{/if}
 	{#if isTeamAdmin(mine)}
@@ -51,7 +51,7 @@
 			action={() => activateTeam(team.rk)}
 		/>
 	{:else if team.state === 'active' && (!mine || mine.state === 'pending')}
-		<ActionConfirmation inline arrow showLabel name="request to join"
+		<ActionConfirmation inline arrow showLabel name="request to join" message={`request to join ${team.name}?`}
 			action={() => joinTeam(team.rk)}
 			disabled={!$local.caller_id || mine?.state === 'pending'} />
 	{/if}

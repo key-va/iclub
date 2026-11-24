@@ -27,7 +27,7 @@
 
 {#snippet membershipOptions()}
 	{#if mine && group.state === 'active'}
-		<ActionConfirmation inline name="leave group" message="Leave this group?"
+		<ActionConfirmation inline name="leave group" message={`Leave ${group.name}?`}
 			action={() => leaveGroup(group.rk)} />
 	{/if}
 	{#if mine?.is_admin === true}
@@ -49,7 +49,7 @@
 			action={() => activateGroup(group.rk)}
 		/>
 	{:else if group.state === 'active' && (!mine || mine.state === 'pending')}
-		<ActionConfirmation inline arrow showLabel name="request to join"
+		<ActionConfirmation inline arrow showLabel name="request to join" message={`request to join ${group.name}?`}
 			action={() => joinGroup(group.rk)}
 			disabled={!$local.caller_id || mine?.state === 'pending'} />
 	{/if}

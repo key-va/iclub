@@ -116,7 +116,7 @@
 		<ActionConfirmation
 			inline
 			name="retire"
-			message="Forfeit all ongoing matches and retire this pair?"
+			message={`retire ${nameOf(pairId)}? Ongoing matches will be forfeited`}
 			action={() => retirePair(pairId)}
 		/>
 	</HiddenOptions>

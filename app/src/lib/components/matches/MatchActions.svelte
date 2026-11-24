@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { local } from '#lib/stores/local.ts';
-	import { entityOf, relationsOf, type GuidRow } from '#lib/stores/guids.ts';
+	import { relationsOf, type GuidRow } from '#lib/stores/guids.ts';
 	import { acceptMatch, forfeitCompetitionMatch, forfeitMatch } from '#lib/stores/remote.ts';
 	import { competitionSlots } from '../competitions/competitionBracket.ts';
 	import { canAcceptLadderMatch, canForfeitCompetitionMatch } from './matchRules.ts';
@@ -20,7 +20,6 @@
 	} = $props();
 	const links = $derived(relationsOf(match.rk));
 	const comp = $derived(links.find((row) => row.rk.startsWith('comp_')));
-	const doublesComp = $derived(!!comp && entityOf(comp.rk)?.format === 'doubles');
 	const mine = $derived(links.find((row) => row.rk === $local.caller_id));
 	const canAccept = $derived(canAcceptLadderMatch(match, $local.caller_id));
 	const forfeitRelevant = $derived(
@@ -55,6 +54,7 @@
 		arrow
 		showLabel
 		name="accept"
+		message={`accept ${match.name}?`}
 		action={() => acceptMatch(match.rk)}
 	/>{/snippet}
 {#snippet forfeitOption()}<ActionConfirmation
@@ -62,7 +62,7 @@
 		arrow
 		showLabel
 		name="forfeit"
-		message={doublesComp ? "Forfeit for your pair? The opposing pair will win this match." : "Forfeit this match?"}
+		message={`forfeit ${match.name}?`}
 		action={forfeit}
 		disabled={!canForfeit}
 	/>{/snippet}

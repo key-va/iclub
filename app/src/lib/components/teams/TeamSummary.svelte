@@ -121,7 +121,7 @@
 	{#if isTeamMember(mine)}
 		<ActionConfirmation
 			name="refresh data"
-			message="Refresh the team’s schedules, results and standings?"
+			message={`refresh the ${team.name} schedules, results and standings?`}
 			navigate={false}
 			action={() => syncTeam(id)}
 			onsuccess={(result) => {

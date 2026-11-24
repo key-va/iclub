@@ -69,10 +69,10 @@
 		<EntityHeader entity={elim} />
 		<EntityActions section="primary" summary={`${roundRobin ? 'round robin' : 'elimination'} • ${doubles ? 'doubles' : 'singles'} • ${matchFormat} • ${status}`}>
 			{#if elim.state === 'pending' && canApprove}
-				<ActionConfirmation inline arrow showLabel name="approve" message={`Approve ${elim.name}?`}
+				<ActionConfirmation inline arrow showLabel name="approve" message={`approve ${elim.name}?`}
 					action={() => competitionEntry(id, 'activate')} />
 			{:else if canJoin}
-				<ActionConfirmation inline arrow showLabel name="request to join" message={`Request to join ${elim.name}?`}
+				<ActionConfirmation inline arrow showLabel name="request to join" message={`request to join ${elim.name}?`}
 					action={() => competitionEntry(id, 'join')} disabled={!caller || mine?.state === 'pending'} />
 			{/if}
 		</EntityActions>
@@ -142,7 +142,7 @@
 				{#snippet options()}
 					{#if canLeave}
 						<ActionConfirmation inline name={mine?.state === 'pending' ? 'cancel request' : 'withdraw'}
-							message={mine?.state === 'pending' ? 'Cancel your join request?' : doubles ? 'Withdraw your pair? Your partner will return to the pending list.' : 'Withdraw your entry?'}
+							message={mine?.state === 'pending' ? 'Cancel your join request?' : 'Withdraw your entry?'}
 							action={() => competitionEntry(id, 'leave')} />
 					{/if}
 					{#if canDraw}
