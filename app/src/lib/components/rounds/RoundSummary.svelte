@@ -30,7 +30,7 @@
 						? 'wins'
 						: 'result',
 			points: score('points', 'Points'),
-			scores: [score('sets', 'sets'), score('games', 'games')].filter(Boolean).join(' . ')
+			scores: [score('sets', 'sets'), score('games', 'games')].filter(Boolean).join(' • ')
 		};
 	});
 </script>
