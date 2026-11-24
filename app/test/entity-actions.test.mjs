@@ -84,13 +84,13 @@ test('ladder sections show No pending matches without live matches, except when 
   html=await show('userLadder',{user,ladder},[...rows,...matches]);assert.equal(html.includes('No pending matches'),state==='complete');
  }
 });
-test('team sections show No pending rounds when no unfinished rounds require availability or selection',async()=>{
+test('own team sections list upcoming rounds across all availability states',async()=>{
  const user={pk:'user',rk:'user_me',name:'Casey'},entity={pk:'team',rk:'team_test',name:'Team',state:'active'},team={pk:user.rk,rk:entity.rk,is_member:true};
  const rows=[user,entity,{pk:entity.rk,rk:user.rk,is_member:true}];
  let html=await show('userTeam',{user,team},rows);assert.match(html,/No pending rounds/);assert.match(html,/d="M5 12h14"/);assert.equal(has(html,'No pending rounds'),false);
  assert.match(await show('userTeam',{user,team},rows,'user_other'),/No pending rounds/);
  for(const role of ['pending','selected','available','unavailable']){
   html=await show('userTeam',{user,team},[...rows,{pk:'round',rk:'round_test',name:'Round',state:'pending',ext_date:'2026-11-20'},{pk:entity.rk,rk:'round_test'},{pk:user.rk,rk:'round_test',role}]);
-  assert.equal(html.includes('No pending rounds'),!['pending','selected'].includes(role));
+  assert.equal(html.includes('No pending rounds'), false);
  }
 });

@@ -7,16 +7,15 @@
 		nameOf,
 		type GuidRow
 	} from '#lib/stores/guids.ts';
-	import { setRoundRole } from '#lib/stores/remote.ts';
 	import {
 		roundView,
-		availabilityOptions,
 		roundRoleLabel,
 		roundRoleColour,
+		isTeamAdmin,
 		isTeamMember
 	} from './roundRules.ts';
+	import RoundQuickOptions from './RoundQuickOptions.svelte';
 	import RouteLinkHiddenAction from '../RouteLinkHiddenAction.svelte';
-	import ActionQuick from '../ActionQuick.svelte';
 	let { user, team, round }: { user: GuidRow; team: GuidRow; round: GuidRow } =
 		$props();
 	const record = $derived(
@@ -25,29 +24,23 @@
 			relationsOf(team.rk).find((row) => row.rk === round.rk)
 		)
 	);
-	const options = $derived(
-		user.rk === $local.caller_id &&
-			isTeamMember(team) &&
-			!['complete', 'eliminated'].includes(String(record.state))
-			? availabilityOptions(round.role)
-			: []
+	const ownProfile = $derived(user.rk === $local.caller_id);
+	const editable = $derived(
+		ownProfile && isTeamMember(team) &&
+		!['complete', 'eliminated'].includes(String(record.state))
 	);
 </script>
 
 {#snippet actions()}
-	{#each options as role}<ActionQuick
-			inline
-			name={roundRoleLabel(role)}
-			action={() => setRoundRole(round.rk, role)}
-		/>{/each}
+	<RoundQuickOptions roundId={round.rk} role={round.role} {editable} admin={isTeamAdmin(team)} />
 {/snippet}
 <RouteLinkHiddenAction
 	href={hrefOf(round.rk)}
 	title={nameOf(round.rk)}
 	description={roundRoleLabel(round.role)}
 	colour={roundRoleColour[String(round.role)] ?? 'grey'}
-	children={options.length ? actions : undefined}
-	currentSelection={!options.length ? roundRoleLabel(round.role) || 'no actions' : undefined}
+	children={ownProfile ? actions : undefined}
+	currentSelection={ownProfile ? undefined : roundRoleLabel(round.role) || 'no actions'}
 >
 	{#snippet detail()}{record.date}{/snippet}
 </RouteLinkHiddenAction>

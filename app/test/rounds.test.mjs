@@ -57,12 +57,25 @@ test("outstanding rounds include overdue pending and selected roles, grouped by 
         [],
     );
     assert.deepEqual(
+        rounds.outstandingTeamRounds("user_a", "team_one", true).map((r) => r.rk),
+        ["round_c", "round_h", "round_i", "round_a", "round_f", "round_g"],
+    );
+    assert.deepEqual(
         rounds.outstandingTeamRounds(
             "user_other",
             "team_one",
         ),
         [],
     );
+});
+test("round quick options match self-service and admin role transitions", () => {
+    assert.deepEqual(rounds.roundQuickRoles, ["unavailable", "available", "selected"]);
+    assert.deepEqual(rounds.roundQuickOptions("pending", true), ["unavailable", "available"]);
+    assert.deepEqual(rounds.roundQuickOptions("available", false), ["unavailable"]);
+    assert.deepEqual(rounds.roundQuickOptions("available", true), ["unavailable", "selected"]);
+    assert.deepEqual(rounds.roundQuickOptions("selected", false), ["unavailable"]);
+    assert.deepEqual(rounds.roundQuickOptions("selected", true), ["unavailable", "available"]);
+    assert.deepEqual(rounds.roundQuickOptions("unavailable", true), ["available"]);
 });
 test("role colours and result summaries match the contract, including zero scores and unknown result state", () => {
     assert.deepEqual(rounds.roundRoleColour, {

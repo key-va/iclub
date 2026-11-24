@@ -4,14 +4,13 @@
 	import {
 		roundAvailability,
 		roundAvailabilityColour,
-		availabilityOptions,
 		roundRoleLabel,
+		isTeamAdmin,
 		isTeamMember
 	} from '#lib/components/rounds/roundRules.ts';
-	import { setRoundRole } from '#lib/stores/remote.ts';
+	import RoundQuickOptions from '../rounds/RoundQuickOptions.svelte';
 	import RouteLink from '../routeLink.svelte';
 	import RouteLinkHiddenAction from '../RouteLinkHiddenAction.svelte';
-	import ActionQuick from '../ActionQuick.svelte';
 	let {
 		team,
 		round,
@@ -40,10 +39,8 @@
 				? `${roleLabel} • ${round.date}`
 				: `${roleLabel} • ${round.is_home ? 'home' : 'away'} • ${round.date}`
 	);
-	const options = $derived(
-		member && round.state !== 'complete'
-			? availabilityOptions(role)
-			: []
+	const editable = $derived(
+		member && !['complete', 'eliminated'].includes(String(round.state))
 	);
 </script>
 
@@ -55,11 +52,7 @@
 	/>
 {:else}
 	{#snippet actions()}
-		{#each options as nextRole}<ActionQuick
-				inline
-				name={roundRoleLabel(nextRole)}
-				action={() => setRoundRole(round.rk, nextRole)}
-			/>{/each}
+		<RoundQuickOptions roundId={round.rk} {role} {editable} admin={isTeamAdmin(mine)} />
 	{/snippet}
 	<RouteLinkHiddenAction
 		href={hrefOf(round.rk)}
@@ -67,7 +60,7 @@
 		{description}
 		colour={roundAvailabilityColour(counts)}
 		isWhite={featured}
-		children={options.length ? actions : undefined}
-		currentSelection={options.length ? undefined : (member && roundRoleLabel(role)) || 'no actions'}
+		children={member ? actions : undefined}
+		currentSelection={member ? undefined : 'no actions'}
 	/>
 {/if}

@@ -46,6 +46,15 @@ export function availabilityOptions(
 	if (role === 'unavailable') return ['available'];
 	return [];
 }
+export const roundQuickRoles = ['unavailable', 'available', 'selected'] as const;
+
+export function roundQuickOptions(role: unknown, admin: boolean): (typeof roundQuickRoles)[number][] {
+	const options: (typeof roundQuickRoles)[number][] = availabilityOptions(role);
+	if (admin && role === 'available') options.push('selected');
+	if (admin && role === 'selected') options.push('available');
+	return options;
+}
+
 // Read the new stored contract while older datasets remain visible until refresh.
 // These aliases are derived views, never copies persisted back to guids.json.
 export function roundView<T extends GuidRow>(
@@ -135,7 +144,7 @@ export function roundLabel(round: GuidRow): string {
 		return 'postponed';
 	return String(round.state ?? 'pending');
 }
-export function outstandingTeamRounds(userId: string, teamId: string) {
+export function outstandingTeamRounds(userId: string, teamId: string, includeResponded = false) {
 	const teamRounds = new Map(
 		relationsOf(teamId)
 			.filter((row) => typeOf(row.rk) === 'round' && entityOf(row.rk))
@@ -150,7 +159,8 @@ export function outstandingTeamRounds(userId: string, teamId: string) {
 		)
 		.filter(
 			(row) =>
-				['pending', 'selected'].includes(String(row.role)) &&
+				(['pending', 'selected'].includes(String(row.role)) ||
+					(includeResponded && ['available', 'unavailable'].includes(String(row.role)))) &&
 				!['complete', 'eliminated'].includes(String(viewOf(row).state))
 		)
 		.sort(
