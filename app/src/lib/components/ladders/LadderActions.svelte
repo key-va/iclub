@@ -54,7 +54,7 @@
 		<ActionConfirmation inline name="leave ladder" message={`leave ${ladder.name}? Ongoing matches will be forfeited`}
 			action={() => leaveLadder(ladder.rk)} />
 	{/if}
-	{#if mine?.is_admin === true}<ActionLink href={`/ladder/${ladder.rk}/edit`} name="edit" />{/if}
+	{#if mine?.is_admin === true}<ActionLink href={`/ladder/${ladder.rk}/edit`} confirm={false} />{/if}
 {/snippet}
 
 <EntityActions
