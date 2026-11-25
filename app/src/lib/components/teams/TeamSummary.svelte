@@ -104,7 +104,8 @@
 		</div>
 	{/if}
 
-	<HiddenOptions title="Future Rounds" isWhite>
+	<div class="group">
+		<HiddenOptions title="Future Rounds" badge={laterRounds.length + finalsDates.length} />
 		{#each laterRounds as round (round.rk)}
 			{#if round.state === 'eliminated'}
 				<HiddenOptions title={round.name} description={`eliminated • ${round.date}`} />
@@ -116,7 +117,7 @@
 		{#each finalsDates as final}
 			<HiddenOptions title={final.name} description={`pending • ${final.date}`} />
 		{/each}
-	</HiddenOptions>
+	</div>
 
 	{#if isTeamMember(mine)}
 		<ActionConfirmation
