@@ -73,7 +73,7 @@
 		<EntityActions section="primary" summary={`${roundRobin ? 'round robin' : 'elimination'} • ${doubles ? 'doubles' : 'singles'} • ${matchFormat} • ${status}`}>
 			{#if elim.state === 'pending' && canApprove}
 				<RejectCreationRequest {id} />
-				<ActionQuick inline arrow showLabel name="approve"
+				<ActionConfirmation inline arrow showLabel name="approve" message={`approve ${elim.name}?`}
 					action={() => competitionEntry(id, 'activate')} />
 			{:else if elim.state === 'rejected' && elim.rejection_club && canApprove}
 				<RejectCreationRequest {id} resuming />

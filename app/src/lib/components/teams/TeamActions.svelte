@@ -1,5 +1,4 @@
 <script lang="ts">
-	import ActionQuick from '../ActionQuick.svelte';
 	import RejectCreationRequest from '#lib/components/RejectCreationRequest.svelte';
 	import ActionLink from '../ActionLink.svelte';
 	import { teamDescription, isTeamAdmin } from '../rounds/roundRules.ts';
@@ -48,11 +47,12 @@
 		{#if clubAdmin && team.rejection_club}<RejectCreationRequest id={team.rk} resuming />{/if}
 	{:else if team.state === 'pending' && clubAdmin}
 		<RejectCreationRequest id={team.rk} />
-		<ActionQuick
+		<ActionConfirmation
 			inline
 			arrow
 			showLabel
 			name="approve team"
+			message={`Approve ${team.name} and import its rounds?`}
 			action={() => activateTeam(team.rk)}
 		/>
 	{:else if team.state === 'active' && (!mine || mine.state === 'pending')}
