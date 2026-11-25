@@ -4,7 +4,7 @@
 	import {
 		roundAvailability,
 		roundAvailabilityColour,
-		roundRoleLabel,
+		futureRoundDescription,
 		isTeamAdmin,
 		isTeamMember
 	} from '#lib/components/rounds/roundRules.ts';
@@ -26,7 +26,6 @@
 			? relationsOf($local.caller_id).find((row) => row.rk === round.rk)?.role
 			: undefined
 	);
-	const roleLabel = $derived(roundRoleLabel(role) || 'no status');
 	const counts = $derived(roundAvailability(round.rk));
 	const description = $derived(
 		featured
@@ -35,9 +34,7 @@
 				`${counts.playing} playing`,
 				`${counts.available} available`
 			].filter(Boolean).join(' • ')
-			: round.ext_stage && round.is_home === undefined
-				? `${roleLabel} • ${round.date}`
-				: `${roleLabel} • ${round.is_home ? 'home' : 'away'} • ${round.date}`
+			: futureRoundDescription(round, role)
 	);
 	const editable = $derived(
 		member && !['complete', 'eliminated'].includes(String(round.state))

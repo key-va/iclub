@@ -9,6 +9,7 @@
 	} from '#lib/stores/guids.ts';
 	import {
 		roundView,
+		futureRoundDescription,
 		roundRoleLabel,
 		roundRoleColour,
 		isTeamAdmin,
@@ -37,10 +38,8 @@
 <RouteLinkHiddenAction
 	href={hrefOf(round.rk)}
 	title={nameOf(round.rk)}
-	description={roundRoleLabel(round.role)}
+	description={futureRoundDescription(record, round.role)}
 	colour={roundRoleColour[String(round.role)] ?? 'grey'}
 	children={ownProfile ? actions : undefined}
 	currentSelection={ownProfile ? undefined : roundRoleLabel(round.role) || 'no actions'}
->
-	{#snippet detail()}{record.date}{/snippet}
-</RouteLinkHiddenAction>
+/>

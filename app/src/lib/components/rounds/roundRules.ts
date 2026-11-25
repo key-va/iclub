@@ -29,6 +29,13 @@ export function roundRoleLabel(role: unknown): string {
 	return typeof role === 'string' ? role : '';
 }
 
+export function futureRoundDescription(round: GuidRow, role: unknown): string {
+	const status = roundRoleLabel(role) || 'no status';
+	return round.ext_stage && round.is_home === undefined
+		? `${status} • ${round.date}`
+		: `${status} • ${round.is_home ? 'home' : 'away'} • ${round.date}`;
+}
+
 export function isTeamAdmin(relation?: Record<string, unknown>): boolean {
 	return typeof relation?.is_admin === 'boolean'
 		? relation.is_admin
