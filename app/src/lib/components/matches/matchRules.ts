@@ -7,10 +7,14 @@ import {
 	nameOf
 } from '#lib/stores/guids.ts';
 
-export function isMatchDefender(links: GuidRow[], callerId: string | null) {
+export function isMatchSide(links: GuidRow[], callerId: string | null, role: 'challenger' | 'defender') {
 	const user = links.find((row) => row.rk === callerId);
-	const defender = links.find((row) => row.role === 'defender');
-	return user?.role === 'defender' || (!!defender && user?.competitor_id === defender.rk);
+	const side = links.find((row) => row.role === role);
+	return user?.role === role || (!!side && user?.competitor_id === side.rk);
+}
+
+export function isMatchDefender(links: GuidRow[], callerId: string | null) {
+	return isMatchSide(links, callerId, 'defender');
 }
 
 export function canAcceptLadderMatch(match: GuidRow, callerId: string | null) {

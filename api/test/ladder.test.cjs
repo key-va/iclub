@@ -460,3 +460,22 @@ test('rejecting a playing application preserves existing ladder administration',
         assert.equal(get(pk, rk).is_participant, undefined);
     }
 });
+
+test('only the challenging side can withdraw a pending ladder challenge', async () => {
+    doubles();
+    const withdraw = require('../dist/src/functions/matchForfeit.js').matchWithdraw;
+    const id = await challenge();
+    const params = { match_id: id };
+    for (const viewer of [A, ADMIN])
+        assert.equal((await call(withdraw, viewer, {}, params)).status, 403);
+    assert.equal((await call(withdraw, D, {}, params)).status, 200);
+    assert.equal(get('match', id).state, 'complete');
+    assert.equal((await call(matchAccept, A, {}, params)).status, 409);
+
+    rows.clear();
+    doubles();
+    const acceptedId = await challenge();
+    assert.equal((await call(matchAccept, A, {}, { match_id: acceptedId })).status, 200);
+    assert.equal((await call(withdraw, C, {}, { match_id: acceptedId })).status, 409);
+    assert.equal(get('match', acceptedId).state, 'active');
+});

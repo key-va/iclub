@@ -10,8 +10,7 @@
 	import MatchActions from './MatchActions.svelte';
 	import RouteLinkHiddenAction from '../RouteLinkHiddenAction.svelte';
 	let { match }: { match: GuidRow } = $props();
-	const actionable = $derived(canAcceptLadderMatch(match, $local.caller_id));
-	const needsMyAcceptance = $derived(actionable && isMatchDefender(relationsOf(match.rk), $local.caller_id));
+	const needsMyAcceptance = $derived(canAcceptLadderMatch(match, $local.caller_id) && isMatchDefender(relationsOf(match.rk), $local.caller_id));
 	const active = $derived(match.state === 'active');
 </script>
 
@@ -21,6 +20,5 @@
 	title={nameOf(match.rk)}
 	description={`${match.state} match`}
 	colour={active ? 'green' : needsMyAcceptance ? 'red' : 'orange'}
-	currentSelection={actionable ? undefined : active ? 'active' : 'pending'}
-	children={actionable ? actions : undefined}
+	children={actions}
 />

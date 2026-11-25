@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { local } from '#lib/stores/local.ts';
 	import { relationsOf, type GuidRow } from '#lib/stores/guids.ts';
-	import { acceptMatch, forfeitCompetitionMatch, forfeitMatch } from '#lib/stores/remote.ts';
+	import { acceptMatch, forfeitCompetitionMatch, forfeitMatch, withdrawMatch } from '#lib/stores/remote.ts';
 	import { competitionSlots } from '../competitions/competitionBracket.ts';
-	import { canAcceptLadderMatch, canForfeitCompetitionMatch } from './matchRules.ts';
+	import { canAcceptLadderMatch, canForfeitCompetitionMatch, isMatchSide } from './matchRules.ts';
 	import EntityActions from '../EntityActions.svelte';
 	import ActionQuick from '../ActionQuick.svelte';
 	import ActionConfirmation from '../ActionConfirmation.svelte';
@@ -43,11 +43,15 @@
 </script>
 
 {#snippet quickButtons()}
-	{#if canAccept}<ActionQuick
-			inline
-			name="accept"
-			action={() => acceptMatch(match.rk)}
-		/>{/if}
+	{@const pendingLadder = match.state === 'pending' && links.some(row => row.rk.startsWith('ladder_'))}
+	<ActionQuick inline name="accept"
+		disabled={!pendingLadder || !isMatchSide(links, $local.caller_id, 'defender')}
+		action={() => acceptMatch(match.rk)}
+	/>
+	<ActionQuick inline name="withdraw"
+		disabled={!pendingLadder || !isMatchSide(links, $local.caller_id, 'challenger')}
+		action={() => withdrawMatch(match.rk)}
+	/>
 {/snippet}
 {#snippet acceptButton()}<ActionConfirmation
 		inline
@@ -66,11 +70,12 @@
 		action={forfeit}
 		disabled={!canForfeit}
 	/>{/snippet}
-{#if canAccept || forfeitRelevant}
-	{#if quick}{@render quickButtons()}
-	{:else}<EntityActions
+{#if quick}
+	{@render quickButtons()}
+{:else if canAccept || forfeitRelevant}
+	<EntityActions
 			{section}
 			children={canAccept ? acceptButton : undefined}
 			options={forfeitRelevant ? forfeitOption : undefined}
-		/>{/if}
+		/>
 {/if}

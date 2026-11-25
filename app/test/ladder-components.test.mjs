@@ -39,6 +39,7 @@ before(async () => {
                     export const returnLadder = id => ({ endpoint: 'ladder/' + id + '/return', data: {} });
                     export const leaveLadder = id => ({ endpoint: 'ladder/' + id + '/leave', data: {} });
                     export const acceptMatch = id => ({ endpoint: 'match/' + id + '/accept', data: {} });
+                    export const withdrawMatch = id => ({ endpoint: 'match/' + id + '/withdraw', data: {} });
                     export const forfeitMatch = id => ({ endpoint: 'match/' + id + '/forfeit', data: {} });
                     `;
                 // Resolve callbacks against synchronous endpoint descriptors in this

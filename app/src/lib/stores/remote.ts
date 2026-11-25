@@ -184,6 +184,7 @@ export const completeMatch = (id: string, data: Record<string, unknown>) =>
 	mutateWithSubject(`match/${id}/complete`, data);
 export const forfeitMatch = (id: string, data: Record<string, unknown> = {}) =>
 	mutateWithSubject(`match/${id}/forfeit`, data);
+export const withdrawMatch = (id: string) => mutate(`match/${id}/withdraw`);
 export const retirePair = (id: string) =>
 	mutateWithSubject(`pair/${id}/retire`);
 export const updateUser = (id: string, data: Record<string, unknown>) =>

@@ -122,18 +122,20 @@ test('profile ladder match dots distinguish active, defending and waiting viewer
     );
     const defender = await output('user', 'user_bob', 'user_bob', rows);
     assert.match(defender, /data-colour="red"[^>]*><a [^>]*>Alice versus Bob/);
-    assert.equal(hasAction(defender, 'accept'), true);
-    for (const viewer of ['user_alice', 'user_visitor']) {
+    assert.match(defender, /<button class="blue" aria-label="accept"/);
+    assert.match(defender, /<button class="grey" aria-label="withdraw"[^>]*disabled/);
+    for (const viewer of ['user_alice', 'user_visitor', 'user_admin']) {
         const waiting = await output('user', viewer, 'user_alice', rows);
         assert.match(waiting, /data-colour="orange"[^>]*><a [^>]*>Alice versus Bob/);
-        assert.match(waiting, /<button[^>]*disabled[^>]*><p>pending<\/p>/);
-        assert.equal(hasAction(waiting, 'accept'), false);
+        assert.match(waiting, /<button class="grey" aria-label="accept"[^>]*disabled/);
+        if (viewer === 'user_alice') assert.match(waiting, /<button class="blue" aria-label="withdraw"/);
+        else assert.match(waiting, /<button class="grey" aria-label="withdraw"[^>]*disabled/);
     }
     rows.find((row) => row.pk === 'match' && row.rk === 'match_test').state = 'active';
     const active = await output('user', 'user_bob', 'user_bob', rows);
     assert.match(active, /data-colour="green"[^>]*><a [^>]*>Alice versus Bob/);
-    assert.match(active, /<button[^>]*disabled[^>]*><p>active<\/p>/);
-    assert.equal(hasAction(active, 'accept'), false);
+    for (const name of ['accept', 'withdraw'])
+        assert.match(active, new RegExp(`aria-label="${name}"[^>]*disabled`));
 });
 test('match defender permissions, competitor names and messages survive the lookup migration', async () => {
     const html = await output('match', 'user_bob');
