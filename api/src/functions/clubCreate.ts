@@ -1,7 +1,7 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
 import { DefaultAzureCredential } from "@azure/identity";
 import { TableClient, odata } from "@azure/data-tables";
-import { clubIconAssets } from "../services/clubIconAssets";
+import sharp from "sharp";
 import { doBotVerification } from "../services/doSignatureVerification";
 import { doNewGuid } from "../services/doNewGuid";
 import { doUpsertEntity } from "../services/doUpsertEntity";
@@ -12,6 +12,7 @@ import { doGuidsToPublic } from "../services/doGuidsToPublic";
 import { resourceName, resourceSuffix } from "../stores/resourceNames";
 
 const client = new TableClient(`https://${resourceName(resourceSuffix.storageAccount)}.table.core.windows.net`, "guids", new DefaultAzureCredential());
+const maxImageBytes = 2 * 1024 * 1024;
 const invalid = (message: string): HttpResponseInit => ({ status: 400, jsonBody: { success: false, message } });
 
 // Bot-key authenticated provisioning; no device/ECDSA signature or Svelte form.
@@ -37,6 +38,11 @@ export async function clubCreate(request: HttpRequest, context: InvocationContex
         if (reserved.has(key) || !/^[A-Za-z_][A-Za-z0-9_]*$/.test(key)) return invalid(`Invalid club attribute: ${key}`);
         if (!["string", "number", "boolean"].includes(typeof value) || (typeof value === "number" && !Number.isFinite(value))) return invalid(`Club attribute ${key} must be a string, number or boolean`);
     }
+    if (typeof image !== "string" || image.length > Math.ceil(maxImageBytes / 3) * 4 + 32) return invalid("image must be a Base64 512x512 JPEG of at most 2 MB");
+    const encoded = image.replace(/^data:image\/jpe?g;base64,/i, "");
+    if (encoded.length % 4 !== 0 || !/^[A-Za-z0-9+/]*={0,2}$/.test(encoded)) return invalid("image must be valid Base64 JPEG data");
+    const jpeg = Buffer.from(encoded, "base64");
+    if (!jpeg.length || jpeg.length > maxImageBytes || jpeg.toString("base64") !== encoded) return invalid("image must be a Base64 512x512 JPEG of at most 2 MB");
 
     try { await client.getEntity("user", admin_user_id); }
     catch (error: any) {
@@ -47,13 +53,19 @@ export async function clubCreate(request: HttpRequest, context: InvocationContex
         return { status: 409, jsonBody: { success: false, message: "A club already uses this hostname", subject: row.rowKey } };
     }
 
-    const clubId = doNewGuid("club");
-    let assets: Awaited<ReturnType<typeof clubIconAssets>>;
+    let pngs: Buffer[];
     try {
-        assets = await clubIconAssets(clubId, image);
-    } catch {
-        return invalid("image must be a valid, complete 512x512 JPEG of at most 2 MB");
-    }
+        const source = sharp(jpeg, { limitInputPixels: 512 * 512, failOn: "warning" }).rotate();
+        const metadata = await source.metadata();
+        if (metadata.format !== "jpeg" || metadata.width !== 512 || metadata.height !== 512) return invalid("image must be a 512x512 JPEG");
+        pngs = await Promise.all([180, 192, 512].map(size => source.clone().resize(size, size).png().toBuffer()));
+    } catch { return invalid("image must be a valid, complete 512x512 JPEG"); }
+
+    const clubId = doNewGuid("club");
+    const assets = [
+        { name: `${clubId}.jpg`, content: jpeg },
+        ...[180, 192, 512].map((size, index) => ({ name: `${clubId}_${size}.png`, content: pngs[index] }))
+    ];
     try {
         // Upload before publishing the graph so a visible club has all its icons.
         for (const asset of assets) await doAssetToPublic(asset.content, asset.name);

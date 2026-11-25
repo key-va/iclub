@@ -23,7 +23,7 @@ before(async () => {
     render = (await server.ssrLoadModule('svelte/server')).render;
     guids = (await server.ssrLoadModule('/src/lib/stores/guids.ts')).guids;
     local = await server.ssrLoadModule('/src/lib/stores/local.ts');
-    pages = Object.fromEntries(await Promise.all(['group', 'team', 'round', 'match', 'user', 'comp', 'pair', 'browse', 'club'].map(async type =>
+    pages = Object.fromEntries(await Promise.all(['group', 'team', 'round', 'match', 'user', 'comp', 'pair', 'browse'].map(async type =>
         [type, (await server.ssrLoadModule(type === 'browse' ? '/src/routes/browse/+page.svelte' : `/src/routes/${type}/[${type}_id]/+page.svelte`)).default])));
 });
 after(async () => { await server?.close(); });
@@ -68,20 +68,6 @@ async function output(type, caller = 'user_admin', viewedId, items = fixture()) 
     }).body;
 }
 function hasAction(html, name) { return html.includes(`aria-label="${name}"`); }
-
-test('club page shows its icon, rules and contact details, with edit for club admins', async () => {
-    const rows = fixture();
-    Object.assign(rows.find(row => row.pk === 'club'), {
-        contact_name: 'Casey Admin', contact_email: 'contact@example.org',
-        address: '12 Club Street', rules: 'Book a court before playing.',
-    });
-    const visitor = await output('club', 'user_alice', 'club_test', rows);
-    assert.match(visitor, /Club<\/strong><br\/><span class="description">club/);
-    assert.match(visitor, /club_test\.jpg/);
-    assert.match(visitor, /Club Info[\s\S]*Book a court[\s\S]*Casey Admin[\s\S]*mailto:contact@example.org[\s\S]*12 Club Street/);
-    assert.equal(hasAction(visitor, 'edit'), false);
-    assert.equal(hasAction(await output('club', 'user_admin', 'club_test', rows), 'edit'), true);
-});
 
 test('pending creations are visible to their creator and club approvals only to the reviewing admin', async () => {
     const rows = fixture();

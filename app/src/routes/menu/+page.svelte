@@ -40,10 +40,6 @@
 		/>
 	{/if}
 
-	{#if $branding.clubId}
-		<RouteLink href={hrefOf($branding.clubId)} title="Club" description="club information" />
-	{/if}
-
 	<RouteLink
 		href="/about"
 		title="About"
