@@ -5,9 +5,11 @@ import { doGuidsToPublic } from "../services/doGuidsToPublic";
 import { isTeamAdmin } from "../services/teamRelations";
 
 export async function teamUpdate(request: HttpRequest, context: InvocationContext) {
-    return withTeam(request, context, async ({ teamId, data, mine }) => {
+    return withTeam(request, context, async ({ teamId, team, data, mine }) => {
         if (!isTeamAdmin(mine))
             return reply(403, "Only a team admin can edit this team");
+        if (team.state !== "active")
+            return reply(409, "This team can be edited after club approval");
         if (Object.keys(data).some((key) => !["image", "team_id"].includes(key)))
             return reply(400, "Only the team icon can be updated");
         if (typeof data.image !== "string")

@@ -39,7 +39,7 @@
 </script>
 
 <div class="page">
-	{#if team && admin}
+	{#if team?.state === 'active' && admin}
 		<EntityHeader
 			entity={team}
 			image={image || imageOf(team.rk)}
@@ -99,7 +99,9 @@
 			<p>
 				{$guids.loaded
 					? team
-						? 'Only a team admin can edit this team'
+						? team.state !== 'active'
+							? 'This team can be edited after club approval'
+							: 'Only a team admin can edit this team'
 						: 'Team not found'
 					: 'Loading…'}
 			</p>

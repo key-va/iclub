@@ -39,7 +39,7 @@
 
 <EntityActions
 	{section}
-	options={(team.state === 'active' && mine) || isTeamAdmin(mine) ? membershipOptions : undefined}
+	options={team.state === 'active' && mine ? membershipOptions : undefined}
 	summary={teamDescription(team)}
 >
 	{#if team.state === 'rejected'}
