@@ -69,13 +69,11 @@ async function output(type, caller = 'user_admin', viewedId, items = fixture()) 
 }
 function hasAction(html, name) { return html.includes(`aria-label="${name}"`); }
 
-test('pending ladders are visible to their creator and club approvals only to the reviewing admin', async () => {
+test('pending creations are visible to their creator and club approvals only to the reviewing admin', async () => {
     const rows = fixture();
     rows.push(
         { pk: 'user_admin', rk: 'club_pending', is_admin: true },
         { pk: 'club_pending', rk: 'user_admin', is_admin: true },
-        { pk: 'user_alice', rk: 'ladder_pending', is_admin: true },
-        { pk: 'ladder_pending', rk: 'user_alice', is_admin: true },
         { pk: 'club_other', rk: 'ladder_other', is_admin: false },
         { pk: 'ladder', rk: 'ladder_other', state: 'pending', name: 'Unrelated request' },
     );
@@ -83,12 +81,14 @@ test('pending ladders are visible to their creator and club approvals only to th
         rows.push(
             { pk: type, rk: `${type}_pending`, state: 'pending', name: `New ${type}` },
             { pk: 'club_pending', rk: `${type}_pending` },
+            { pk: 'user_alice', rk: `${type}_pending`, is_admin: true },
         );
     }
     const creator = await output('user', 'user_alice', 'user_alice', rows);
-    assert.match(creator, /New ladder[\s\S]*pending club approval/);
+    for (const type of ['ladder', 'team', 'group', 'comp'])
+        assert.match(creator, new RegExp(`New ${type}</a><p>pending club approval</p>`));
     const visitor = await output('user', 'user_admin', 'user_alice', rows);
-    assert.doesNotMatch(visitor, /New ladder|Pending Approval/);
+    assert.doesNotMatch(visitor, /New (?:ladder|team|group|comp)|Pending Approval/);
     const admin = await output('user', 'user_admin', 'user_admin', rows);
     assert.match(admin, /Pending Approval/);
     for (const type of ['ladder', 'team', 'group', 'comp'])

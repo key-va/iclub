@@ -31,6 +31,7 @@
 	const relatedRows = $derived(
 		relationsOf(user_id).filter((row) => row.state !== 'left')
 	);
+	const reviewTypes = ['ladder', 'comp', 'team', 'group'];
 	const viewingOwnPage = $derived(user_id === caller_id);
 	const adminClubs = $derived(viewingOwnPage
 		? relatedRows.filter(row => typeOf(row.rk) === 'club' && row.is_admin === true)
@@ -39,11 +40,11 @@
 		relationsOf(club.rk).map(row => row.rk)
 	))]
 		.map(id => entityOf(id))
-		.filter((row): row is GuidRow => row?.state === 'pending' && ['ladder', 'comp', 'team', 'group'].includes(row.pk))
+		.filter((row): row is GuidRow => row?.state === 'pending' && reviewTypes.includes(row.pk))
 		.sort((first, second) => String(first.name).localeCompare(String(second.name))));
-	const pendingLadders = $derived(viewingOwnPage
+	const pendingCreations = $derived(viewingOwnPage
 		? relatedRows
-			.filter(row => row.is_admin === true && typeOf(row.rk) === 'ladder')
+			.filter(row => row.is_admin === true && reviewTypes.includes(typeOf(row.rk)))
 			.map(row => entityOf(row.rk))
 			.filter((row): row is GuidRow => row?.state === 'pending' && !pendingApprovals.some(item => item.rk === row.rk))
 		: []);
@@ -72,15 +73,15 @@
 			</div>
 		{/if}
 
-		{#each pendingLadders as ladder (ladder.rk)}
-			<RouteLink href={hrefOf(ladder.rk)} title={ladder.name} description="pending club approval"
-				image={imageOf(ladder.rk)} isWhite />
+		{#each pendingCreations as entity (entity.rk)}
+			<RouteLink href={hrefOf(entity.rk)} title={entity.name} description="pending club approval"
+				image={imageOf(entity.rk)} isWhite />
 		{/each}
 
 		{#each ladders as ladder (ladder.rk)}
 			<UserLadder user={user_entity} ladder={entityOf(ladder.rk)!} />
 		{:else}
-			{#if viewingOwnPage && pendingLadders.length === 0 && ladders.length === 0 && teams.length === 0 && groups.length === 0 && competitions.length === 0}
+			{#if viewingOwnPage && pendingCreations.length === 0 && ladders.length === 0 && teams.length === 0 && groups.length === 0 && competitions.length === 0}
 				<div class="group">
 					<RouteLink
 						href="/browse"
