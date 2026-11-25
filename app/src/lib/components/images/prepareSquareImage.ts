@@ -1,9 +1,9 @@
 // Shared by entity create/edit forms. The caller owns preview state and error text.
-export async function prepareSquareImage(file: File): Promise<string> {
+export async function prepareSquareImage(file: File, outputSize?: number): Promise<string> {
 	const bitmap = await createImageBitmap(file);
 	try {
 		const side = Math.min(bitmap.width, bitmap.height);
-		const size = Math.min(512, side);
+		const size = outputSize ?? Math.min(512, side);
 		const canvas = document.createElement('canvas');
 		canvas.width = size;
 		canvas.height = size;

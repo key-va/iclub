@@ -52,7 +52,7 @@ export async function relations(id: string) {
 
 type EntityType = "group" | "comp";
 
-export async function signedEntityRequest(request: HttpRequest, context: InvocationContext, type: EntityType | "ladder" | "team") {
+export async function signedEntityRequest(request: HttpRequest, context: InvocationContext, type: EntityType | "ladder" | "team" | "club") {
     let body;
     try {
         body = (await request.json()) as {

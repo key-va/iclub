@@ -126,6 +126,9 @@ export const setRoundRole = (
 		...(userId ? { user_id: userId } : {})
 	});
 
+export const updateClub = (id: string, data: Record<string, unknown>) =>
+	mutateWithSubject(`club/${id}/update`, data);
+
 export const createLadder = (data: Record<string, unknown>) =>
 	mutateWithSubject('ladder/create', data);
 export const updateLadder = (id: string, data: Record<string, unknown>) =>

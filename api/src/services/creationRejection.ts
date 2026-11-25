@@ -40,9 +40,9 @@ async function reject(
     await sendRejection(
         id, String(entity.name), recipients,
         `your pending request to create ${entity.name} was rejected, please review the club rules or reach out to your club admin`,
-        context, caller, "browse",
+        context, caller, `club/${club}`,
     );
-    return reply(200, "Creation request rejected", "/browse");
+    return reply(200, "Creation request rejected", club);
 }
 
 export async function rejectCreation(request: HttpRequest, context: InvocationContext, type: EntityType) {

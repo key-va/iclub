@@ -967,12 +967,14 @@ test("a club admin can reject a pending comp creation and prevent later approval
     assert.equal(get("comp", id).state, "rejected");
     assert.equal(get(id, "club_home"), undefined);
     assert.equal((await elimCall(id, "reject-creation", "user_otheradmin")).status, 403);
-    assert.equal((await elimCall(id, "reject-creation", clubAdmin)).status, 200);
+    const rejected = await elimCall(id, "reject-creation", clubAdmin);
+    assert.equal(rejected.status, 200);
+    assert.equal(rejected.jsonBody.subject, "club_home");
     assert.equal(get("comp", id), undefined);
     assert.equal(get(id, elimAdmin), undefined);
     assert.equal(get(elimAdmin, id), undefined);
     assert.equal(get("user_visitor", id), undefined);
-    assert.equal(pushes.at(-1).path, "browse");
+    assert.equal(pushes.at(-1).path, "club/club_home");
     assert.deepEqual(pushes.at(-1).userIds, [elimAdmin]);
     assert.equal((await elimCall(id, "activate", clubAdmin)).status, 404);
 });
@@ -989,4 +991,41 @@ test("rejecting a doubles comp request leaves the other applicant pending", asyn
     assert.equal(get(data.user_id, id), undefined);
     assert.equal(get(id, "user_visitor").state, "pending");
     assert.deepEqual(pushes.at(-1).userIds, [data.user_id]);
+});
+
+test("club contact edits require the club's own admin and preserve other fields", async () => {
+    require("../dist/src/functions/clubUpdate");
+    const edit = (caller, data) => invoke("club", "update", caller, data, "club_home");
+    assert.equal((await edit("user_otheradmin", { contact_name: "Club contact" })).status, 403);
+    assert.equal((await edit("user_clubadmin", { contact_email: "invalid" })).status, 400);
+    assert.equal((await edit("user_clubadmin", { url: "different.example" })).status, 400);
+    const updated = await edit("user_clubadmin", {
+        name: "New Club", foreground: "#d10f63", background: "#006699",
+        contact_name: " Club contact ", contact_email: "club@example.org", address: "123 Club Road",
+    });
+    assert.equal(updated.status, 200);
+    assert.equal(updated.jsonBody.subject, "club_home");
+    const club = get("club", "club_home");
+    assert.equal(club.name, "New Club");
+    assert.equal(club.url, "club.example");
+    assert.equal(club.foreground, "#d10f63");
+    assert.equal(club.background, "#006699");
+    assert.equal(club.contact_name, "Club contact");
+    assert.equal(club.contact_email, "club@example.org");
+    assert.equal(club.address, "123 Club Road");
+
+    const sharp = require("sharp");
+    const image = await sharp({
+        create: { width: 512, height: 512, channels: 3, background: "#006699" },
+    }).jpeg().toBuffer();
+    for (const suffix of [".jpg", "_180.png", "_192.png", "_512.png"])
+        blobs.set(`club_home${suffix}`, Buffer.from("old"));
+    assert.equal((await edit("user_clubadmin", { image: image.toString("base64") })).status, 200);
+    assert.deepEqual(blobs.get("club_home.jpg"), image);
+    for (const size of [180, 192, 512]) {
+        const asset = await sharp(blobs.get(`club_home_${size}.png`)).metadata();
+        assert.equal(asset.format, "png");
+        assert.equal(asset.width, size);
+        assert.equal(asset.height, size);
+    }
 });
