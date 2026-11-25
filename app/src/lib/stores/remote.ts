@@ -60,7 +60,10 @@ async function mutate(
 	data: Record<string, unknown> = {},
 	signed = true
 ): Promise<ApiResponse> {
-	const result = await callApi(endpoint, data, signed);
+	const result = await callApi(endpoint, data, signed).catch(async (error: unknown) => {
+		await guids.refresh().catch(() => {});
+		throw error;
+	});
 	const response = result;
 	const refresh = async (): Promise<ApiResponse> => {
 		try {

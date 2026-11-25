@@ -50,7 +50,7 @@
 	function start(event: MouseEvent) {
 		if (disabled || isBusy || isExpanded) return;
 		completed = null;
-		retryAction = undefined;
+		if (confirm) retryAction = undefined;
 		originX = event.clientX;
 		originY = event.clientY;
 		shown = message;
@@ -59,7 +59,7 @@
 			new CustomEvent('api-action-state', { bubbles: true, detail: true })
 		);
 
-		// without confirmation the overlay only appears for an error
+		// Quick options can display failures in their own row.
 		if (confirm) isExpanded = true;
 		else execute();
 	}
@@ -157,6 +157,12 @@
 				typeof error.retry === 'function'
 			) {
 				retryAction = error.retry as () => Promise<ApiResponse>;
+			}
+			if (!confirm && triggerButton && !triggerButton.dispatchEvent(
+				new CustomEvent('api-action-error', { bubbles: true, cancelable: true })
+			)) {
+				close();
+				return;
 			}
 			shown = error instanceof Error ? error.message : 'action failed';
 			isError = true;

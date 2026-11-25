@@ -30,6 +30,7 @@
 	let open = $state(false);
 	let pendingActions = $state(0);
 	let busyActions = $state(0);
+	let failed = $state(false);
 	const busy = $derived(busyActions > 0);
 	let dotButton = $state<HTMLButtonElement>();
 	let closeButton = $state<HTMLButtonElement>();
@@ -44,6 +45,7 @@
 	});
 
 	async function reveal() {
+		failed = false;
 		open = true;
 		await tick();
 		const firstAction = actionsNode?.querySelector<HTMLElement>(
@@ -65,7 +67,13 @@
 		});
 		const activity = trackActions(node, (count) => {
 			busyActions = count;
+			if (count > 0) failed = false;
 		}, 'api-action-busy');
+		const showError = (event: Event) => {
+			event.preventDefault();
+			failed = true;
+		};
+		node.addEventListener('api-action-error', showError);
 		const onkeydown = (event: KeyboardEvent) => {
 			if (event.key === 'Escape' && !pendingActions) {
 				event.preventDefault();
@@ -78,6 +86,7 @@
 				tracking.destroy();
 				activity.destroy();
 				node.removeEventListener('keydown', onkeydown);
+				node.removeEventListener('api-action-error', showError);
 			}
 		};
 	}
@@ -108,7 +117,7 @@
 					bind:this={closeButton}
 					type="button"
 					class={`round-icon-small close-button ${busy ? 'grey' : 'blue'}`}
-					aria-label={busy ? `Action in progress for ${title}` : `Close actions for ${title}`}
+					aria-label={busy ? `Action in progress for ${title}` : failed ? `Action failed for ${title}. Close actions` : `Close actions for ${title}`}
 					disabled={busy || pendingActions > 0}
 					onclick={close}
 				>
@@ -125,6 +134,8 @@
 					>
 						{#if busy}
 							<path d="M6 3h12M6 21h12M7 3v4l5 5-5 5v4M17 3v4l-5 5 5 5v4" />
+						{:else if failed}
+							<path d="M12 5v9M12 19h.01" />
 						{:else}
 							<path d="M6 6l12 12M18 6 6 18" />
 						{/if}
