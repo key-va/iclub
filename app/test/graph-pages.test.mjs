@@ -206,8 +206,8 @@ test('Competition page mirrors ladder controls and scopes requests and ranking b
     ];
     const admin = await output('comp', 'user_admin', undefined, rows);
     assert.match(admin, /elimination • singles • super set • entries open/);
-    assert.match(admin, /data-colour="blue"[^>]*><a [^>]*>Alice/);
-    assert.match(admin, /data-colour="grey"[^>]*><a [^>]*>Administrator/);
+    assert.match(admin, /data-colour="orange"[^>]*><a [^>]*>Alice/);
+    assert.match(admin, /data-colour="blue"[^>]*><a [^>]*>Administrator/);
     assert.match(admin, /data-colour="orange"[^>]*><a [^>]*>Bob/);
     assert.equal(hasAction(admin, 'Accept Bob'), true);
     assert.equal(hasAction(admin, 'Unrank Alice'), true);
@@ -216,7 +216,7 @@ test('Competition page mirrors ladder controls and scopes requests and ranking b
     assert.equal(hasAction(admin, 'start draw'), true);
 
     const player = await output('comp', 'user_alice', undefined, rows);
-    assert.match(player, /data-colour="blue"[^>]*><a [^>]*>Alice/);
+    assert.match(player, /data-colour="orange"[^>]*><a [^>]*>Alice/);
     assert.match(player, /rank 1 • pending/);
     assert.match(player, /<button[^>]*disabled[^>]*><p>no actions<\/p>/);
     assert.doesNotMatch(player, /waiting to join|Accept Bob|Unrank Alice/);
