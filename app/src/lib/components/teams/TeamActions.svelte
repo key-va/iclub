@@ -33,7 +33,7 @@
 			action={() => leaveTeam(team.rk)} />
 	{/if}
 	{#if isTeamAdmin(mine)}
-		<ActionLink href={`/team/${team.rk}/edit`} name="edit" />
+		<ActionLink href={`/team/${team.rk}/edit`} confirm={false} />
 	{/if}
 {/snippet}
 
