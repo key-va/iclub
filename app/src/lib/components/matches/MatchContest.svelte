@@ -210,7 +210,9 @@
 				<p class="info description">{completeSummary}</p>
 			</div>
 		{/if}
-		{#if match.state === 'pending'}
+		{#if match.state === 'withdrawn'}
+			<div class="row center"><p class="info description">challenge withdrawn</p></div>
+		{:else if match.state === 'pending'}
 			<div class="row center">
 				<p class="info">
 					waiting for <strong>{nameOf(defender.rk)}</strong> to accept

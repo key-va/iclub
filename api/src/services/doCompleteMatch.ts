@@ -23,7 +23,6 @@ export interface CompleteMatchInput {
     matchId: string;
     // the player who withdrew; the opponent is the winner. Omit when the match was played out.
     forfeiterId?: string;
-    withdrawal?: boolean;
     // games won in each set (one entry for a single-set match); may be partial or empty on a forfeit
     challengerScore?: number[];
     defenderScore?: number[];
@@ -68,14 +67,11 @@ function pointsAwarded(winner: number[], loser: number[]): number {
 // The caller is responsible for authenticating the request and validating the scores.
 export async function doCompleteMatch(input: CompleteMatchInput, context: InvocationContext): Promise<CompleteMatchResult> {
 
-    const { matchId, forfeiterId, challengerScore, defenderScore, withdrawal } = input;
+    const { matchId, forfeiterId, challengerScore, defenderScore } = input;
 
     const match = await getRow("match", matchId);
 
     if (!match) return { ok: false, status: 404, message: "Match not found" };
-
-    if (withdrawal && match.state !== "pending")
-        return { ok: false, status: 409, message: "Only pending challenges can be withdrawn" };
 
     if (match.state !== "pending" && match.state !== "active") {
         return { ok: false, status: 409, message: "This match is already finished" };
@@ -147,20 +143,6 @@ export async function doCompleteMatch(input: CompleteMatchInput, context: Invoca
         return { ok: false, status: 409, message: "Both players must be on the ladder" };
     }
 
-    if (withdrawal) {
-        try {
-            await guidsClient.updateEntity(
-                { partitionKey: "match", rowKey: matchId, state: "withdrawing" },
-                "Merge",
-                { etag: String(match.etag) },
-            );
-        } catch (error: any) {
-            if (error?.statusCode === 412)
-                return { ok: false, status: 409, message: "The challenge has already changed" };
-            throw error;
-        }
-    }
-
     const changed = new Set<string>([winnerId, loserId]);
     const isWinPoints = ladder.ladder_system === "win_points";
     const challengeCost = Math.max(0, Number(challenger.rank) - Number(defender.rank));
@@ -183,10 +165,7 @@ export async function doCompleteMatch(input: CompleteMatchInput, context: Invoca
     if (isWinPoints) {
         winner.points = Number(winner.points ?? 0) + (forfeiterId ? 1 : pointsAwarded(scoresOf(winnerId), scoresOf(loserId)));
 
-        // The challenge is paid for once played; a challenger who withdraws keeps their points
-        if (forfeiterId !== challengerId) {
-            challenger.points = Math.max(0, Number(challenger.points ?? 0) - challengeCost);
-        }
+        challenger.points = Math.max(0, Number(challenger.points ?? 0) - challengeCost);
     }
 
     // The loser cools off until the hourly job (functions/batchHourly.ts) frees them; the winner is free to play
@@ -232,7 +211,7 @@ export async function doCompleteMatch(input: CompleteMatchInput, context: Invoca
     return {
         ok: true,
         status: 200,
-        message: withdrawal ? "Challenge withdrawn" : forfeiterId ? "Okay, match forfeited" : "Okay, score submitted",
+        message: forfeiterId ? "Okay, match forfeited" : "Okay, score submitted",
         matchName: `${match.name}`,
         challengerId,
         defenderId,

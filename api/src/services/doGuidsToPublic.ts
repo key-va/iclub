@@ -31,6 +31,8 @@ export async function doGuidsToPublic(): Promise<number> {
             timestamp,
             etag,
             rejection_recipients,
+            withdraw_challenger_etag,
+            withdraw_defender_etag,
             ...properties
         } = entity;
 
@@ -39,7 +41,7 @@ export async function doGuidsToPublic(): Promise<number> {
             rk: rowKey,
             ...properties,
             // Keep the reject control available if request cleanup needs a retry.
-            ...(properties.state === "rejecting" ? { state: "pending" } : {}),
+            ...(["rejecting", "withdrawing"].includes(String(properties.state)) ? { state: "pending" } : {}),
             ...(timestamp ? { ts: timestamp } : {}),
             ...(etag ? { et: etag } : {})
         });

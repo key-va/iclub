@@ -24,15 +24,7 @@ const toSets = (value: unknown): number[] | undefined => {
     return Array.isArray(sets) && sets.length > 0 && sets.length <= 5 && sets.every(isScore) ? sets : undefined;
 };
 
-export function matchForfeit(request: HttpRequest, context: InvocationContext) {
-    return forfeit(request, context, false);
-}
-
-export function matchWithdraw(request: HttpRequest, context: InvocationContext) {
-    return forfeit(request, context, true);
-}
-
-async function forfeit(request: HttpRequest, context: InvocationContext, withdrawal: boolean): Promise<HttpResponseInit> {
+export async function matchForfeit(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
 
     const matchId = request.params.match_id;
 
@@ -80,19 +72,19 @@ async function forfeit(request: HttpRequest, context: InvocationContext, withdra
     for await (const relation of guidsClient.listEntities({
         queryOptions: { filter: odata`PartitionKey eq ${matchId}` }
     })) {
-        if ((relation.role === "challenger" || (!withdrawal && relation.role === "defender")) &&
+        if ((relation.role === "challenger" || relation.role === "defender") &&
             (await doCompetitorUsers(guidsClient, relation.rowKey as string)).includes(caller_id)) {
             forfeiterId = relation.rowKey as string;
         }
     }
 
     if (!forfeiterId) {
-        return { status: 403, jsonBody: { success: false, message: withdrawal ? "Only the challenger can withdraw" : "Only a player in this match can forfeit it" } };
+        return { status: 403, jsonBody: { success: false, message: "Only a player in this match can forfeit it" } };
     }
 
     // 3. Apply the result
     const result = await doCompleteMatch(
-        { matchId, forfeiterId, challengerScore, defenderScore, withdrawal },
+        { matchId, forfeiterId, challengerScore, defenderScore },
         context
     );
 
@@ -105,7 +97,7 @@ async function forfeit(request: HttpRequest, context: InvocationContext, withdra
         userIds: result.userIds!,
         exceptUserId: caller_id,
         heading: result.matchName!,
-        content: withdrawal ? "Your opponent withdrew the challenge" : "Your opponent has forfeited the match",
+        content: "Your opponent has forfeited the match",
         path: `match/${matchId}`,
         collapseId: matchId
     }, context);
@@ -121,11 +113,4 @@ app.http("matchForfeit", {
     route: "match/{match_id}/forfeit",
     authLevel: "anonymous",
     handler: matchForfeit
-});
-
-app.http("matchWithdraw", {
-    methods: ["POST"],
-    route: "match/{match_id}/withdraw",
-    authLevel: "anonymous",
-    handler: matchWithdraw
 });

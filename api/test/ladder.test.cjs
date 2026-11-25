@@ -140,14 +140,14 @@ test('all four participants may submit results; ranks, points, cooling and user 
     }
 });
 
-test('either member can forfeit for their side; outsider cannot; challenger keeps points on withdrawal',async()=>{
+test('either member can forfeit for their side; outsider cannot; challenger pays the challenge cost on forfeiture',async()=>{
     for (const caller of [A,B,C,D]) {
         rows.clear();doubles();const id=await challenge();
         assert.equal((await call(forfeit,'user_outsider',undefined,{match_id:id})).status,403);
         assert.equal((await call(forfeit,caller,undefined,{match_id:id})).status,200);
         const losingPair=[A,B].includes(caller)?'pair_top':'pair_bottom';
         assert.equal(get(id,losingPair).result,'forfeiter');
-        if(losingPair==='pair_bottom')assert.equal(get(L,'pair_bottom').points,2);mirrored();
+        if(losingPair==='pair_bottom')assert.equal(get(L,'pair_bottom').points,1);mirrored();
     }
 });
 
@@ -463,13 +463,24 @@ test('rejecting a playing application preserves existing ladder administration',
 
 test('only the challenging side can withdraw a pending ladder challenge', async () => {
     doubles();
-    const withdraw = require('../dist/src/functions/matchForfeit.js').matchWithdraw;
+    const withdraw = load('matchWithdraw');
     const id = await challenge();
     const params = { match_id: id };
     for (const viewer of [A, ADMIN])
         assert.equal((await call(withdraw, viewer, {}, params)).status, 403);
     assert.equal((await call(withdraw, D, {}, params)).status, 200);
-    assert.equal(get('match', id).state, 'complete');
+    assert.equal(get('match', id).state, 'withdrawn');
+    assert.equal(get(id, 'pair_bottom').result, undefined);
+    assert.equal(get(id, 'pair_top').result, undefined);
+    for (const [pairId, rank] of [['pair_top', 1], ['pair_bottom', 2]]) {
+        assert.equal(get(L, pairId).points, rank);
+        assert.equal(get(L, pairId).rank, rank);
+        assert.equal(get(L, pairId).state, 'active');
+        assert.equal(get(pairId, L).state, 'active');
+    }
+    const sent = pushes.length;
+    assert.equal((await call(withdraw, C, {}, params)).status, 200);
+    assert.equal(pushes.length, sent);
     assert.equal((await call(matchAccept, A, {}, params)).status, 409);
 
     rows.clear();

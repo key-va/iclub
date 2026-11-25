@@ -143,7 +143,11 @@ test('match defender permissions, competitor names and messages survive the look
     assert.match(html, /See you on court/);
     assert.match(html, /waiting for <strong>Bob/);
     assert.equal(hasAction(html, 'accept'), true);
-    assert.equal(hasAction(await output('match', 'user_alice'), 'accept'), false);
+    const challenger = await output('match', 'user_alice');
+    assert.equal(hasAction(challenger, 'accept'), false);
+    assert.match(challenger, /class="row right controls action-row[^"]*"[\s\S]*?aria-label="withdraw"/);
+    assert.match(challenger, /aria-label="More Options"[\s\S]*aria-label="forfeit"/);
+    assert.equal(hasAction(html, 'withdraw'), false);
 });
 test('user home resolves team details and outstanding round role/date separately', async () => {
     const html = await output('user', 'user_alice');

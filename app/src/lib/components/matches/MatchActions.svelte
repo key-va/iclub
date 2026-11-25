@@ -21,6 +21,8 @@
 	const links = $derived(relationsOf(match.rk));
 	const comp = $derived(links.find((row) => row.rk.startsWith('comp_')));
 	const mine = $derived(links.find((row) => row.rk === $local.caller_id));
+	const pendingLadder = $derived(match.state === 'pending' && links.some(row => row.rk.startsWith('ladder_')));
+	const canWithdraw = $derived(pendingLadder && isMatchSide(links, $local.caller_id, 'challenger'));
 	const canAccept = $derived(canAcceptLadderMatch(match, $local.caller_id));
 	const forfeitRelevant = $derived(
 		comp ? (match.state === 'active' || match.state === 'waiting') &&
@@ -43,13 +45,15 @@
 </script>
 
 {#snippet quickButtons()}
-	{@const pendingLadder = match.state === 'pending' && links.some(row => row.rk.startsWith('ladder_'))}
 	<ActionQuick inline name="accept"
 		disabled={!pendingLadder || !isMatchSide(links, $local.caller_id, 'defender')}
 		action={() => acceptMatch(match.rk)}
 	/>
-	<ActionQuick inline name="withdraw"
-		disabled={!pendingLadder || !isMatchSide(links, $local.caller_id, 'challenger')}
+	{@render withdrawButton()}
+{/snippet}
+{#snippet withdrawButton()}
+	<ActionQuick inline name="withdraw" arrow={!quick}
+		disabled={!canWithdraw}
 		action={() => withdrawMatch(match.rk)}
 	/>
 {/snippet}
@@ -61,6 +65,10 @@
 		message={`accept ${match.name}?`}
 		action={() => acceptMatch(match.rk)}
 	/>{/snippet}
+{#snippet primaryButtons()}
+	{#if canAccept}{@render acceptButton()}{/if}
+	{#if canWithdraw}{@render withdrawButton()}{/if}
+{/snippet}
 {#snippet forfeitOption()}<ActionConfirmation
 		inline
 		arrow
@@ -72,10 +80,10 @@
 	/>{/snippet}
 {#if quick}
 	{@render quickButtons()}
-{:else if canAccept || forfeitRelevant}
+{:else if canAccept || canWithdraw || forfeitRelevant}
 	<EntityActions
 			{section}
-			children={canAccept ? acceptButton : undefined}
+			children={canAccept || canWithdraw ? primaryButtons : undefined}
 			options={forfeitRelevant ? forfeitOption : undefined}
 		/>
 {/if}
