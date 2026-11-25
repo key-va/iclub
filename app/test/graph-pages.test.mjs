@@ -251,6 +251,7 @@ test('Competition page mirrors ladder controls and scopes requests and ranking b
     const approval = await output('comp', 'user_admin', undefined, rows);
     assert.match(approval, /Club knockout<\/strong><br\s*\/?><span class="description">comp<\/span>/);
     assert.match(approval, /awaiting club approval[\s\S]*aria-label="approve"/);
+    assert.match(approval, /class="action-link blue" href="\/comp\/comp_test\/edit"/);
     assert.doesNotMatch(approval, /Accept Bob|start draw/);
     assert.match(approval, /aria-label="Unrank Alice"[^>]*disabled/);
 

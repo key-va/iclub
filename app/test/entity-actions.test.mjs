@@ -72,9 +72,9 @@ test('team editor shows a read-only name and limits editing to team admins',asyn
  assert.match(blocked,/Only a team admin can edit this team/);assert.equal(has(blocked,'update'),false);assert.doesNotMatch(blocked,/aria-label="team name"/);
  const pending={...rows[0],state:'pending'};
  const pendingPage=await show('team',{team:pending},[pending,rows[1]]);
- assert.equal(has(pendingPage,'More Options'),false);
+ assert.equal(has(pendingPage,'More Options'),true);
  const pendingEdit=render(views.teamEdit,{context}).body;
- assert.match(pendingEdit,/after club approval/);assert.equal(has(pendingEdit,'update'),false);
+ assert.match(pendingEdit,/aria-label="team icon"/);assert.equal(has(pendingEdit,'update'),true);
 });
 
 

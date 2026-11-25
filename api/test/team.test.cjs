@@ -1229,9 +1229,10 @@ test('team icon editing enforces team-admin authority and rejects name changes a
  for(const data of [{},{name:'Changed'},{name:'',image:'/9j/'},{image:'bad'},{image:3},{ext_external_team:'other'}]){
   assert.equal((await call('update',A,data)).status,400);assert.equal(get('team',T).name,'Lobs');
  }
- get('team',T).state='pending';
- assert.equal((await call('update',A,{image:'/9j/AA=='})).status,409);
  assert.equal(editedImages.length,0);
+ get('team',T).state='pending';
+ assert.equal((await call('update',A,{image:'/9j/AA=='})).status,200);
+ assert.equal(editedImages.length,1);
  rejectSignature=true;assert.equal((await call('update',A,{image:'bad'})).status,401);assert.equal(get('team',T).name,'Lobs');
 });
 

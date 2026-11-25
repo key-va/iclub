@@ -137,6 +137,8 @@ export const deleteLadder = (id: string) =>
 	mutateWithSubject(`ladder/${id}/delete`);
 export const createGroup = (data: Record<string, unknown>) =>
 	mutateWithSubject('group/create', data);
+export const updateComp = (id: string, data: Record<string, unknown>) =>
+	mutateWithSubject(`comp/${id}/update`, data);
 export const updateGroup = (id: string, data: Record<string, unknown>) =>
 	mutateWithSubject(`group/${id}/update`, data);
 export const activateGroup = (id: string) =>

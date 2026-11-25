@@ -6,6 +6,7 @@
 	import { entityOf, guids, hrefOf, imageOf, nameOf, relationsOf, typeOf } from '#lib/stores/guids.ts';
 	import { acceptCompetitionPair, competitionEntry } from '#lib/stores/remote.ts';
 	import ActionConfirmation from '#lib/components/ActionConfirmation.svelte';
+	import ActionLink from '#lib/components/ActionLink.svelte';
 	import ActionQuick from '#lib/components/ActionQuick.svelte';
 	import EntryRequests from '#lib/components/EntryRequests.svelte';
 	import EntityActions from '#lib/components/EntityActions.svelte';
@@ -34,6 +35,7 @@
 	const roundRobin = $derived(elim?.comp_system === 'round_robin');
 	const standings = $derived(roundRobin ? roundRobinStandings(id) : []);
 	const doubles = $derived(elim?.format === 'doubles');
+	const canEdit = $derived(admin && elim?.state === 'pending');
 	const open = $derived(elim?.state === 'open');
 	const drawing = $derived(elim?.state === 'drawing');
 	const drawReady = $derived(elim?.state === 'active' || elim?.state === 'complete');
@@ -148,7 +150,7 @@
 			{/each}
 		{/if}
 
-		{#if canLeave || canDraw}
+		{#if canLeave || canDraw || canEdit}
 			<EntityActions section="options">
 				{#snippet options()}
 					{#if canLeave}
@@ -160,6 +162,7 @@
 						<ActionConfirmation inline name={drawing ? 'resume draw' : 'start draw'} message={drawMessage}
 							action={() => competitionEntry(id, 'draw')} disabled={!drawing && entrants.length < 2} />
 					{/if}
+					{#if canEdit}<ActionLink href={`/comp/${id}/edit`} />{/if}
 				{/snippet}
 			</EntityActions>
 		{/if}

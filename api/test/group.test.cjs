@@ -1029,3 +1029,23 @@ test("club contact edits require the club's own admin and preserve other fields"
         assert.equal(asset.height, size);
     }
 });
+
+test("comp admins can edit pending names and icons without changing competition settings", async () => {
+    require("../dist/src/functions/compUpdate");
+    const created = await elimCall(undefined, "create", elimAdmin, {
+        name: "Original Comp", comp_system: "elimination",
+    });
+    assert.equal(created.status, 201);
+    const id = created.jsonBody.subject;
+    assert.equal((await elimCall(id, "update", clubAdmin, { name: "New Name" })).status, 403);
+    assert.equal((await elimCall(id, "update", elimAdmin, { comp_system: "round_robin" })).status, 400);
+    const edited = await elimCall(id, "update", elimAdmin, { name: "New Name", image: jpeg.toString("base64") });
+    assert.equal(edited.status, 200);
+    assert.equal(edited.jsonBody.subject, id);
+    assert.equal(get("comp", id).name, "New Name");
+    assert.equal(get("comp", id).state, "pending");
+    assert.equal(get("comp", id).comp_system, "elimination");
+    assert.deepEqual(blobs.get(`${id}.jpg`), jpeg);
+    assert.equal((await elimCall(id, "activate", clubAdmin)).status, 200);
+    assert.equal((await elimCall(id, "update", elimAdmin, { name: "Late edit" })).status, 409);
+});
