@@ -117,23 +117,25 @@ test('singles standings resolve challenge identity, reach, state and self restri
     const props = { ladder, user };
     let output = html('LadderUser', props);
     assert.match(output, /href="\/user\/user_other"/);
-    assert.equal(action(output, 'challenge').disabled, false);
-    assert.deepEqual(action(output, 'challenge').data,
+    assert.equal(action(output, 'issue challenge').disabled, false);
+    assert.deepEqual(action(output, 'issue challenge').data,
         { ladder_id: ladder.rk, challenger_id: 'user_me', defender_id: 'user_other' });
     await load(items, 'user_other');
-    assert.equal(action(html('LadderUser', props), 'challenge'), undefined);
+    assert.equal(action(html('LadderUser', props), 'issue challenge').disabled, true);
     await load(items, 'user_admin');
-    assert.equal(action(html('LadderUser', props), 'challenge'), undefined);
-    for (const [state, colour] of [['away', 'red'], ['busy', 'orange'], ['cooling', 'blue'], ['active', 'green']]) {
+    assert.equal(action(html('LadderUser', props), 'issue challenge').disabled, true);
+    for (const [state, colour, label] of [['away', 'red', 'away'], ['busy', 'orange', 'in a match'], ['cooling', 'blue', 'cooling'], ['active', 'green', 'available']]) {
         const visitor = html('LadderUser', { ladder, user: { ...user, state } });
-        assert.match(visitor, new RegExp(`data-colour="${colour}" data-current-selection="no actions"`));
+        assert.match(visitor, new RegExp(`data-colour="${colour}"`));
+        assert.match(visitor, new RegExp(`<p>${label}</p>`));
+        assert.equal(action(visitor, 'issue challenge').disabled, true);
     }
     await load(items);
     assert.match(html('LadderUser', { ladder, user: { ...user, rank: 99, state: 'away' } }), /data-colour="grey"/);
     const own = graph.relationsOf(ladder.rk).find(row => row.rk === 'user_me');
     assert.match(html('LadderUser', { ladder, user: own }), /data-colour="green"/);
     user.state = 'away';
-    assert.equal(action(html('LadderUser', props), 'challenge'), undefined);
+    assert.equal(action(html('LadderUser', props), 'issue challenge').disabled, true);
     assert.match(html('LadderUser', props), /data-colour="red"/);
 });
 
@@ -151,16 +153,16 @@ test('doubles resolve pair standing and either partner as the same challenger', 
         const output = html('LadderPair', { ladder, pair });
         assert.match(output, /href="\/pair\/pair_other"/);
         assert.match(output, /data-image="[^"]*ladder_test.jpg"/);
-        assert.equal(action(output, 'challenge').disabled, false);
-        assert.equal(action(output, 'challenge').data.challenger_id, 'pair_mine');
+        assert.equal(action(output, 'issue challenge').disabled, false);
+        assert.equal(action(output, 'issue challenge').data.challenger_id, 'pair_mine');
     }
     await load(items, 'user_other');
-    assert.equal(action(html('LadderPair', { ladder, pair }), 'challenge'), undefined);
+    assert.equal(action(html('LadderPair', { ladder, pair }), 'issue challenge').disabled, true);
     // Retired memberships must never supply an active competitive identity.
     items.find(row => row.pk === ladder.rk && row.rk === 'pair_mine').is_participant = false;
     await load(items, 'user_me');
     assert.equal(rules.ladderMembership( ladder, 'user_me').competitorId, null);
-    assert.equal(action(html('LadderPair', { ladder, pair }), 'challenge'), undefined);
+    assert.equal(action(html('LadderPair', { ladder, pair }), 'issue challenge').disabled, true);
 });
 
 test('user ladder sections isolate ongoing matches to the viewed user and ladder', async () => {

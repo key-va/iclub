@@ -99,19 +99,8 @@ export function ladderStandingColour(
 	return ladderStateColours[String(target.relation.state)] ?? 'grey';
 }
 
-export function challengeDescription(
-	target: GuidRow,
-	competitorId: string | null,
-	eligible: boolean
-) {
-	const state = String(target.state);
-	if (target.rk === competitorId)
-		return state === 'active' ? 'available' : state;
-	if (state === 'away') return 'away';
-	if (state === 'busy') return 'in a match';
-	return eligible
-		? state === 'active'
-			? 'available'
-			: state
-		: 'cannot challenge';
+export function ladderStatusDescription(target: GuidRow) {
+	if (target.state === 'active') return 'available';
+	if (target.state === 'busy') return 'in a match';
+	return String(target.state);
 }
