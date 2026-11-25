@@ -84,7 +84,8 @@
 		{#snippet challengeAction()}
 			<ActionQuick
 				inline
-				name="challenge"
+				name="issue challenge"
+				disabled={!canOfferChallenge}
 				action={() => createMatch(ladder.rk, myPair!.rk, pairId)}
 			/>
 		{/snippet}
@@ -94,8 +95,7 @@
 			description={stateText}
 			image={imageOf(ladder.rk)}
 			colour={ladderStateColours[String(ladderRow?.state)] ?? 'grey'}
-			children={canOfferChallenge ? challengeAction : undefined}
-			currentSelection={canOfferChallenge ? undefined : stateText}
+			children={challengeAction}
 		>
 			{#snippet detail()}{Number(ladderRow?.rank) || 0}{/snippet}
 		</RouteLinkHiddenAction>

@@ -57,7 +57,6 @@
 		{description}
 		colour={roundAvailabilityColour(counts)}
 		isWhite={featured}
-		children={member ? actions : undefined}
-		currentSelection={member ? undefined : 'no actions'}
+		children={actions}
 	/>
 {/if}

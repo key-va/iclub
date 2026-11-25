@@ -98,19 +98,17 @@ test('team member roles and derived round details survive raw relation lookups',
     assert.equal(hasAction(html, 'accept'), true);
     assert.equal(hasAction(await output('team', 'user_alice'), 'accept'), false);
     const visitor = await output('team', 'user_visitor', undefined, items);
-    assert.match(visitor, /Round 1<\/a>[\s\S]*?<button[^>]*disabled[^>]*><p>no actions<\/p><\/button>/);
-    assert.match(visitor, /Round 2<\/a>[\s\S]*?<button[^>]*disabled[^>]*><p>no actions<\/p><\/button>/);
-    assert.equal(hasAction(visitor, 'available'), false);
-    assert.equal(hasAction(visitor, 'out'), false);
+    for (const label of ['out', 'available', 'playing'])
+        assert.equal((visitor.match(new RegExp(`aria-label="${label}"[^>]*disabled`, 'g')) ?? []).length, 2);
 });
 test('round roles drive availability and selection while names come from entities', async () => {
     const html = await output('round');
     assert.match(html, /Visitors vs Team A/);
     assert.match(html, /See you on court/);
-    assert.equal(hasAction(html, 'mark playing'), true);
+    assert.equal(hasAction(html, 'playing'), true);
     const player = await output('round', 'user_alice');
     assert.equal(hasAction(player, 'out'), true);
-    assert.equal(hasAction(player, 'mark playing'), false);
+    assert.equal(hasAction(player, 'playing'), false);
 });
 test('profile ladder match dots distinguish active, defending and waiting viewers', async () => {
     const rows = fixture();
@@ -127,15 +125,17 @@ test('profile ladder match dots distinguish active, defending and waiting viewer
     for (const viewer of ['user_alice', 'user_visitor', 'user_admin']) {
         const waiting = await output('user', viewer, 'user_alice', rows);
         assert.match(waiting, /data-colour="orange"[^>]*><a [^>]*>Alice versus Bob/);
-        assert.match(waiting, /<button class="grey" aria-label="accept"[^>]*disabled/);
-        if (viewer === 'user_alice') assert.match(waiting, /<button class="blue" aria-label="withdraw"/);
-        else assert.match(waiting, /<button class="grey" aria-label="withdraw"[^>]*disabled/);
+        if (viewer === 'user_alice') {
+            assert.match(waiting, /<button class="grey" aria-label="accept"[^>]*disabled/);
+            assert.match(waiting, /<button class="blue" aria-label="withdraw"/);
+        } else {
+            assert.match(waiting, /<button[^>]*disabled[^>]*><p>no actions<\/p>/);
+        }
     }
     rows.find((row) => row.pk === 'match' && row.rk === 'match_test').state = 'active';
     const active = await output('user', 'user_bob', 'user_bob', rows);
     assert.match(active, /data-colour="green"[^>]*><a [^>]*>Alice versus Bob/);
-    for (const name of ['accept', 'withdraw'])
-        assert.match(active, new RegExp(`aria-label="${name}"[^>]*disabled`));
+    assert.match(active, /<button[^>]*disabled[^>]*><p>no actions<\/p>/);
 });
 test('match defender permissions, competitor names and messages survive the lookup migration', async () => {
     const html = await output('match', 'user_bob');
@@ -190,7 +190,7 @@ test('Competition page mirrors ladder controls and scopes requests and ranking b
     const player = await output('comp', 'user_alice', undefined, rows);
     assert.match(player, /data-colour="blue"[^>]*><a [^>]*>Alice/);
     assert.match(player, /rank 1 • pending/);
-    assert.match(player, /<button[^>]*disabled[^>]*><p>unranked • pending<\/p>/);
+    assert.match(player, /<button[^>]*disabled[^>]*><p>no actions<\/p>/);
     assert.doesNotMatch(player, /waiting to join|Accept Bob|Unrank Alice/);
     assert.match(player, /More Options[\s\S]*aria-label="withdraw"/);
     assert.equal(hasAction(player, 'start draw'), false);

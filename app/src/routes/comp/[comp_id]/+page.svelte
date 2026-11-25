@@ -125,7 +125,7 @@
 					{/snippet}
 					<RouteLinkHiddenAction href={hrefOf(row.rk)} title={nameOf(row.rk)}
 						image={doubles ? pairIcon : imageOf(row.rk)} {description}
-						currentSelection={admin ? undefined : description}
+						currentSelection={admin ? undefined : 'no actions'}
 						colour={status === 'champion' ? 'green' : status === 'eliminated' ? 'red' : ranked ? 'blue' : 'grey'}
 						children={admin ? rankActions : undefined} />
 				{/each}

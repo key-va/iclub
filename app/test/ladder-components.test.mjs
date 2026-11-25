@@ -197,7 +197,7 @@ test('pending application controls are limited to ladder admins and honour ladde
             assert.equal(action(output, 'accept').endpoint, `ladder/${ladder.rk}/accept`);
             assert.deepEqual(action(output, 'accept').data, { user_id: 'user_partner' });
         } else {
-            assert.doesNotMatch(output, /aria-label="select player"/);
+            assert.match(output, /aria-label="select player"/);
             assert.equal(action(output, 'accept'), undefined);
         }
         await load(items, 'user_other');

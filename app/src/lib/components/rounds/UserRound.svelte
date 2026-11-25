@@ -10,7 +10,6 @@
 	import {
 		roundView,
 		futureRoundDescription,
-		roundRoleLabel,
 		roundRoleColour,
 		isTeamAdmin,
 		isTeamMember
@@ -41,5 +40,5 @@
 	description={futureRoundDescription(record, round.role)}
 	colour={roundRoleColour[String(round.role)] ?? 'grey'}
 	children={ownProfile ? actions : undefined}
-	currentSelection={ownProfile ? undefined : roundRoleLabel(round.role) || 'no actions'}
+	currentSelection={ownProfile ? undefined : 'no actions'}
 />

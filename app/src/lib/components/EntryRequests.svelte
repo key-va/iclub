@@ -25,24 +25,24 @@
 <div class="group">
 	{#each pending as player (player.rk)}
 		{#snippet actions()}
-			{#if doubles && pending.length < 2}
-				<button class="grey" disabled><p>waiting for a partner</p></button>
-			{:else if doubles}
+			{#if doubles}
+				<RejectJoinRequest {entityId} userId={player.rk} />
 				{#if selectedPairUser && selectedPairUser.rk !== player.rk}
 					<ActionQuick inline name={`accept with ${selectedFirstName}`}
 						action={() => acceptPair([selectedPairUser!.rk, player.rk])}
 						onsuccess={() => { selectedPairUserId = null; }} />
 				{:else}
-					<button class="blue" aria-label={selectedPairUserId === player.rk ? 'deselect player' : 'select player'}
-						onclick={() => selectedPairUserId = selectedPairUserId === player.rk ? null : player.rk}>
-						<p>{selectedPairUserId === player.rk ? 'selected' : 'select'}</p>
+					<button type="button" aria-label="select player" class={selectedPairUser ? 'grey' : 'blue'}
+						disabled={!!selectedPairUser}
+						onclick={() => { selectedPairUserId = player.rk; }}>
+						<p>select</p>
 					</button>
 				{/if}
 			{:else}
 				<ActionQuick inline name="accept" label={acceptLabel?.(player.rk)}
 					action={() => acceptPlayer(player.rk)} />
+				<RejectJoinRequest {entityId} userId={player.rk} />
 			{/if}
-			<RejectJoinRequest {entityId} userId={player.rk} />
 		{/snippet}
 		<RouteLinkHiddenAction href={hrefOf(player.rk)} title={nameOf(player.rk)} {description} image={imageOf(player.rk)} colour={selectedPairUserId === player.rk ? 'green' : 'orange'}
 			children={actions} />

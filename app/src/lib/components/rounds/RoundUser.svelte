@@ -16,24 +16,16 @@
 	const admin = $derived(
 		isTeamAdmin(relationsOf(team.rk).find((row) => row.rk === $local.caller_id))
 	);
-	const selectable = $derived(
-		!['complete', 'eliminated'].includes(String(round.state)) &&
-			admin &&
-			['available', 'selected'].includes(String(user.role))
+	const canManage = $derived(
+		admin && !['complete', 'eliminated'].includes(String(round.state))
 	);
 </script>
 
-{#snippet selectionAction()}
-	<ActionQuick
-		inline
-		name={user.role === 'selected' ? 'available' : 'mark playing'}
-		action={() =>
-			setRoundRole(
-				round.rk,
-				user.role === 'selected' ? 'available' : 'selected',
-				user.rk
-			)}
-	/>
+{#snippet selectionActions()}
+	<ActionQuick inline name="playing" disabled={user.role !== 'available'}
+		action={() => setRoundRole(round.rk, 'selected', user.rk)} />
+	<ActionQuick inline name="available" disabled={user.role !== 'selected'}
+		action={() => setRoundRole(round.rk, 'available', user.rk)} />
 {/snippet}
 <RouteLinkHiddenAction
 	href={hrefOf(user.rk)}
@@ -41,6 +33,6 @@
 	description={roundRoleLabel(user.role)}
 	image={imageOf(user.rk)}
 	colour={roundRoleColour[String(user.role)] ?? 'grey'}
-	children={selectable ? selectionAction : undefined}
-	currentSelection={!selectable ? roundRoleLabel(user.role) : undefined}
+	children={canManage ? selectionActions : undefined}
+	currentSelection={canManage ? undefined : 'no actions'}
 />
