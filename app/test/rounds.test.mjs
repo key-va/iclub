@@ -57,10 +57,6 @@ test("outstanding rounds include overdue pending and selected roles, grouped by 
         [],
     );
     assert.deepEqual(
-        rounds.outstandingTeamRounds("user_a", "team_one", true).map((r) => r.rk),
-        ["round_c", "round_h", "round_i", "round_a", "round_f", "round_g"],
-    );
-    assert.deepEqual(
         rounds.outstandingTeamRounds(
             "user_other",
             "team_one",

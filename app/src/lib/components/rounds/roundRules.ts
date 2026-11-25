@@ -151,7 +151,7 @@ export function roundLabel(round: GuidRow): string {
 		return 'postponed';
 	return String(round.state ?? 'pending');
 }
-export function outstandingTeamRounds(userId: string, teamId: string, includeResponded = false) {
+export function outstandingTeamRounds(userId: string, teamId: string) {
 	const teamRounds = new Map(
 		relationsOf(teamId)
 			.filter((row) => typeOf(row.rk) === 'round' && entityOf(row.rk))
@@ -166,8 +166,7 @@ export function outstandingTeamRounds(userId: string, teamId: string, includeRes
 		)
 		.filter(
 			(row) =>
-				(['pending', 'selected'].includes(String(row.role)) ||
-					(includeResponded && ['available', 'unavailable'].includes(String(row.role)))) &&
+				['pending', 'selected'].includes(String(row.role)) &&
 				!['complete', 'eliminated'].includes(String(viewOf(row).state))
 		)
 		.sort(

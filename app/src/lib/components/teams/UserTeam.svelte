@@ -37,7 +37,7 @@
 				: 'pending'
 	);
 	const rounds = $derived(
-		member ? outstandingTeamRounds(user.rk, team.rk, user.rk === $local.caller_id) : []
+		member ? outstandingTeamRounds(user.rk, team.rk) : []
 	);
 </script>
 
