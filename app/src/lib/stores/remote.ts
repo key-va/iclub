@@ -60,7 +60,10 @@ async function mutate(
 	data: Record<string, unknown> = {},
 	signed = true
 ): Promise<ApiResponse> {
-	const result = await callApi(endpoint, data, signed);
+	const result = await callApi(endpoint, data, signed).catch(async (error: unknown) => {
+		await guids.refresh().catch(() => {});
+		throw error;
+	});
 	const response = result;
 	const refresh = async (): Promise<ApiResponse> => {
 		try {
@@ -131,6 +134,8 @@ export const deleteLadder = (id: string) =>
 	mutateWithSubject(`ladder/${id}/delete`);
 export const createGroup = (data: Record<string, unknown>) =>
 	mutateWithSubject('group/create', data);
+export const updateComp = (id: string, data: Record<string, unknown>) =>
+	mutateWithSubject(`comp/${id}/update`, data);
 export const updateGroup = (id: string, data: Record<string, unknown>) =>
 	mutateWithSubject(`group/${id}/update`, data);
 export const activateGroup = (id: string) =>

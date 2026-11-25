@@ -1,5 +1,4 @@
 <script lang="ts">
-	import ActionQuick from '../ActionQuick.svelte';
 	import RejectCreationRequest from '#lib/components/RejectCreationRequest.svelte';
 	import ActionLink from '../ActionLink.svelte';
 	import EntityActions from '../EntityActions.svelte';
@@ -55,7 +54,7 @@
 		<ActionConfirmation inline name="leave ladder" message={`leave ${ladder.name}? Ongoing matches will be forfeited`}
 			action={() => leaveLadder(ladder.rk)} />
 	{/if}
-	{#if mine?.is_admin === true}<ActionLink href={`/ladder/${ladder.rk}/edit`} name="edit" />{/if}
+	{#if mine?.is_admin === true}<ActionLink href={`/ladder/${ladder.rk}/edit`} />{/if}
 {/snippet}
 
 <EntityActions
@@ -81,11 +80,12 @@
 		{#if clubAdmin && ladder.rejection_club}<RejectCreationRequest id={ladder.rk} resuming />{/if}
 	{:else if ladder.state === 'pending' && clubAdmin}
 		<RejectCreationRequest id={ladder.rk} />
-		<ActionQuick
+		<ActionConfirmation
 			inline
 			arrow
 			showLabel
 			name="approve this ladder"
+			message={`approve ${ladder.name} to make it active?`}
 			action={() => activateLadder(ladder.rk)}
 		/>
 	{:else if associated && mine?.state !== 'pending'}

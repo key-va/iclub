@@ -229,7 +229,7 @@ test('ladder page chooses users or pairs and orders competitive standings by ran
     }
 });
 
-test('ladder approval and rejection are immediate and respect club permissions', async () => {
+test('ladder approval and rejection require confirmation and respect club permissions', async () => {
     const { items, ladder, link } = fixture();
     const renderPage = () => render(ladderPage, {
         context: new Map([['__request__', { page: { params: { ladder_id: ladder.rk } } }]])
@@ -242,7 +242,8 @@ test('ladder approval and rejection are immediate and respect club permissions',
     assert.equal(action(renderPage(), 'approve this ladder').disabled, false);
     assert.equal(action(renderPage(), 'approve this ladder').endpoint, `ladder/${ladder.rk}/activate`);
     assert.equal(action(renderPage(), 'reject').endpoint, `ladder/${ladder.rk}/reject-creation`);
-    assert.match(renderPage(), /aria-label="reject"[^>]*data-confirmation="false"/);
+    assert.match(renderPage(), /aria-label="reject"[^>]*data-confirmation="true"/);
+    assert.match(renderPage(), /aria-label="approve this ladder"[^>]*data-confirmation="true"/);
     await load(items, 'user_me');
     assert.equal(action(renderPage(), 'approve this ladder'), undefined);
     assert.equal(action(renderPage(), 'reject'), undefined);

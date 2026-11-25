@@ -33,7 +33,7 @@ export async function systemAbout(request: HttpRequest, context: InvocationConte
             success: true,
             message: `Okay, Intra Club is up and running with ${total} total entities`,
             data: {
-                version: "261110",
+                version: "261125",
                 WEB_PUSH_PUBLIC_KEY: doWebPushConfig()?.publicKey ?? null,
                 counts
             }

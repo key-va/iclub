@@ -45,12 +45,13 @@ test('match page shows accept for defenders/admins and forfeit only for particip
 });
 
 
-test('pending entity approvals follow their summaries as immediate actions', async () => {
+test('pending entity approvals and rejections use confirmation styling', async () => {
  for(const [type,name] of [['ladder','approve this ladder'],['team','approve team'],['group','approve group']]) {
   const entity={pk:type,rk:`${type}_test`,name:'Pending entity',state:'pending',format:'singles',ladder_system:'win_points',match_format:'best_of_three',ext_association:'brta',ext_competition_name:'Tuesday Night',ext_section_name:'Section 1',ext_rank:3};
   const rows=[entity,{pk:entity.rk,rk:'club_test'},{pk:'club_test',rk:'user_me',is_admin:true}];
   const html=await show(type,{[type]:entity},rows);
-  assert.equal(has(html,name),true);assert.match(html,new RegExp(`class="blue"[^>]*aria-label="${name}"`));
+  assert.equal(has(html,name),true);assert.match(html,new RegExp(`class="pink"[^>]*aria-label="${name}"`));
+  assert.match(html, /class="pink"[^>]*aria-label="reject"/);
   assert.doesNotMatch(html,/aria-label="Pending"|pending approval|pending club approval/);
   if(type!=='group'){
    const summary=type==='ladder'?'singles • win points • best of three':'BRTA • Section 1 • rank 3';
@@ -69,6 +70,11 @@ test('team editor shows a read-only name and limits editing to team admins',asyn
  assert.match(html,/<input[^>]*aria-label="team name"[^>]*readonly/);assert.match(html,/value="Lobs"/);assert.equal(has(html,'update'),true);
  local.set({caller_id:'user_other',device_id:null,connect_key:null});const blocked=render(views.teamEdit,{context}).body;
  assert.match(blocked,/Only a team admin can edit this team/);assert.equal(has(blocked,'update'),false);assert.doesNotMatch(blocked,/aria-label="team name"/);
+ const pending={...rows[0],state:'pending'};
+ const pendingPage=await show('team',{team:pending},[pending,rows[1]]);
+ assert.equal(has(pendingPage,'More Options'),true);
+ const pendingEdit=render(views.teamEdit,{context}).body;
+ assert.match(pendingEdit,/aria-label="team icon"/);assert.equal(has(pendingEdit,'update'),true);
 });
 
 

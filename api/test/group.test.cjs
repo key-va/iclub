@@ -967,12 +967,14 @@ test("a club admin can reject a pending comp creation and prevent later approval
     assert.equal(get("comp", id).state, "rejected");
     assert.equal(get(id, "club_home"), undefined);
     assert.equal((await elimCall(id, "reject-creation", "user_otheradmin")).status, 403);
-    assert.equal((await elimCall(id, "reject-creation", clubAdmin)).status, 200);
+    const rejected = await elimCall(id, "reject-creation", clubAdmin);
+    assert.equal(rejected.status, 200);
+    assert.equal(rejected.jsonBody.subject, clubAdmin);
     assert.equal(get("comp", id), undefined);
     assert.equal(get(id, elimAdmin), undefined);
     assert.equal(get(elimAdmin, id), undefined);
     assert.equal(get("user_visitor", id), undefined);
-    assert.equal(pushes.at(-1).path, "browse");
+    assert.equal(pushes.at(-1).path, "about");
     assert.deepEqual(pushes.at(-1).userIds, [elimAdmin]);
     assert.equal((await elimCall(id, "activate", clubAdmin)).status, 404);
 });
@@ -989,4 +991,24 @@ test("rejecting a doubles comp request leaves the other applicant pending", asyn
     assert.equal(get(data.user_id, id), undefined);
     assert.equal(get(id, "user_visitor").state, "pending");
     assert.deepEqual(pushes.at(-1).userIds, [data.user_id]);
+});
+
+test("comp admins can edit pending names and icons without changing competition settings", async () => {
+    require("../dist/src/functions/compUpdate");
+    const created = await elimCall(undefined, "create", elimAdmin, {
+        name: "Original Comp", comp_system: "elimination",
+    });
+    assert.equal(created.status, 201);
+    const id = created.jsonBody.subject;
+    assert.equal((await elimCall(id, "update", clubAdmin, { name: "New Name" })).status, 403);
+    assert.equal((await elimCall(id, "update", elimAdmin, { comp_system: "round_robin" })).status, 400);
+    const edited = await elimCall(id, "update", elimAdmin, { name: "New Name", image: jpeg.toString("base64") });
+    assert.equal(edited.status, 200);
+    assert.equal(edited.jsonBody.subject, id);
+    assert.equal(get("comp", id).name, "New Name");
+    assert.equal(get("comp", id).state, "pending");
+    assert.equal(get("comp", id).comp_system, "elimination");
+    assert.deepEqual(blobs.get(`${id}.jpg`), jpeg);
+    assert.equal((await elimCall(id, "activate", clubAdmin)).status, 200);
+    assert.equal((await elimCall(id, "update", elimAdmin, { name: "Late edit" })).status, 409);
 });

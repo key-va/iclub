@@ -96,14 +96,15 @@ test('refresh retry preserves the mutation result and never repeats the POST', a
     assert.equal(refreshes, 2);
 });
 
-test('rejected mutations do not refresh the graph', async () => {
-    let calls = 0;
-    globalThis.fetch = async () => {
-        calls++;
+test('rejected mutations refresh the graph before surfacing the error', async () => {
+    const calls = [];
+    globalThis.fetch = async (_url, options) => {
+        calls.push(options.method ?? 'GET');
+        if (options.method !== 'POST') return Response.json([]);
         return Response.json({ success: false, message: 'Not allowed' }, { status: 403 });
     };
     await assert.rejects(remote.joinLadder('ladder_test'), /Not allowed/);
-    assert.equal(calls, 1);
+    assert.deepEqual(calls, ['POST', 'GET']);
 });
 
 

@@ -1,5 +1,4 @@
 <script lang="ts">
-	import ActionQuick from '../ActionQuick.svelte';
 	import RejectCreationRequest from '#lib/components/RejectCreationRequest.svelte';
 	import ActionLink from '../ActionLink.svelte';
 	import { teamDescription, isTeamAdmin } from '../rounds/roundRules.ts';
@@ -34,13 +33,13 @@
 			action={() => leaveTeam(team.rk)} />
 	{/if}
 	{#if isTeamAdmin(mine)}
-		<ActionLink href={`/team/${team.rk}/edit`} name="edit" />
+		<ActionLink href={`/team/${team.rk}/edit`} />
 	{/if}
 {/snippet}
 
 <EntityActions
 	{section}
-	options={(team.state === 'active' && mine) || isTeamAdmin(mine) ? membershipOptions : undefined}
+	options={(team.state === 'active' && mine) || (team.state === 'pending' && isTeamAdmin(mine)) ? membershipOptions : undefined}
 	summary={teamDescription(team)}
 >
 	{#if team.state === 'rejected'}
@@ -48,11 +47,12 @@
 		{#if clubAdmin && team.rejection_club}<RejectCreationRequest id={team.rk} resuming />{/if}
 	{:else if team.state === 'pending' && clubAdmin}
 		<RejectCreationRequest id={team.rk} />
-		<ActionQuick
+		<ActionConfirmation
 			inline
 			arrow
 			showLabel
 			name="approve team"
+			message={`Approve ${team.name} and import its rounds?`}
 			action={() => activateTeam(team.rk)}
 		/>
 	{:else if team.state === 'active' && (!mine || mine.state === 'pending')}
