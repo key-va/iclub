@@ -1,4 +1,5 @@
 <script lang="ts">
+	import RejectJoinRequest from '#lib/components/RejectJoinRequest.svelte';
 	import { local } from '#lib/stores/local.ts';
 	import {
 		relationsOf,
@@ -28,6 +29,7 @@
 		name="accept"
 		action={() => acceptTeamMember(team.rk, user.rk)}
 	/>
+	<RejectJoinRequest entityId={team.rk} userId={user.rk} />
 {/snippet}
 <RouteLinkHiddenAction
 	href={hrefOf(user.rk)}

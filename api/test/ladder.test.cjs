@@ -7,6 +7,7 @@ const rows = new Map();
 const pushes = [];
 const versions = new Map();
 let rejectSignature = false;
+let failMatchWrite = false;
 const key = (pk, rk) => `${pk}|${rk}`;
 const entity = (pk, rk, attributes = {}) => rows.set(key(pk,rk), { partitionKey: pk, rowKey: rk, timestamp: new Date(), ...attributes });
 const relation = (a,b,attributes={}) => { entity(a,b,attributes); entity(b,a,attributes); };
@@ -16,11 +17,29 @@ class TableClient {
     async updateEntity(row, mode, options) {
         const id=key(row.partitionKey,row.rowKey), current=get(row.partitionKey,row.rowKey);
         if(options?.etag !== undefined && options.etag !== String(versions.get(id) ?? 0)) throw {statusCode:412};
-        versions.set(id,(versions.get(id) ?? 0)+1);rows.set(id,{...current,...row});
+        versions.set(id,(versions.get(id) ?? 0)+1);rows.set(id,{...(mode === "Merge" ? current : {}),...row});
     }
-    async upsertEntity(row) { entity(row.partitionKey,row.rowKey,row); }
+    async submitTransaction(updates) {
+        for (const [, row, , options] of updates) {
+            const id = key(row.partitionKey, row.rowKey);
+            if (!rows.has(id)) throw { statusCode: 404 };
+            if (options.etag !== String(versions.get(id) ?? 0)) throw { statusCode: 412 };
+        }
+        for (const [, row] of updates) {
+            const id = key(row.partitionKey, row.rowKey);
+            versions.set(id, (versions.get(id) ?? 0) + 1);
+            rows.set(id, { ...rows.get(id), ...row });
+        }
+    }
+    async upsertEntity(row) {
+        if (failMatchWrite && row.partitionKey === 'match') throw Error('Match write interrupted');
+        entity(row.partitionKey,row.rowKey,row);
+    }
+    async deleteEntity(pk, rk) {
+        if (!rows.delete(key(pk, rk))) throw { statusCode: 404 };
+    }
     async *listEntities({queryOptions:{filter}}) {
-        const fields = [...filter.text.matchAll(/(PartitionKey|state) eq /g)].map(m => m[1] === 'PartitionKey' ? 'partitionKey' : m[1]);
+        const fields = [...filter.text.matchAll(/(PartitionKey|RowKey|state) eq /g)].map(m => m[1] === 'PartitionKey' ? 'partitionKey' : m[1] === 'RowKey' ? 'rowKey' : m[1]);
         for (const row of [...rows.values()]) if (fields.every((field,i) => row[field] === filter.values[i])) yield {...row};
     }
 }
@@ -66,7 +85,7 @@ function mirrored() {
         assert.deepEqual(attrs(row),attrs(opposite));
     }
 }
-beforeEach(()=>{rows.clear();versions.clear();pushes.length=0;rejectSignature=false;});
+beforeEach(()=>{rows.clear();versions.clear();pushes.length=0;rejectSignature=false;failMatchWrite=false;});
 after(()=>{Module._load=originalLoad;});
 
 test('individual requests stay pending; only admin can pair two distinct pending users',async()=>{
@@ -121,14 +140,14 @@ test('all four participants may submit results; ranks, points, cooling and user 
     }
 });
 
-test('either member can forfeit for their side; outsider cannot; challenger keeps points on withdrawal',async()=>{
+test('either member can forfeit for their side; outsider cannot; challenger pays the challenge cost on forfeiture',async()=>{
     for (const caller of [A,B,C,D]) {
         rows.clear();doubles();const id=await challenge();
         assert.equal((await call(forfeit,'user_outsider',undefined,{match_id:id})).status,403);
         assert.equal((await call(forfeit,caller,undefined,{match_id:id})).status,200);
         const losingPair=[A,B].includes(caller)?'pair_top':'pair_bottom';
         assert.equal(get(id,losingPair).result,'forfeiter');
-        if(losingPair==='pair_bottom')assert.equal(get(L,'pair_bottom').points,2);mirrored();
+        if(losingPair==='pair_bottom')assert.equal(get(L,'pair_bottom').points,1);mirrored();
     }
 });
 
@@ -367,4 +386,107 @@ test('simultaneous admin departures leave an administrator and busy operations r
  const remaining=get(id,A).is_admin?A:B;assert.equal((await membership('group','leave',remaining,id)).status,409);
  rows.clear();doubles();get('ladder',L).operation_guard=Date.now()+60000;
  assert.equal((await membership('ladder','away',A)).status,409);assert.equal(get(L,A).state,'active');assert.equal(get(L,'pair_top').state,'active');
+});
+
+test('concurrent singles challenges reserve both entrants in one transaction', async () => {
+    seed('singles');
+    for (const [index, user] of [A, B, C, D].entries())
+        relation(L, user, { is_participant: true, rank: index + 1, points: 4, state: 'active' });
+    const issue = (challenger, defender) => call(create, challenger, {
+        ladder_id: L, challenger_id: challenger, defender_id: defender
+    });
+    for (const [one, two, message] of [
+        [[D, B], [D, C], 'You already have an ongoing match'],
+        [[C, A], [D, A], 'The opponent already has an ongoing match']
+    ]) {
+        const results = await Promise.all([issue(...one), issue(...two)]);
+        assert.deepEqual(results.map(result => result.status).sort(), [201, 409]);
+        assert.equal(results.find(result => result.status === 409).jsonBody.message, message);
+        assert.equal([...rows.values()].filter(row => row.partitionKey === 'match').length, 1);
+        assert.equal(pushes.length, 1);
+        mirrored();
+        rows.clear();
+        versions.clear();
+        pushes.length = 0;
+        seed('singles');
+        for (const [index, user] of [A, B, C, D].entries())
+            relation(L, user, { is_participant: true, rank: index + 1, points: 4, state: 'active' });
+    }
+});
+
+test('either doubles partner reserves the same pair and a failed write releases both sides', async () => {
+    doubles();
+    const issue = (caller) => call(create, caller, {
+        ladder_id: L, challenger_id: 'pair_bottom', defender_id: 'pair_top'
+    });
+    failMatchWrite = true;
+    assert.equal((await issue(C)).status, 503);
+    assert.equal(get(L, 'pair_bottom').state, 'active');
+    assert.equal(get('pair_top', L).state, 'active');
+    assert.equal([...rows.values()].filter(row => row.rowKey.startsWith('match_') || row.partitionKey.startsWith('match')).length, 0);
+    mirrored();
+    failMatchWrite = false;
+    const results = await Promise.all([issue(C), issue(D)]);
+    assert.deepEqual(results.map(result => result.status).sort(), [201, 409]);
+    assert.equal(results.find(result => result.status === 409).jsonBody.message, 'You already have an ongoing match');
+    assert.equal([...rows.values()].filter(row => row.partitionKey === 'match').length, 1);
+    assert.equal(pushes.length, 1);
+    mirrored();
+});
+
+test('a doubles rejection clears only the selected request and the pair cannot be accepted', async () => {
+    seed();
+    const reject = load('ladderReject');
+    const params = { ladder_id: L };
+    for (const user of [A, B]) assert.equal((await call(join, user, {}, params)).status, 200);
+    assert.equal((await call(reject, B, { user_id: A }, params)).status, 403);
+    assert.equal((await call(reject, ADMIN, { user_id: A }, params)).status, 200);
+    assert.equal(get(L, A), undefined);
+    assert.equal(get(A, L), undefined);
+    assert.equal(get(L, B).state, 'pending');
+    assert.deepEqual(pushes.at(-1).userIds, [A]);
+    assert.equal((await call(accept, ADMIN, { user_ids: [A, B] }, params)).status, 409);
+});
+
+test('rejecting a playing application preserves existing ladder administration', async () => {
+    seed();
+    const reject = load('ladderReject');
+    const params = { ladder_id: L };
+    relation(L, A, { is_admin: true, state: 'pending', is_participant: false });
+    assert.equal((await call(reject, ADMIN, { user_id: A }, params)).status, 200);
+    for (const [pk, rk] of [[L, A], [A, L]]) {
+        assert.equal(get(pk, rk).is_admin, true);
+        assert.equal(get(pk, rk).state, undefined);
+        assert.equal(get(pk, rk).is_participant, undefined);
+    }
+});
+
+test('only the challenging side can withdraw a pending ladder challenge', async () => {
+    doubles();
+    const withdraw = load('matchWithdraw');
+    const id = await challenge();
+    const params = { match_id: id };
+    for (const viewer of [A, ADMIN])
+        assert.equal((await call(withdraw, viewer, {}, params)).status, 403);
+    assert.equal((await call(withdraw, D, {}, params)).status, 200);
+    assert.equal(get('match', id).state, 'withdrawn');
+    assert.equal(get(id, 'pair_bottom').result, undefined);
+    assert.equal(get(id, 'pair_top').result, undefined);
+    for (const [pairId, rank] of [['pair_top', 1], ['pair_bottom', 2]]) {
+        assert.equal(get(L, pairId).points, rank);
+        assert.equal(get(L, pairId).rank, rank);
+        assert.equal(get(L, pairId).state, 'active');
+        assert.equal(get(pairId, L).state, 'active');
+    }
+    const sent = pushes.length;
+    assert.equal((await call(withdraw, C, {}, params)).status, 200);
+    assert.equal(pushes.length, sent);
+    assert.equal((await call(matchAccept, A, {}, params)).status, 409);
+
+    rows.clear();
+    doubles();
+    const acceptedId = await challenge();
+    assert.equal((await call(matchAccept, A, {}, { match_id: acceptedId })).status, 200);
+    assert.equal((await call(withdraw, C, {}, { match_id: acceptedId })).status, 409);
+    assert.equal(get('match', acceptedId).state, 'active');
 });

@@ -1,3 +1,4 @@
+import { defaultMatchFormat, isMatchFormat } from "./matchFormats";
 import {
     HttpRequest,
     HttpResponseInit,
@@ -40,7 +41,7 @@ export async function get(pk: string, rk: string) {
         throw error;
     }
 }
-async function relations(id: string) {
+export async function relations(id: string) {
     const rows = [];
     for await (const row of client.listEntities({
         queryOptions: { filter: odata`PartitionKey eq ${id}` },
@@ -51,7 +52,7 @@ async function relations(id: string) {
 
 type EntityType = "group" | "comp";
 
-export async function signedEntityRequest(request: HttpRequest, context: InvocationContext, type: EntityType) {
+export async function signedEntityRequest(request: HttpRequest, context: InvocationContext, type: EntityType | "ladder" | "team") {
     let body;
     try {
         body = (await request.json()) as {
@@ -156,11 +157,11 @@ export async function createEntityRequest(request: HttpRequest, context: Invocat
     const signed = await signedEntityRequest(request, context, type);
     if ("status" in signed) return signed;
     const { data, caller, caller_id, notify } = signed;
-    if (type === "comp" && (data.comp_system ?? data.competition_type) !== "elimination")
+    if (type === "comp" && !["elimination", "round_robin"].some(system => system === (data.comp_system ?? data.competition_type)))
         return reply(400, "Choose a supported competition type");
     if (type === "comp" && (
-        (data.format !== undefined && data.format !== "singles") ||
-        (data.match_format !== undefined && data.match_format !== "super_set")
+        (data.format !== undefined && data.format !== "singles" && data.format !== "doubles") ||
+        (data.match_format !== undefined && !isMatchFormat(data.match_format))
     )) return reply(400, "Choose a supported format and match format");
     const edits = entityEdits(data, true, type === "comp");
     if ("status" in edits) return edits;
@@ -188,7 +189,7 @@ export async function createEntityRequest(request: HttpRequest, context: Invocat
     });
     await doUpsertEntity(type, id, {
         name, state: "pending",
-        ...(type === "comp" ? { comp_system: data.comp_system ?? data.competition_type, format: "singles", match_format: "super_set" } : {}),
+        ...(type === "comp" ? { comp_system: data.comp_system ?? data.competition_type, format: data.format ?? "singles", match_format: data.match_format ?? defaultMatchFormat } : {}),
     });
     await doGuidsToPublic();
     const admins = (await relations(club.clubId))

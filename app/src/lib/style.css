@@ -85,6 +85,13 @@ svg {
     background-color: gainsboro;
 }
 
+.blank-icon-small,
+.round-icon-small,
+.round-icon-mid,
+.round-icon-big {
+    flex-shrink: 0;
+}
+
 .blank-icon-small{
     width: 3rem; min-height: 3rem; margin:0.5rem;
     display: inline-flex; align-items: center; justify-content: center; line-height: 0;
@@ -286,3 +293,19 @@ table {
     to { width: 2px; height: 100vh; translate: 100vw 0; }
 }
 .action-link { text-decoration: none; }
+
+
+/* Only the last option in a page action row carries an arrow. */
+.action-row > :is(button, a):has(~ :is(button, a)) > .action-arrow {
+    display: none;
+}
+
+.row-description,
+.entity-header .description {
+    color: lightgrey;
+}
+
+.group .row-description,
+.group .entity-header .description {
+    color: #808080;
+}

@@ -1,37 +1,20 @@
 <script lang="ts">
 	import { local } from '#lib/stores/local.ts';
 	import {
-		relationsOf,
 		nameOf,
 		hrefOf,
+		relationsOf,
 		type GuidRow
 	} from '#lib/stores/guids.ts';
-	import { canForfeitCompetitionMatch } from './matchRules.ts';
+	import { isMatchSide } from './matchRules.ts';
 	import MatchActions from './MatchActions.svelte';
 	import RouteLinkHiddenAction from '../RouteLinkHiddenAction.svelte';
 	let { match }: { match: GuidRow } = $props();
-	const mine = $derived(
-		relationsOf(match.rk).find((row) => row.rk === $local.caller_id)
-	);
-	const ladder = $derived(
-		relationsOf(match.rk).find((row) => row.rk.startsWith('ladder_'))
-	);
-	const admin = $derived(
-		!!ladder &&
-			relationsOf(ladder.rk).some(
-				(row) => row.rk === $local.caller_id && row.is_admin === true
-			)
-	);
-	const comp = $derived(relationsOf(match.rk).some((row) => row.rk.startsWith('comp_')));
-	const actionable = $derived(
-		comp ? canForfeitCompetitionMatch(match, $local.caller_id) :
-		['pending', 'active'].includes(String(match.state)) &&
-			((!!mine &&
-				['challenger', 'defender', 'participant'].includes(
-					String(mine.role)
-				)) ||
-				(match.state === 'pending' && admin))
-	);
+	const links = $derived(relationsOf(match.rk));
+	const pendingLadder = $derived(match.state === 'pending' && links.some(row => row.rk.startsWith('ladder_')));
+	const needsMyAcceptance = $derived(pendingLadder && isMatchSide(links, $local.caller_id, 'defender'));
+	const hasActions = $derived(needsMyAcceptance || (pendingLadder && isMatchSide(links, $local.caller_id, 'challenger')));
+	const active = $derived(match.state === 'active');
 </script>
 
 {#snippet actions()}<MatchActions {match} quick />{/snippet}
@@ -39,6 +22,7 @@
 	href={hrefOf(match.rk)}
 	title={nameOf(match.rk)}
 	description={`${match.state} match`}
-	colour="orange"
-	children={actionable ? actions : undefined}
+	colour={active ? 'green' : needsMyAcceptance ? 'red' : 'orange'}
+	children={hasActions ? actions : undefined}
+	currentSelection={hasActions ? undefined : 'no actions'}
 />

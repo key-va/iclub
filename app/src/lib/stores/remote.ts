@@ -1,4 +1,4 @@
-import { guids, hrefOf } from '#lib/stores/guids.ts';
+import { guids, hrefOf, typeOf } from '#lib/stores/guids.ts';
 import { API_URL } from '#lib/config.ts';
 import { signRequest } from '#lib/stores/auth.ts';
 
@@ -141,15 +141,19 @@ export const createCompetition = (data: Record<string, unknown>) =>
 export const competitionEntry = (
 	id: string,
 	action: 'activate' | 'join' | 'leave' | 'draw' | 'accept' | 'seed' | 'unseed',
-	userId?: string
-) => mutateWithSubject(`comp/${id}/${action}`, userId ? { user_id: userId } : {});
+	entrantId?: string
+) => mutateWithSubject(`comp/${id}/${action}`,
+	entrantId?.startsWith('pair_') ? { pair_id: entrantId } :
+	entrantId ? { user_id: entrantId } : {});
+export const acceptCompetitionPair = (id: string, userIds: string[]) =>
+	mutateWithSubject(`comp/${id}/accept`, { user_ids: userIds });
 export const recordElimResult = (
 	id: string,
 	matchId: string,
 	action: 'score' | 'correct',
 	firstId: string,
 	secondId: string,
-	result: { first_score: number; second_score: number }
+	result: { first_score: number[]; second_score: number[] }
 ) =>
 	mutateWithSubject(`comp/${id}/${action}`, {
 		match_id: matchId,
@@ -180,6 +184,7 @@ export const completeMatch = (id: string, data: Record<string, unknown>) =>
 	mutateWithSubject(`match/${id}/complete`, data);
 export const forfeitMatch = (id: string, data: Record<string, unknown> = {}) =>
 	mutateWithSubject(`match/${id}/forfeit`, data);
+export const withdrawMatch = (id: string) => mutate(`match/${id}/withdraw`);
 export const retirePair = (id: string) =>
 	mutateWithSubject(`pair/${id}/retire`);
 export const updateUser = (id: string, data: Record<string, unknown>) =>
@@ -260,3 +265,9 @@ export const acceptTeamMemberConfirmation = (id: string, user: string) =>
 
 export const updateTeam = (id: string, data: { image: string }) =>
 	mutateWithSubject(`team/${id}/update`, data);
+
+export const rejectJoinRequest = (id: string, userId: string) =>
+	mutate(`${typeOf(id)}/${id}/reject`, { user_id: userId });
+
+export const rejectCreationRequest = (id: string) =>
+	mutateWithSubject(`${typeOf(id)}/${id}/reject-creation`);

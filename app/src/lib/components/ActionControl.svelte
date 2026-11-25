@@ -43,8 +43,6 @@
 	let isError = $state(false);
 	let shown = $state('');
 	let triggerButton: HTMLButtonElement;
-	// a no-confirmation action in flight: shown as a timer icon in the button
-	const quiet = $derived(!confirm && isBusy && !isExpanded);
 
 	let originX = $state(0);
 	let originY = $state(0);
@@ -61,7 +59,7 @@
 			new CustomEvent('api-action-state', { bubbles: true, detail: true })
 		);
 
-		// without confirmation the button itself shows progress; the overlay only appears for an error
+		// without confirmation the overlay only appears for an error
 		if (confirm) isExpanded = true;
 		else execute();
 	}
@@ -137,6 +135,8 @@
 		isBusy = true;
 		isError = false;
 		shown = '...this may take a moment...';
+		if (!confirm)
+			triggerButton?.dispatchEvent(new CustomEvent('api-action-busy', { bubbles: true, detail: true }));
 
 		try {
 			const result = completed ?? (await (retryAction ?? action)());
@@ -162,6 +162,9 @@
 			isError = true;
 			isBusy = false;
 			isExpanded = true;
+		} finally {
+			if (!confirm)
+				triggerButton?.dispatchEvent(new CustomEvent('api-action-busy', { bubbles: true, detail: false }));
 		}
 	}
 </script>
@@ -177,26 +180,11 @@
 		disabled={disabled || isBusy || isExpanded}
 		onclick={start}
 	>
-		{#if (!arrow || showLabel) && !quiet}<p>{name}</p>{/if}
-		{#if quiet}
-			<svg
-				viewBox="0 0 24 24"
-				width="1rem"
-				height="1rem"
-				fill="none"
-				stroke="currentColor"
-				stroke-width="3"
-				stroke-linecap="round"
-				stroke-linejoin="round"
-				role="img"
-				aria-label="working"
-			>
-				<path d="M6 3h12M6 21h12M7 3v4l5 5-5 5v4M17 3v4l-5 5 5 5v4" />
-			</svg>
-		{:else}
+		{#if !arrow || showLabel || (!confirm && inline)}<p>{name}</p>{/if}
+		{#if confirm || (!inline && arrow)}
 			<svg
 				class="action-arrow"
-				class:hidden-arrow={inline && !arrow}
+				aria-hidden="true"
 				viewBox="0 0 24 24"
 				width="1rem"
 				height="1rem"
@@ -206,7 +194,11 @@
 				stroke-linecap="round"
 				stroke-linejoin="round"
 			>
-				<path d="M5 12h14M13 5l7 7-7 7" />
+				{#if !confirm && isBusy}
+					<path d="M6 3h12M6 21h12M7 3v4l5 5-5 5v4M17 3v4l-5 5 5 5v4" />
+				{:else}
+					<path d="M5 12h14M13 5l7 7-7 7" />
+				{/if}
 			</svg>
 		{/if}
 	</button>
@@ -215,7 +207,7 @@
 {#if inline}
 	{@render trigger()}
 {:else}
-	<div class="row right">
+	<div class="row right action-row">
 		{@render children?.()}
 		{@render trigger()}
 	</div>
@@ -299,7 +291,4 @@
 		margin-top: 50%;
 	}
 
-	.hidden-arrow {
-		display: none;
-	}
 </style>

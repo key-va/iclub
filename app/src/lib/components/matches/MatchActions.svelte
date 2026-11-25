@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { local } from '#lib/stores/local.ts';
 	import { relationsOf, type GuidRow } from '#lib/stores/guids.ts';
-	import { acceptMatch, forfeitCompetitionMatch, forfeitMatch } from '#lib/stores/remote.ts';
+	import { acceptMatch, forfeitCompetitionMatch, forfeitMatch, withdrawMatch } from '#lib/stores/remote.ts';
 	import { competitionSlots } from '../competitions/competitionBracket.ts';
-	import { canForfeitCompetitionMatch } from './matchRules.ts';
+	import { canAcceptLadderMatch, canForfeitCompetitionMatch, isMatchSide } from './matchRules.ts';
 	import EntityActions from '../EntityActions.svelte';
 	import ActionQuick from '../ActionQuick.svelte';
 	import ActionConfirmation from '../ActionConfirmation.svelte';
@@ -21,20 +21,14 @@
 	const links = $derived(relationsOf(match.rk));
 	const comp = $derived(links.find((row) => row.rk.startsWith('comp_')));
 	const mine = $derived(links.find((row) => row.rk === $local.caller_id));
-	const ladder = $derived(links.find((row) => row.rk.startsWith('ladder_')));
-	const admin = $derived(
-		!!ladder &&
-			relationsOf(ladder.rk).some(
-				(row) => row.rk === $local.caller_id && row.is_admin === true
-			)
-	);
-	const defender = $derived(links.find((row) => row.role === 'defender'));
-	const onDefendingSide = $derived(
-		mine?.role === 'defender' ||
-			(mine?.competitor_id === defender?.rk && !!defender)
-	);
-	const canAccept = $derived(
-		!comp && match.state === 'pending' && (onDefendingSide || admin)
+	const pendingLadder = $derived(match.state === 'pending' && links.some(row => row.rk.startsWith('ladder_')));
+	const canWithdraw = $derived(pendingLadder && isMatchSide(links, $local.caller_id, 'challenger'));
+	const canAccept = $derived(canAcceptLadderMatch(match, $local.caller_id));
+	const forfeitRelevant = $derived(
+		comp ? (match.state === 'active' || match.state === 'waiting') &&
+			!!mine && ['competitor', 'participant'].includes(String(mine.role))
+		: ['pending', 'active'].includes(String(match.state)) &&
+			!!mine && ['challenger', 'defender', 'participant'].includes(String(mine.role))
 	);
 	const canForfeit = $derived(
 		comp ? canForfeitCompetitionMatch(match, $local.caller_id) :
@@ -51,37 +45,45 @@
 </script>
 
 {#snippet quickButtons()}
-	{#if canAccept}<ActionQuick
-			inline
-			name="accept"
-			action={() => acceptMatch(match.rk)}
-		/>{/if}
-	{#if canForfeit}<ActionQuick
-			inline
-			name="forfeit"
-			action={forfeit}
-		/>{/if}
+	<ActionQuick inline name="accept"
+		disabled={!pendingLadder || !isMatchSide(links, $local.caller_id, 'defender')}
+		action={() => acceptMatch(match.rk)}
+	/>
+	{@render withdrawButton()}
+{/snippet}
+{#snippet withdrawButton()}
+	<ActionQuick inline name="withdraw" arrow={!quick}
+		disabled={!canWithdraw}
+		action={() => withdrawMatch(match.rk)}
+	/>
 {/snippet}
 {#snippet acceptButton()}<ActionConfirmation
 		inline
 		arrow
 		showLabel
 		name="accept"
+		message={`accept ${match.name}?`}
 		action={() => acceptMatch(match.rk)}
 	/>{/snippet}
+{#snippet primaryButtons()}
+	{#if canAccept}{@render acceptButton()}{/if}
+	{#if canWithdraw}{@render withdrawButton()}{/if}
+{/snippet}
 {#snippet forfeitOption()}<ActionConfirmation
 		inline
 		arrow
 		showLabel
 		name="forfeit"
-		message="Forfeit this match?"
+		message={`forfeit ${match.name}?`}
 		action={forfeit}
+		disabled={!canForfeit}
 	/>{/snippet}
-{#if canAccept || canForfeit}
-	{#if quick}{@render quickButtons()}
-	{:else}<EntityActions
+{#if quick}
+	{@render quickButtons()}
+{:else if canAccept || canWithdraw || forfeitRelevant}
+	<EntityActions
 			{section}
-			children={canAccept ? acceptButton : undefined}
-			options={canForfeit ? forfeitOption : undefined}
-		/>{/if}
+			children={canAccept || canWithdraw ? primaryButtons : undefined}
+			options={forfeitRelevant ? forfeitOption : undefined}
+		/>
 {/if}

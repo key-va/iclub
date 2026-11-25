@@ -79,7 +79,7 @@ export async function ladderJoin(request: HttpRequest, context: InvocationContex
         return { status: 409, jsonBody: { success: false, message: "You are already on this ladder" } };
     }
 
-    if (existing?.state === "pending") {
+    if (existing?.state === "pending" || existing?.state === "rejecting") {
         return { status: 409, jsonBody: { success: false, message: "Your request to join is waiting for the ladder admin" } };
     }
 

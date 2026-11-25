@@ -1,5 +1,6 @@
 <script lang="ts">
 	import RouteLinkHiddenAction from '#lib/components/RouteLinkHiddenAction.svelte';
+	import PairMembers from './PairMembers.svelte';
 	import MatchHistory from '#lib/components/matches/MatchHistory.svelte';
 
 	import ActionQuick from '#lib/components/ActionQuick.svelte';
@@ -64,7 +65,7 @@
 		})
 	);
 	const canOfferChallenge = $derived(
-		!liveMatches.length && !retired && myPair?.rk !== pairId
+		canChallenge && !liveMatches.length && !retired && myPair?.rk !== pairId
 	);
 	const stateText = $derived(
 		retired
@@ -79,21 +80,13 @@
 
 {#if ladder}
 	<div class="group">
-		{#each members as member (member.rk)}
-			<RouteLink
-				href={hrefOf(member.rk)}
-				title={nameOf(member.rk)}
-				description="member"
-				image={imageOf(member.rk)}
-				isWhite={false}
-			/>
-		{/each}
+		<PairMembers {pairId} />
 		{#snippet challengeAction()}
 			<ActionQuick
 				inline
-				name="challenge"
+				name="issue challenge"
+				disabled={!canOfferChallenge}
 				action={() => createMatch(ladder.rk, myPair!.rk, pairId)}
-				disabled={!canChallenge}
 			/>
 		{/snippet}
 		<RouteLinkHiddenAction
@@ -102,7 +95,7 @@
 			description={stateText}
 			image={imageOf(ladder.rk)}
 			colour={ladderStateColours[String(ladderRow?.state)] ?? 'grey'}
-			children={canOfferChallenge ? challengeAction : undefined}
+			children={challengeAction}
 		>
 			{#snippet detail()}{Number(ladderRow?.rank) || 0}{/snippet}
 		</RouteLinkHiddenAction>
@@ -123,7 +116,7 @@
 		<ActionConfirmation
 			inline
 			name="retire"
-			message="Forfeit all ongoing matches and retire this pair?"
+			message={`retire ${nameOf(pairId)}? Ongoing matches will be forfeited`}
 			action={() => retirePair(pairId)}
 		/>
 	</HiddenOptions>

@@ -17,6 +17,7 @@
 	let competitions = $state<Option[]>([]);
 	let sections = $state<Option[]>([]);
 	let teams = $state<Option[]>([]);
+	const teamName = $derived(teams.find((option) => option.id === team)?.name);
 	let loading = $state(false);
 	let error = $state('');
 	let sequence = 0;
@@ -196,7 +197,7 @@
 	</div>
 	<ActionConfirmation
 		name="request team"
-		message="Request this team for your club administrator to approve?"
+		message={`create team ${teamName}?`}
 		action={() =>
 			createTeam({
 				association,

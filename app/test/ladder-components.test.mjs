@@ -15,8 +15,8 @@ before(async () => {
                 const path = id.replaceAll('\\', '/');
                 // Exercise feature logic independently of reveal/confirmation mechanics.
                 if (path.endsWith('/components/routeLink.svelte') || path.endsWith('/components/RouteLinkHiddenAction.svelte')) return `
-                    <script>let { href, title, description, image, detail, children } = $props();</script>
-                    <article><a {href} data-image={image}>{title}</a><p>{description}</p>
+                    <script>let { href, title, description, image, detail, children, colour, currentSelection } = $props();</script>
+                    <article data-colour={colour} data-current-selection={currentSelection}><a {href} data-image={image}>{title}</a><p>{description}</p>
                     {@render detail?.()}{@render children?.()}</article>`;
                 if (path.endsWith('/components/hiddenOptions.svelte')) return `
                     <script>let { title, children } = $props();</script>
@@ -25,6 +25,8 @@ before(async () => {
                     export const acceptTeamMember = (id, user) => ({ endpoint: 'team/accept', data: { team_id: id, user_id: user } });
                     export const acceptGroupMember = (id, user) => ({ endpoint: 'group/' + id + '/accept', data: { user_id: user } });
                     export const setRoundRole = (id, role) => ({ endpoint: 'round/role', data: { round_id: id, role } });
+                    export const rejectJoinRequest = (id, user) => ({ endpoint: 'ladder/' + id + '/reject', data: { user_id: user } });
+                    export const rejectCreationRequest = id => ({ endpoint: 'ladder/' + id + '/reject-creation', data: {} });
                     export const activateLadder = id => ({ endpoint: 'ladder/' + id + '/activate', data: {} });
                     export const joinLadder = id => ({ endpoint: 'ladder/' + id + '/join', data: {} });
                     export const acceptLadderMember = (id, user) => ({ endpoint: 'ladder/' + id + '/accept', data: { user_id: user } });
@@ -37,6 +39,7 @@ before(async () => {
                     export const returnLadder = id => ({ endpoint: 'ladder/' + id + '/return', data: {} });
                     export const leaveLadder = id => ({ endpoint: 'ladder/' + id + '/leave', data: {} });
                     export const acceptMatch = id => ({ endpoint: 'match/' + id + '/accept', data: {} });
+                    export const withdrawMatch = id => ({ endpoint: 'match/' + id + '/withdraw', data: {} });
                     export const forfeitMatch = id => ({ endpoint: 'match/' + id + '/forfeit', data: {} });
                     `;
                 // Resolve callbacks against synchronous endpoint descriptors in this
@@ -44,7 +47,7 @@ before(async () => {
                 if (/\/components\/Action(?:Quick|Confirmation)\.svelte$/.test(path)) return `
                     <script>let { name, action, disabled = false } = $props();
                     const request = $derived(action());</script>
-                    <button aria-label={name} {disabled} data-endpoint={request.endpoint}
+                    <button aria-label={name} {disabled} data-confirmation="${path.endsWith('/ActionConfirmation.svelte')}" data-endpoint={request.endpoint}
                         data-payload={JSON.stringify(request.data)}>{name}</button>`;
                 if (path.endsWith('/components/apiService.svelte')) return `
                     <script>let { name, endpoint, data, disabled = false } = $props();</script>
@@ -115,16 +118,26 @@ test('singles standings resolve challenge identity, reach, state and self restri
     const props = { ladder, user };
     let output = html('LadderUser', props);
     assert.match(output, /href="\/user\/user_other"/);
-    assert.equal(action(output, 'challenge').disabled, false);
-    assert.deepEqual(action(output, 'challenge').data,
+    assert.equal(action(output, 'issue challenge').disabled, false);
+    assert.deepEqual(action(output, 'issue challenge').data,
         { ladder_id: ladder.rk, challenger_id: 'user_me', defender_id: 'user_other' });
     await load(items, 'user_other');
-    assert.equal(action(html('LadderUser', props), 'challenge').disabled, true);
+    assert.equal(action(html('LadderUser', props), 'issue challenge').disabled, true);
     await load(items, 'user_admin');
-    assert.equal(action(html('LadderUser', props), 'challenge').disabled, true);
+    assert.equal(action(html('LadderUser', props), 'issue challenge').disabled, true);
+    for (const [state, colour, label] of [['away', 'red', 'away'], ['busy', 'orange', 'in a match'], ['cooling', 'blue', 'cooling'], ['active', 'green', 'available']]) {
+        const visitor = html('LadderUser', { ladder, user: { ...user, state } });
+        assert.match(visitor, new RegExp(`data-colour="${colour}"`));
+        assert.match(visitor, new RegExp(`<p>${label}</p>`));
+        assert.equal(action(visitor, 'issue challenge').disabled, true);
+    }
     await load(items);
+    assert.match(html('LadderUser', { ladder, user: { ...user, rank: 99, state: 'away' } }), /data-colour="grey"/);
+    const own = graph.relationsOf(ladder.rk).find(row => row.rk === 'user_me');
+    assert.match(html('LadderUser', { ladder, user: own }), /data-colour="green"/);
     user.state = 'away';
-    assert.equal(action(html('LadderUser', props), 'challenge').disabled, true);
+    assert.equal(action(html('LadderUser', props), 'issue challenge').disabled, true);
+    assert.match(html('LadderUser', props), /data-colour="red"/);
 });
 
 test('doubles resolve pair standing and either partner as the same challenger', async () => {
@@ -141,16 +154,16 @@ test('doubles resolve pair standing and either partner as the same challenger', 
         const output = html('LadderPair', { ladder, pair });
         assert.match(output, /href="\/pair\/pair_other"/);
         assert.match(output, /data-image="[^"]*ladder_test.jpg"/);
-        assert.equal(action(output, 'challenge').disabled, false);
-        assert.equal(action(output, 'challenge').data.challenger_id, 'pair_mine');
+        assert.equal(action(output, 'issue challenge').disabled, false);
+        assert.equal(action(output, 'issue challenge').data.challenger_id, 'pair_mine');
     }
     await load(items, 'user_other');
-    assert.equal(action(html('LadderPair', { ladder, pair }), 'challenge').disabled, true);
+    assert.equal(action(html('LadderPair', { ladder, pair }), 'issue challenge').disabled, true);
     // Retired memberships must never supply an active competitive identity.
     items.find(row => row.pk === ladder.rk && row.rk === 'pair_mine').is_participant = false;
     await load(items, 'user_me');
     assert.equal(rules.ladderMembership( ladder, 'user_me').competitorId, null);
-    assert.equal(action(html('LadderPair', { ladder, pair }), 'challenge').disabled, true);
+    assert.equal(action(html('LadderPair', { ladder, pair }), 'issue challenge').disabled, true);
 });
 
 test('user ladder sections isolate ongoing matches to the viewed user and ladder', async () => {
@@ -177,6 +190,9 @@ test('pending application controls are limited to ladder admins and honour ladde
         if (format === 'singles') assert.equal(action(html('LadderRequests', { ladder }), 'accept'), undefined);
         await load(items, 'user_admin');
         const output = html('LadderRequests', { ladder });
+        assert.equal(action(output, 'reject').endpoint, `ladder/${ladder.rk}/reject`);
+        assert.deepEqual(action(output, 'reject').data, { user_id: 'user_partner' });
+        assert.match(output, /aria-label="reject"[^>]*data-confirmation="false"/);
         if (format === 'singles') {
             assert.equal(action(output, 'accept').endpoint, `ladder/${ladder.rk}/accept`);
             assert.deepEqual(action(output, 'accept').data, { user_id: 'user_partner' });
@@ -185,7 +201,7 @@ test('pending application controls are limited to ladder admins and honour ladde
             assert.equal(action(output, 'accept'), undefined);
         }
         await load(items, 'user_other');
-        assert.doesNotMatch(html('LadderRequests', { ladder }), /aria-label="(?:accept|select player)"/);
+        assert.doesNotMatch(html('LadderRequests', { ladder }), /aria-label="(?:accept|reject|select player)"/);
     }
 });
 
@@ -213,7 +229,7 @@ test('ladder page chooses users or pairs and orders competitive standings by ran
     }
 });
 
-test('ladder approval and join confirmations use the requested labels and permissions', async () => {
+test('ladder approval and rejection are immediate and respect club permissions', async () => {
     const { items, ladder, link } = fixture();
     const renderPage = () => render(ladderPage, {
         context: new Map([['__request__', { page: { params: { ladder_id: ladder.rk } } }]])
@@ -225,8 +241,11 @@ test('ladder approval and join confirmations use the requested labels and permis
     await load(items, 'user_admin');
     assert.equal(action(renderPage(), 'approve this ladder').disabled, false);
     assert.equal(action(renderPage(), 'approve this ladder').endpoint, `ladder/${ladder.rk}/activate`);
+    assert.equal(action(renderPage(), 'reject').endpoint, `ladder/${ladder.rk}/reject-creation`);
+    assert.match(renderPage(), /aria-label="reject"[^>]*data-confirmation="false"/);
     await load(items, 'user_me');
-    assert.equal(action(renderPage(), 'approve this ladder').disabled, true);
+    assert.equal(action(renderPage(), 'approve this ladder'), undefined);
+    assert.equal(action(renderPage(), 'reject'), undefined);
     ladder.state = 'active';
     await load(items, 'user_outsider');
     assert.equal(action(renderPage(), 'request to join').disabled, false);

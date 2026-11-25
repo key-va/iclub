@@ -218,4 +218,9 @@ export function relationsOf(id: string): GuidRow[] {
 	return graphItems().filter(row => row.pk === id);
 }
 
+export function isBrowsableEntity(entity: GuidRow | undefined): entity is GuidRow {
+	return !!entity && ['ladder', 'team', 'group', 'comp'].includes(entity.pk) &&
+		(entity.state === 'active' || (entity.pk === 'comp' && entity.state === 'open'));
+}
+
 export const entities = derived(guids, ($guids) => $guids.items.filter((row) => !isRelation(row)));

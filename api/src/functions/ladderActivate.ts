@@ -2,7 +2,7 @@ import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/fu
 import { DefaultAzureCredential } from "@azure/identity";
 import { TableClient, odata } from "@azure/data-tables";
 import { doSignatureVerification } from "../services/doSignatureVerification";
-import { doUpsertEntity } from "../services/doUpsertEntity";
+import { updateIfCurrent } from "../services/joinRejection";
 import { doGuidsToPublic } from "../services/doGuidsToPublic";
 import { doSendPush } from "../services/doSendPush";
 
@@ -45,7 +45,7 @@ export async function ladderActivate(request: HttpRequest, context: InvocationCo
     }
 
     // 2. Fetch the ladder
-    let entity: Record<string, unknown>;
+    let entity;
 
     try {
         entity = await guidsClient.getEntity("ladder", ladderId);
@@ -90,8 +90,8 @@ export async function ladderActivate(request: HttpRequest, context: InvocationCo
     }
 
     // 5. Activate (merge over what exists) and publish
-    const { partitionKey, rowKey, timestamp, etag, ...attributes } = entity;
-    await doUpsertEntity("ladder", ladderId, { ...attributes, state: "active" });
+    if (!(await updateIfCurrent(entity, { state: "active" })))
+        return { status: 409, jsonBody: { success: false, message: "This creation request has already changed" } };
 
     await doGuidsToPublic();
 

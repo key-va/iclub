@@ -88,10 +88,14 @@ export async function locked<T>(teamId: string, action: () => Promise<T>): Promi
     try {
         return await action();
     } finally {
-        await client.updateEntity(
-            { partitionKey: "team", rowKey: teamId, operation_guard: 0 },
-            "Merge",
-        );
+        try {
+            await client.updateEntity(
+                { partitionKey: "team", rowKey: teamId, operation_guard: 0 },
+                "Merge",
+            );
+        } catch (error: any) {
+            if (error?.statusCode !== 404) throw error;
+        }
     }
 }
 export async function teamRequest(request: HttpRequest, context: InvocationContext, signed = true) {

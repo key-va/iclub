@@ -87,19 +87,20 @@ export const ladderStateColours: Record<string, string> = {
 	active: 'green'
 };
 
-export function challengeDescription(
-	target: GuidRow,
-	competitorId: string | null,
-	eligible: boolean
+export function ladderStandingColour(
+	ladder: GuidRow,
+	membership: ReturnType<typeof ladderMembership>,
+	target: ChallengeTarget
 ) {
-	const state = String(target.state);
-	if (target.rk === competitorId)
-		return state === 'active' ? 'available' : state;
-	if (state === 'away') return 'away';
-	if (state === 'busy') return 'in a match';
-	return eligible
-		? state === 'active'
-			? 'available'
-			: state
-		: 'cannot challenge';
+	const { relation, competitorId } = membership;
+	if (relation?.is_participant === true && target.rk !== competitorId &&
+		!inReach(ladder, relation, competitorId, target))
+		return 'grey';
+	return ladderStateColours[String(target.relation.state)] ?? 'grey';
+}
+
+export function ladderStatusDescription(target: GuidRow) {
+	if (target.state === 'active') return 'available';
+	if (target.state === 'busy') return 'in a match';
+	return String(target.state);
 }

@@ -2,7 +2,7 @@ import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/fu
 import { DefaultAzureCredential } from "@azure/identity";
 import { TableClient } from "@azure/data-tables";
 import { doSignatureVerification } from "../services/doSignatureVerification";
-import { doUpsertEntity } from "../services/doUpsertEntity";
+import { updateIfCurrent } from "../services/joinRejection";
 import { doGuidsToPublic } from "../services/doGuidsToPublic";
 import { doAssetToPublic } from "../services/doAssetToPublic";
 
@@ -52,7 +52,7 @@ export async function ladderUpdate(request: HttpRequest, context: InvocationCont
     }
 
     // 2. Fetch the ladder
-    let entity: Record<string, unknown>;
+    let entity;
 
     try {
         entity = await guidsClient.getEntity("ladder", ladderId);
@@ -92,9 +92,8 @@ export async function ladderUpdate(request: HttpRequest, context: InvocationCont
     }
 
     // 5. Apply the changes (merge over what exists)
-    if (name) {
-        const { partitionKey, rowKey, timestamp, etag, ...attributes } = entity;
-        await doUpsertEntity("ladder", ladderId, { ...attributes, name });
+    if (name && !(await updateIfCurrent(entity, { name }))) {
+        return { status: 409, jsonBody: { success: false, message: "The ladder changed. Please retry." } };
     }
 
     if (image) {

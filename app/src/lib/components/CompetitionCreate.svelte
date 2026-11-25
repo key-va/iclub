@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { matchFormatSetting } from './ladders/ladderSettings.ts';
 	import { prepareSquareImage } from '#lib/components/images/prepareSquareImage.ts';
 	import ActionConfirmation from '#lib/components/ActionConfirmation.svelte';
 	import { createCompetition, createGroup } from '#lib/stores/remote.ts';
@@ -16,21 +17,23 @@
 		format: {
 			label: 'format',
 			description: 'whether players compete alone or in pairs',
-			values: { singles: { label: 'Singles', description: 'one player per side' } }
+			values: {
+				singles: { label: 'Singles', description: 'one player per side' },
+				doubles: { label: 'Doubles', description: 'two players per side' }
+			}
 		},
-		match_format: {
-			label: 'match format',
-			description: 'how a competition match is played',
-			values: { super_set: { label: 'Super set', description: 'a single long set played to 8 with a tiebreak at 7 games each' } }
-		},
+		match_format: { ...matchFormatSetting, description: 'how a comp match is played' },
 		comp_system: {
 			label: 'comp system',
 			description: 'how match results determine who advances',
-			values: { elimination: { label: 'Elimination', description: 'the winner advances and the loser is eliminated' } }
+			values: {
+				elimination: { label: 'Elimination', description: 'the winner advances and the loser is eliminated' },
+				round_robin: { label: 'Round Robin', description: 'each entrant plays every other entrant once. Final standings decide the champion' }
+			}
 		}
 	};
 	let values = $state<Record<string, string>>({
-		format: 'singles', match_format: 'super_set', comp_system: 'elimination'
+		format: 'singles', match_format: matchFormatSetting.default, comp_system: 'elimination'
 	});
 	const title = $derived(isCompetition ? 'Competition' : 'Group');
 

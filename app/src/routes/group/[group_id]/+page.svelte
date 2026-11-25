@@ -17,7 +17,7 @@
 		<EntityHeader entity={group} />
 		<GroupSummary {group} />
 
-		<MessageThread parentId={id} />
+		{#if group.state !== 'rejected'}<MessageThread parentId={id} />{/if}
 		<GroupActions {group} section="options" />
 	{:else}
 		<div class="row right">

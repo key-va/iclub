@@ -1,7 +1,7 @@
 import { entityOf, relationsOf, type GuidRow } from '#lib/stores/guids.ts';
 
 export function competitionSlots(match: GuidRow) {
-	const players = relationsOf(match.rk).filter((row) => row.rk.startsWith('user_'));
+	const players = relationsOf(match.rk).filter((row) => row.rk.startsWith('user_') || row.rk.startsWith('pair_'));
 	return [
 		players.find((row) => row.slot === 1) ?? players.find((row) => row.rk === match.first_id),
 		players.find((row) => row.slot === 2) ?? players.find((row) => row.rk === match.second_id)

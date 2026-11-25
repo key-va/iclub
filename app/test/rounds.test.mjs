@@ -64,6 +64,15 @@ test("outstanding rounds include overdue pending and selected roles, grouped by 
         [],
     );
 });
+test("round quick options match self-service and admin role transitions", () => {
+    assert.deepEqual(rounds.roundQuickRoles, ["unavailable", "available", "selected"]);
+    assert.deepEqual(rounds.roundQuickOptions("pending", true), ["unavailable", "available"]);
+    assert.deepEqual(rounds.roundQuickOptions("available", false), ["unavailable"]);
+    assert.deepEqual(rounds.roundQuickOptions("available", true), ["unavailable", "selected"]);
+    assert.deepEqual(rounds.roundQuickOptions("selected", false), ["unavailable"]);
+    assert.deepEqual(rounds.roundQuickOptions("selected", true), ["unavailable", "available"]);
+    assert.deepEqual(rounds.roundQuickOptions("unavailable", true), ["available"]);
+});
 test("role colours and result summaries match the contract, including zero scores and unknown result state", () => {
     assert.deepEqual(rounds.roundRoleColour, {
         selected: "green",
@@ -267,4 +276,13 @@ test('team summaries include association, section and rank, omitting competition
  assert.equal(rounds.teamDescription({pk:'team',rk:'team_test',ext_association:'brta',ext_competition_name:'Tuesday Night',ext_section_name:'Section 1',ext_rank:3}), 'BRTA • Section 1 • rank 3');
  assert.equal(rounds.teamDescription({pk:'team',rk:'team_test',ext_section_name:'Section 1',ext_rank:0}), 'Section 1 • rank 0');
  assert.equal(rounds.teamDescription(), '');
+});
+
+test("team round dots follow total nominations and availability", () => {
+    for (const [playing, available, colour] of [
+        [4, 0, "green"], [5, 1, "green"], [3, 1, "blue"],
+        [0, 4, "blue"], [0, 3, "orange"], [0, 0, "orange"], [1, 2, "red"],
+    ]) {
+        assert.equal(rounds.roundAvailabilityColour({ playing, available }), colour);
+    }
 });

@@ -1,7 +1,7 @@
 import { doCompetitorUsers } from "../services/doCompetitorUsers";
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
 import { DefaultAzureCredential } from "@azure/identity";
-import { TableClient, odata } from "@azure/data-tables";
+import { TableClient, TransactionAction, odata } from "@azure/data-tables";
 import { doSignatureVerification } from "../services/doSignatureVerification";
 import { doNewGuid } from "../services/doNewGuid";
 import { doUpsertEntity } from "../services/doUpsertEntity";
@@ -29,6 +29,12 @@ async function getRow(pk: string, rk: string): Promise<Record<string, unknown> |
 }
 
 const playerName = (name: unknown) => String(name ?? "").trim() || "Player";
+
+function ongoingMatch(challenger: Record<string, unknown> | undefined, defender: Record<string, unknown> | undefined, isChallenger: boolean) {
+    const message = challenger?.state === "busy" ? (isChallenger ? "You already have an ongoing match" : "The challenger already has an ongoing match")
+        : defender?.state === "busy" ? "The opponent already has an ongoing match" : undefined;
+    return message ? { status: 409, jsonBody: { success: false, message } } : undefined;
+}
 
 export async function matchCreate(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
 
@@ -114,6 +120,9 @@ export async function matchCreate(request: HttpRequest, context: InvocationConte
         return { status: 409, jsonBody: { success: false, message: "Both players must be on the ladder" } };
     }
 
+    const ongoing = ongoingMatch(challenger, defender, challengerUsers.includes(caller_id));
+    if (ongoing) return ongoing;
+
     if (!(challenger.state === "active")) {
         return { status: 409, jsonBody: { success: false, message: "The challenger is not active on the ladder" } };
     }
@@ -161,21 +170,64 @@ export async function matchCreate(request: HttpRequest, context: InvocationConte
 
     const matchId = doNewGuid("match");
 
-    await doUpsertEntity("match", matchId, { name, state: "pending" });
-    await doUpsertRelation(matchId, ladderId);
-    await doUpsertRelation(matchId, challengerId, { role: "challenger" });
-    await doUpsertRelation(matchId, defenderId, { role: "defender" });
-
-    if (competitorType === "pair") {
-        for (const [id, users] of [[challengerId, challengerUsers], [defenderId, defenderUsers]] as const) {
-            for (const userId of users) await doUpsertRelation(matchId, userId, { role: "participant", competitor_id: id });
-        }
+    const entrants = [[challengerId, challenger], [defenderId, defender]] as const;
+    const reservations: TransactionAction[] = entrants.map(([rowKey, relation]) => [
+        "update", { partitionKey: ladderId, rowKey, state: "busy" }, "Merge", { etag: String(relation.etag) }
+    ]);
+    try {
+        // Both entrants share the ladder partition. The transaction reserves them together
+        // and rejects any request that validated against an older version of either row.
+        await guidsClient.submitTransaction(reservations);
+    } catch (error: any) {
+        if (![404, 409, 412].includes(error?.statusCode)) throw error;
+        const [currentChallenger, currentDefender] = await Promise.all([
+            getRow(ladderId, challengerId), getRow(ladderId, defenderId)
+        ]);
+        return ongoingMatch(currentChallenger, currentDefender, challengerUsers.includes(caller_id)) ?? {
+            status: 409, jsonBody: { success: false, message: "The ladder changed. Refresh and try again." }
+        };
     }
 
-    // Keep existing attributes as the upsert replaces the row
-    for (const [userId, relation] of [[challengerId, challenger], [defenderId, defender]] as const) {
-        const { partitionKey, rowKey, timestamp, etag, ...attributes } = relation;
-        await doUpsertRelation(ladderId, userId, { ...attributes, state: "busy" });
+    try {
+        await doUpsertRelation(matchId, ladderId);
+        await doUpsertRelation(matchId, challengerId, { role: "challenger" });
+        await doUpsertRelation(matchId, defenderId, { role: "defender" });
+        if (competitorType === "pair") {
+            for (const [id, users] of [[challengerId, challengerUsers], [defenderId, defenderUsers]] as const) {
+                for (const userId of users) await doUpsertRelation(matchId, userId, { role: "participant", competitor_id: id });
+            }
+        }
+        for (const [id] of entrants) {
+            await guidsClient.updateEntity({ partitionKey: id, rowKey: ladderId, state: "busy" }, "Merge");
+        }
+        // Until this write, no match entity can be accepted or scored.
+        await doUpsertEntity("match", matchId, { name, state: "pending" });
+    } catch (error) {
+        // A write may report an error after the service commits it.
+        if (!(await getRow("match", matchId))) {
+            const linked = new Set([ladderId, challengerId, defenderId, ...challengerUsers, ...defenderUsers]);
+            for (const id of linked) {
+                for (const [pk, rk] of [[matchId, id], [id, matchId]]) {
+                    try {
+                        await guidsClient.deleteEntity(pk, rk);
+                    } catch (cleanupError: any) {
+                        if (cleanupError?.statusCode !== 404)
+                            context.warn("Could not remove an incomplete challenge link", cleanupError);
+                    }
+                }
+            }
+            const restore: TransactionAction[] = [];
+            for (const [id, previous] of entrants) {
+                const current = await getRow(ladderId, id);
+                if (current?.state !== "busy") continue;
+                const state = previous.state;
+                await guidsClient.updateEntity({ partitionKey: id, rowKey: ladderId, state }, "Merge");
+                restore.push(["update", { partitionKey: ladderId, rowKey: id, state }, "Merge", { etag: String(current.etag) }]);
+            }
+            if (restore.length) await guidsClient.submitTransaction(restore);
+            context.warn("Challenge creation failed before the match was saved", error);
+            return { status: 503, jsonBody: { success: false, message: "The challenge could not be saved. Please try again." } };
+        }
     }
 
     await doGuidsToPublic();

@@ -1,12 +1,12 @@
 import { app, HttpRequest, InvocationContext } from "@azure/functions";
 import { doUpsertRelation } from "../services/doUpsertRelation";
-import { withComp, client, get, migrateComp, mirrorUser, props, publishDraw, repairResult, reply, startDraw } from "../services/compActions";
+import { withComp, entrantRows, client, get, migrateComp, mirrorEntry, props, publishDraw, repairResult, reply, startDraw } from "../services/compActions";
 
 export async function compDraw(request: HttpRequest, context: InvocationContext) {
     return withComp(request, context, async ({ id, elim, admin, members, renewGuard }) => {
         if (!admin) return reply(403, "Only a competition admin can do this");
         await migrateComp(elim, renewGuard);
-        const entrants = members.filter(row => row.is_participant === true);
+        const entrants = entrantRows(elim, members);
         if (elim.state === "active" || elim.state === "complete") {
             const current = await get("comp", id);
             if (typeof current?.pending_result === "string")
@@ -25,7 +25,7 @@ export async function compDraw(request: HttpRequest, context: InvocationContext)
             if (member.state === "pending" || member.state === "closed")
                 await doUpsertRelation(id, member.rowKey, { ...props(member), state: "closed" });
             else
-                await mirrorUser(member);
+                await mirrorEntry(member);
         }
         await startDraw(elim, entrants, renewGuard);
         await publishDraw(id, context, renewGuard);

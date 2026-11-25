@@ -1,4 +1,6 @@
 <script lang="ts">
+	import ActionQuick from '../ActionQuick.svelte';
+	import RejectCreationRequest from '#lib/components/RejectCreationRequest.svelte';
 	import ActionLink from '../ActionLink.svelte';
 	import EntityActions from '../EntityActions.svelte';
 	import ActionConfirmation from '../ActionConfirmation.svelte';
@@ -22,11 +24,11 @@
 		)
 	);
 	const club = $derived(
-		relationsOf(ladder.rk).find((row) => row.rk.startsWith('club_'))
+		relationsOf(ladder.rk).find((row) => row.rk.startsWith('club_'))?.rk ?? ladder.rejection_club
 	);
 	const clubAdmin = $derived(
-		!!club &&
-			relationsOf(club.rk).some(
+		typeof club === 'string' &&
+			relationsOf(club).some(
 				(row) => row.rk === $local.caller_id && row.is_admin === true
 			)
 	);
@@ -48,16 +50,19 @@
 	);
 </script>
 
-{#snippet editOption()}<ActionLink
-		href={`/ladder/${ladder.rk}/edit`}
-		name="edit"
-	/>{/snippet}
+{#snippet editOption()}
+	{#if mine?.state === 'pending' && ladder.state === 'active'}
+		<ActionConfirmation inline name="leave ladder" message={`leave ${ladder.name}? Ongoing matches will be forfeited`}
+			action={() => leaveLadder(ladder.rk)} />
+	{/if}
+	{#if mine?.is_admin === true}<ActionLink href={`/ladder/${ladder.rk}/edit`} name="edit" />{/if}
+{/snippet}
 
 <EntityActions
 	{section}
-	options={mine?.is_admin === true ? editOption : undefined}
+	options={mine?.is_admin === true || mine?.state === 'pending' ? editOption : undefined}
 	{summary}
-	more={ladder.state === 'active' && associated}
+	more={ladder.state === 'active' && associated && mine?.state !== 'pending'}
 >
 	{#snippet help()}
 		{#each Object.entries(ladderSettings) as [key, setting]}
@@ -71,24 +76,26 @@
 			</p>
 		{/each}
 	{/snippet}
-	{#if ladder.state === 'pending'}
-		<ActionConfirmation
+	{#if ladder.state === 'rejected'}
+		<p class="description">creation request rejected</p>
+		{#if clubAdmin && ladder.rejection_club}<RejectCreationRequest id={ladder.rk} resuming />{/if}
+	{:else if ladder.state === 'pending' && clubAdmin}
+		<RejectCreationRequest id={ladder.rk} />
+		<ActionQuick
 			inline
 			arrow
 			showLabel
 			name="approve this ladder"
-			message={`Approve ${ladder.name} to make it active?`}
 			action={() => activateLadder(ladder.rk)}
-			disabled={!clubAdmin}
 		/>
-	{:else if associated}
+	{:else if associated && mine?.state !== 'pending'}
 		{#if mine?.is_participant === true}
 			{#if mine.state === 'away'}<ActionConfirmation
 					inline
 					arrow
 					showLabel
 					name="return"
-					message="Return from away? Cooling begins when all partners are back."
+					message="set your status as available?"
 					action={() => returnLadder(ladder.rk)}
 				/>
 			{:else}<ActionConfirmation
@@ -96,7 +103,7 @@
 					arrow
 					showLabel
 					name="away"
-					message="Go away and forfeit ongoing matches?"
+					message="set your status as away? Ongoing matches will be forfeited"
 					action={() => awayLadder(ladder.rk)}
 				/>{/if}
 		{/if}
@@ -105,7 +112,7 @@
 			arrow
 			showLabel
 			name="leave ladder"
-			message="Leave this ladder and forfeit ongoing matches? In doubles, both partners leave."
+			message={`leave ${ladder.name}? Ongoing matches will be forfeited`}
 			action={() => leaveLadder(ladder.rk)}
 		/>
 	{:else if ladder.state === 'active'}
@@ -113,9 +120,9 @@
 			inline
 			arrow
 			showLabel
-			name="request to join"
+			name="request to join" message={`request to join ${ladder.name}?`}
 			action={() => joinLadder(ladder.rk)}
-			disabled={!$local.caller_id}
+			disabled={!$local.caller_id || mine?.state === 'pending'}
 		/>
 	{/if}
 </EntityActions>

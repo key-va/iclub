@@ -8,6 +8,7 @@ import { doUpsertRelation } from "../services/doUpsertRelation";
 import { doGuidsToPublic } from "../services/doGuidsToPublic";
 import { doAssetToPublic } from "../services/doAssetToPublic";
 import { doClubForOrigin } from "../services/doClubForOrigin";
+import { defaultMatchFormat, matchFormats } from "../services/matchFormats";
 import { doSendPush } from "../services/doSendPush";
 
 import { resourceName, resourceSuffix } from "../stores/resourceNames";
@@ -21,7 +22,7 @@ type SettingRule =
 
 const settingRules: Record<string, SettingRule> = {
     format: { default: "singles", values: ["singles", "doubles"] },
-    match_format: { default: "super_set", values: ["super_set", "best_of_three", "fast_four"] },
+    match_format: { default: defaultMatchFormat, values: Object.keys(matchFormats) },
     ladder_system: {
         default: "win_points",
         values: ["win_points", "half_rank", "the_percent_fixed", "static_1"]

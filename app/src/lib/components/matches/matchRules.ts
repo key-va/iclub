@@ -1,3 +1,4 @@
+import { entrantIncludesUser } from '../competitions/competitionPlayers.ts';
 import { competitionSlots } from '../competitions/competitionBracket.ts';
 import {
 	type GuidRow,
@@ -6,10 +7,29 @@ import {
 	nameOf
 } from '#lib/stores/guids.ts';
 
+export function isMatchSide(links: GuidRow[], callerId: string | null, role: 'challenger' | 'defender') {
+	const user = links.find((row) => row.rk === callerId);
+	const side = links.find((row) => row.role === role);
+	return user?.role === role || (!!side && user?.competitor_id === side.rk);
+}
+
+export function isMatchDefender(links: GuidRow[], callerId: string | null) {
+	return isMatchSide(links, callerId, 'defender');
+}
+
+export function canAcceptLadderMatch(match: GuidRow, callerId: string | null) {
+	if (match.state !== 'pending' || !callerId) return false;
+	const links = relationsOf(match.rk);
+	const ladder = links.find((row) => row.rk.startsWith('ladder_'));
+	if (!ladder) return false;
+	return isMatchDefender(links, callerId) ||
+		relationsOf(ladder.rk).some((row) => row.rk === callerId && row.is_admin === true);
+}
+
 export function canForfeitCompetitionMatch(match: GuidRow, callerId: string | null) {
 	const [first, second] = competitionSlots(match);
 	return match.state === 'active' && !!first && !!second &&
-		(callerId === first.rk || callerId === second.rk);
+		(entrantIncludesUser(first.rk, callerId) || entrantIncludesUser(second.rk, callerId));
 }
 
 // Recorded scores are a single number or comma-separated games per set, eg "6,4"

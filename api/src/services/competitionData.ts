@@ -23,11 +23,13 @@ const teamFields = {
     points: "points",
     percentage: "percentage",
 };
+const venueDetailFields = ["venue_address", "venue_latitude", "venue_longitude", "court_type"];
 const roundFields = [
     "number",
     "date",
     "opponent",
     "venue",
+    ...venueDetailFields,
     "points_for",
     "points_against",
     "sets_for",
@@ -136,8 +138,15 @@ export function roundRecord(
         "is_home",
     ]);
     const calendarOnly = incoming && "stage" in incoming && !incoming.opponent;
+    const venueChanged = !calendarOnly && incoming?.venue !== undefined &&
+        incoming.venue !== (old.ext_venue ?? old.venue);
+    if (venueChanged) {
+        for (const key of venueDetailFields)
+            delete next[`ext_${key}`];
+    }
     for (const key of roundFields) {
-        if (next[`ext_${key}`] === undefined && old[key] !== undefined)
+        const staleVenueDetail = venueChanged && venueDetailFields.includes(key);
+        if (!staleVenueDetail && next[`ext_${key}`] === undefined && old[key] !== undefined)
             next[`ext_${key}`] = old[key];
         if (incoming?.[key] !== undefined && (!calendarOnly || key === "date"))
             next[`ext_${key}`] = incoming[key];

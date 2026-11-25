@@ -1,12 +1,14 @@
 import { app, HttpRequest, InvocationContext } from "@azure/functions";
-import { withOpenComp, clearSeed, reply, saveMembership } from "../services/compActions";
+import { withOpenComp, entrantRows, clearSeed, reply, saveMembership } from "../services/compActions";
 
 export async function compUnseed(request: HttpRequest, context: InvocationContext) {
-    return withOpenComp(request, context, true, async ({ id, data, members }) => {
-        const member = members.find(row => row.rowKey === data.user_id);
+    return withOpenComp(request, context, true, async ({ id, elim, data, members }) => {
+        if (elim.comp_system === "round_robin") return reply(409, "Round Robin does not use seeds");
+        const entrants = entrantRows(elim, members);
+        const member = entrants.find(row => row.rowKey === (elim.format === "doubles" ? data.pair_id : data.user_id));
         if (member?.is_participant !== true)
             return reply(409, "This player is not an accepted entrant");
-        await saveMembership(id, clearSeed(members, member));
+        await saveMembership(id, clearSeed(entrants, member));
         return reply(200, "Seed removed", id);
     });
 }

@@ -50,9 +50,12 @@ class TableClient {
             etag: String(Math.random()),
         });
     }
+    async deleteEntity(pk, rk) {
+        if (!rows.delete(key(pk, rk))) throw { statusCode: 404 };
+    }
     async *listEntities({ queryOptions: { filter } }) {
-        const fields = [...filter.text.matchAll(/(PartitionKey|url) eq /g)].map(
-            (m) => (m[1] === "PartitionKey" ? "partitionKey" : m[1]),
+        const fields = [...filter.text.matchAll(/(PartitionKey|RowKey|url) eq /g)].map(
+            (m) => (m[1] === "PartitionKey" ? "partitionKey" : m[1] === "RowKey" ? "rowKey" : m[1]),
         );
         for (const row of [...rows.values()])
             if (fields.every((f, i) => row[f] === filter.values[i]))
@@ -348,7 +351,7 @@ test("own availability transitions allow revisions but selected players can only
                 const p = pushes[0];
                 assert.deepEqual(new Set(p.userIds), new Set([A, B]));
                 assert.match(p.heading, /Lobs/);
-                assert.match(p.content, /user_u is now unavailable/);
+                assert.match(p.content, /user_u is now out/);
                 assert.match(p.content, /Round 14.*replacement/i);
                 assert.equal(p.path, "round/round_r");
                 assert.equal(p.exceptUserId, undefined);
@@ -386,7 +389,7 @@ test("selection authority allows admin self-selection while rejecting outsiders,
     pushes.length = 0;
     assert.equal((await role(A, U, "selected")).status, 200);
     assert.deepEqual(pushes[0].userIds, [U]);
-    assert.match(pushes[0].content, /selected.*Round 14/);
+    assert.match(pushes[0].content, /playing in Round 14/);
     assert.equal(pushes[0].path, "round/round_r");
     assert.equal((await role(A, U, "selected")).status, 200);
     assert.equal(pushes.length, 1);
@@ -1253,4 +1256,30 @@ test("The team join alias takes its team ID from the route", async () => {
     );
     assert.equal(result.status, 200);
     assert.equal(result.jsonBody.subject, T);
+});
+
+test("team join and creation rejection use separate admin permissions", async () => {
+    require("../dist/src/functions/teamReject");
+    require("../dist/src/functions/teamRejectCreation");
+    const reject = (action, caller, data = {}) =>
+        routes.get(`team/{team_id}/${action}`).handler(
+            request(caller, data, { team_id: T }), context,
+        );
+    seed();
+    get("team", T).state = "pending";
+    assert.equal((await reject("reject-creation", A)).status, 403);
+    assert.equal((await reject("reject-creation", CLUBADMIN)).status, 200);
+    assert.equal(get("team", T), undefined);
+    assert.equal(get(C, T), undefined);
+    assert.equal(get(T, A), undefined);
+    assert.deepEqual(pushes.at(-1).userIds, [A]);
+    assert.equal((await call("activate", CLUBADMIN)).status, 404);
+
+    seed();
+    relation(T, OUT, { state: "pending" });
+    assert.equal((await reject("reject", CLUBADMIN, { user_id: OUT })).status, 403);
+    assert.equal((await reject("reject", A, { user_id: OUT })).status, 200);
+    assert.equal(get(T, OUT), undefined);
+    assert.equal(get(OUT, T), undefined);
+    assert.deepEqual(pushes.at(-1).userIds, [OUT]);
 });

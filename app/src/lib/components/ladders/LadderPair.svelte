@@ -4,20 +4,22 @@
 	import RouteLinkHiddenAction from '#lib/components/RouteLinkHiddenAction.svelte';
 	import ActionQuick from '../ActionQuick.svelte';
 	import { createMatch } from '#lib/stores/remote.ts';
-	import { canChallenge, challengeDescription, ladderMembership, ladderStateColours } from './ladderRules.ts';
+	import { canChallenge, ladderStatusDescription, ladderMembership, ladderStandingColour } from './ladderRules.ts';
 
 	let { ladder, pair }: { ladder: GuidRow; pair: GuidRow } = $props();
 	const membership = $derived(ladderMembership(ladder, $local.caller_id));
 	const rank = $derived(Number(pair.rank));
-	const eligible = $derived(canChallenge(ladder, membership.relation, membership.competitorId, {
-		rk: pair.rk, rank, relation: pair,
-	}));
-	const description = $derived(challengeDescription(pair, membership.competitorId, eligible));
+	const target = $derived({ rk: pair.rk, rank, relation: pair });
+	const eligible = $derived(canChallenge(ladder, membership.relation, membership.competitorId, target));
+	const description = $derived(ladderStatusDescription(pair));
 </script>
 
-<RouteLinkHiddenAction href={hrefOf(pair.rk)} title={nameOf(pair.rk)} {description} image={imageOf(ladder.rk)} colour={ladderStateColours[String(pair.state)] ?? 'grey'}>
+{#snippet challenge()}
+	<ActionQuick inline name="issue challenge" disabled={!eligible}
+		action={() => createMatch(ladder.rk, membership.competitorId!, pair.rk)} />
+{/snippet}
+<RouteLinkHiddenAction href={hrefOf(pair.rk)} title={nameOf(pair.rk)} {description}
+	image={imageOf(ladder.rk)} colour={ladderStandingColour(ladder, membership, target)}
+	children={challenge}>
 	{#snippet detail()}rank {rank}{/snippet}
-	<ActionQuick inline name="challenge"
-		action={() => createMatch(ladder.rk, membership.competitorId!, pair.rk)}
-		disabled={!eligible} />
 </RouteLinkHiddenAction>

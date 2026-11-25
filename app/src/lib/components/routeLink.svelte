@@ -6,7 +6,8 @@
 		description = '',
 		image = '',
 		isWhite = false,
-		detail
+		detail,
+		icon
 	}: {
 		href?: string;
 		title?: string;
@@ -14,6 +15,7 @@
 		image?: string;
 		isWhite?: boolean;
 		detail?: Snippet;
+		icon?: Snippet;
 	} = $props();
 </script>
 
@@ -22,7 +24,7 @@
 		<div class="row right">
 			<p class="truncate">
 				<strong>{title}</strong>{#if description || detail}<br /><span
-						class="description"
+						class="description row-description"
 					>
 						{description}{#if description && detail}{' • '}{/if}{@render detail?.()}
 					</span>{/if}
@@ -43,7 +45,7 @@
 						stroke-linejoin="round"
 						aria-hidden="true"
 					>
-						<path d="M5 12h14M13 5l7 7-7 7" />
+						{#if icon}{@render icon()}{:else}<path d="M5 12h14M13 5l7 7-7 7" />{/if}
 					</svg>
 				{/if}
 			</div>

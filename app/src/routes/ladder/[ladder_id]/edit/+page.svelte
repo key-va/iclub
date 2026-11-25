@@ -137,7 +137,7 @@
 			<ActionConfirmation
 				inline
 				name="delete"
-				message="delete this ladder? this cannot be undone"
+				message={`delete ${ladder.name}? this cannot be undone`}
 				action={() => deleteLadder(ladderId)}
 			/>
 		</HiddenOptions>

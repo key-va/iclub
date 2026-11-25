@@ -1,4 +1,5 @@
 <script lang="ts">
+	import MatchRecord from '#lib/components/matches/MatchRecord.svelte';
 	import UserCompetition from '#lib/components/competitions/UserCompetition.svelte';
 	import MatchHistory from '#lib/components/matches/MatchHistory.svelte';
 	import UserGroup from '#lib/components/groups/UserGroup.svelte';
@@ -10,11 +11,9 @@
 	import {
 		guids,
 		entityOf,
-		hrefOf,
-		imageOf,
+		isBrowsableEntity,
 		relationsOf,
-		typeOf,
-		nameOf
+		typeOf
 	} from '#lib/stores/guids.ts';
 
 	import RouteLink from '#lib/components/routeLink.svelte';
@@ -28,103 +27,20 @@
 	const relatedRows = $derived(
 		relationsOf(user_id).filter((row) => row.state !== 'left')
 	);
-	const adminClubs = $derived(
-		relatedRows.filter(
-			(row) => typeOf(row.rk) === 'club' && row.is_admin === true
-		)
-	);
-	const pendingApprovalLadders = $derived(
-		adminClubs.flatMap((club) =>
-			relationsOf(club.rk)
-				.filter((row) => typeOf(row.rk) === 'ladder' && entityOf(row.rk))
-				.filter((ladder) => entityOf(ladder.rk)?.state === 'pending')
-		)
-	);
+	const activeMemberships = $derived(relatedRows.filter((row) => isBrowsableEntity(entityOf(row.rk))));
+	const groups = $derived(activeMemberships.filter((row) => typeOf(row.rk) === 'group'));
+	const competitions = $derived(activeMemberships.filter((row) =>
+		typeOf(row.rk) === 'comp' && (row.is_admin === true || row.state !== 'closed')
+	));
+	const teams = $derived(activeMemberships.filter((row) => typeOf(row.rk) === 'team'));
+	const ladders = $derived(activeMemberships.filter((row) => typeOf(row.rk) === 'ladder'));
 
-	const groups = $derived(
-		relatedRows.filter((row) => typeOf(row.rk) === 'group' && entityOf(row.rk))
-	);
-	const pendingGroups = $derived(
-		adminClubs.flatMap((club) =>
-			relationsOf(club.rk)
-				.filter((row) => typeOf(row.rk) === 'group' && entityOf(row.rk))
-				.filter((group) => entityOf(group.rk)?.state === 'pending')
-		)
-	);
-	const competitions = $derived(
-		relationsOf(user_id).filter((row) => typeOf(row.rk) === 'comp' && entityOf(row.rk) &&
-			(row.is_admin === true || !['left', 'closed'].includes(String(row.state))))
-	);
-	const pendingCompetitions = $derived(
-		adminClubs.flatMap((club) => relationsOf(club.rk)
-			.filter((row) => typeOf(row.rk) === 'comp' && entityOf(row.rk)?.state === 'pending'))
-	);
-	const teams = $derived(
-		relatedRows.filter((row) => typeOf(row.rk) === 'team' && entityOf(row.rk))
-	);
-	const pendingTeams = $derived(
-		adminClubs.flatMap((club) =>
-			relationsOf(club.rk)
-				.filter((row) => typeOf(row.rk) === 'team' && entityOf(row.rk))
-				.filter((team) => entityOf(team.rk)?.state === 'pending')
-		)
-	);
-
-	const ladders = $derived(
-		relatedRows.filter((row) => typeOf(row.rk) === 'ladder' && entityOf(row.rk))
-	);
-
-	const results = $derived.by(() => {
-		let won = 0;
-		let lost = 0;
-		for (const match of relatedRows) {
-			if (typeOf(match.rk) !== 'match' || entityOf(match.rk)?.state !== 'complete') continue;
-			if (match.result === 'winner') won++;
-			if (['loser', 'forfeiter', 'walkover'].includes(String(match.result))) lost++;
-		}
-		return { won, lost };
-	});
 </script>
 
 <div class="page">
 	{#if user_entity}
 		<EntityHeader entity={user_entity} />
-		<div class="group">
-			<p class="info center description">{results.won} won • lost {results.lost}</p>
-		</div>
-
-		{#if user_id === caller_id && adminClubs.length > 0}
-			<div class="group">
-				{#each pendingApprovalLadders as ladder (ladder.rk)}
-					<RouteLink
-						href={hrefOf(ladder.rk)}
-						title={nameOf(ladder.rk)}
-						description="pending club approval"
-						isWhite={false}
-						image={imageOf(ladder.rk)}
-					/>
-				{/each}
-			</div>
-		{/if}
-
-		{#if user_id === $local.caller_id}
-			{#each pendingTeams as team}<RouteLink
-					href={hrefOf(team.rk)}
-					title={nameOf(team.rk)}
-					description="pending club approval"
-					image={imageOf(team.rk)}
-				/>{/each}
-			{#each pendingCompetitions as elim (elim.rk)}
-				<RouteLink href={hrefOf(elim.rk)} title={nameOf(elim.rk)}
-					description="pending club approval" image={imageOf(elim.rk)} isWhite />
-			{/each}
-			{#each pendingGroups as group (group.rk)}<RouteLink
-					href={hrefOf(group.rk)}
-					title={nameOf(group.rk)}
-					description="pending club approval"
-					image={imageOf(group.rk)}
-				/>{/each}
-		{/if}
+		<MatchRecord parentId={user_id} />
 
 		{#each ladders as ladder (ladder.rk)}
 			<UserLadder user={user_entity} ladder={entityOf(ladder.rk)!} />

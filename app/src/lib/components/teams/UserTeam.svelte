@@ -1,4 +1,5 @@
 <script lang="ts">
+	import RejectJoinRequest from '#lib/components/RejectJoinRequest.svelte';
 	import { local } from '#lib/stores/local.ts';
 	import {
 		entityOf,
@@ -18,7 +19,7 @@
 	import UserRound from '../rounds/UserRound.svelte';
 	import RouteLink from '../routeLink.svelte';
 	import HiddenOptions from '../hiddenOptions.svelte';
-	import ActionConfirmation from '../ActionConfirmation.svelte';
+	import ActionQuick from '../ActionQuick.svelte';
 	let { user, team }: { user: GuidRow; team: GuidRow } = $props();
 	const entity = $derived(entityOf(team.rk));
 	const member = $derived(isTeamMember(team));
@@ -47,12 +48,13 @@
 		{description}
 		image={imageOf(team.rk)}
 	/>
-	{#if canAccept}<ActionConfirmation
-			arrow
-			showLabel
-			name="accept joiner"
-			action={() => acceptTeamMemberConfirmation(team.rk, user.rk)}
-		/>{/if}
+	{#if canAccept}
+		<div class="row right">
+			<RejectJoinRequest entityId={team.rk} userId={user.rk} />
+			<ActionQuick inline name="accept joiner"
+				action={() => acceptTeamMemberConfirmation(team.rk, user.rk)} />
+		</div>
+	{/if}
 
 	{#each rounds as round (round.rk)}<UserRound {user} {team} {round} />
 	{:else}<HiddenOptions title="No pending rounds" />{/each}

@@ -1,25 +1,35 @@
 <script lang="ts">
-	import { entityOf, hrefOf, imageOf, nameOf, type GuidRow } from '#lib/stores/guids.ts';
+	import { entityOf, hrefOf, imageOf, nameOf, typeOf, type GuidRow } from '#lib/stores/guids.ts';
+	import PairMembers from '../pairs/PairMembers.svelte';
 	import UserMatch from '../matches/UserMatch.svelte';
+	import { roundRobinStandings, roundRobinStandingDescription } from './roundRobinStandings.ts';
 	import { competitionChampion } from './competitionBracket.ts';
 	import HiddenOptions from '../hiddenOptions.svelte';
 	import RouteLink from '../routeLink.svelte';
-	import { activeCompetitionMatches, competitionPlayerMatches, competitionPlayerStatus } from './competitionPlayers.ts';
+	import { activeCompetitionMatches, competitionPair, competitionPlayerMatches, competitionPlayerStatus } from './competitionPlayers.ts';
 
 	let { user, competition }: { user: GuidRow; competition: GuidRow } = $props();
+	const isPair = $derived(typeOf(user.rk) === 'pair');
 	const matches = $derived(competitionPlayerMatches(competition.rk, user.rk));
 	const active = $derived(activeCompetitionMatches(matches));
 	const comp = $derived(entityOf(competition.rk));
-	const champion = $derived(comp ? competitionChampion(comp) : '');
-	const status = $derived(competitionPlayerStatus(competition, matches, champion === user.rk));
+	const champion = $derived(comp && comp.comp_system !== 'round_robin' ? competitionChampion(comp) : '');
+	const pair = $derived(competitionPair(competition.rk, user.rk));
+	const standing = $derived(comp?.comp_system === 'round_robin'
+		? roundRobinStandings(competition.rk).find((row) => row.entry.rk === (pair?.rk ?? user.rk))
+		: undefined);
+	const status = $derived(standing
+		? roundRobinStandingDescription(standing, comp?.state === 'complete')
+		: competitionPlayerStatus(pair ?? competition, matches, champion === (pair?.rk ?? user.rk)));
 </script>
 
 <div class="group">
+	{#if isPair}<PairMembers pairId={user.rk} />{/if}
 	<RouteLink href={hrefOf(competition.rk)} title={nameOf(competition.rk)}
 		description={status} image={imageOf(competition.rk)} />
 	{#each active as match (match.rk)}
 		<UserMatch {match} />
 	{:else}
-		<HiddenOptions title="No pending matches" />
+		{#if !isPair}<HiddenOptions title="No pending matches" />{/if}
 	{/each}
 </div>

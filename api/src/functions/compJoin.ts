@@ -4,6 +4,7 @@ import { withOpenComp, notify, props, reply, saveMembership } from "../services/
 export async function compJoin(request: HttpRequest, context: InvocationContext) {
     return withOpenComp(request, context, false, async ({ id, elim, caller, user, mine, members }) => {
         if (mine?.is_participant === true) return reply(409, "You have already joined");
+        if (mine?.state === "rejecting") return reply(409, "Your previous request is being cleared");
         const attributes = mine ? props(mine) : {};
         await saveMembership(id, new Map([[caller, { ...attributes, state: "pending", is_participant: false }]]));
         const admins = members.filter(row => row.is_admin === true).map(row => row.rowKey);

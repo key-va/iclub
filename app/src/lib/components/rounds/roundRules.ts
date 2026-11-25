@@ -10,6 +10,32 @@ export const roundRoleColour: Record<string, string> = {
 	unavailable: 'red',
 	pending: 'orange'
 };
+export function roundAvailability(roundId: string) {
+	const players = relationsOf(roundId).filter((row) => typeOf(row.rk) === 'user');
+	const playing = players.filter((row) => row.role === 'selected').length;
+	const available = players.filter((row) => row.role === 'available').length;
+	return { playing, available };
+}
+
+export function roundAvailabilityColour({ playing, available }: ReturnType<typeof roundAvailability>) {
+	if (playing >= 4) return 'green';
+	if (playing + available >= 4) return 'blue';
+	return playing === 0 ? 'orange' : 'red';
+}
+
+export function roundRoleLabel(role: unknown): string {
+	if (role === 'unavailable') return 'out';
+	if (role === 'selected') return 'playing';
+	return typeof role === 'string' ? role : '';
+}
+
+export function futureRoundDescription(round: GuidRow, role: unknown): string {
+	const status = roundRoleLabel(role) || 'no status';
+	return round.ext_stage && round.is_home === undefined
+		? `${status} • ${round.date}`
+		: `${status} • ${round.is_home ? 'home' : 'away'} • ${round.date}`;
+}
+
 export function isTeamAdmin(relation?: Record<string, unknown>): boolean {
 	return typeof relation?.is_admin === 'boolean'
 		? relation.is_admin
@@ -27,6 +53,15 @@ export function availabilityOptions(
 	if (role === 'unavailable') return ['available'];
 	return [];
 }
+export const roundQuickRoles = ['unavailable', 'available', 'selected'] as const;
+
+export function roundQuickOptions(role: unknown, admin: boolean): (typeof roundQuickRoles)[number][] {
+	const options: (typeof roundQuickRoles)[number][] = availabilityOptions(role);
+	if (admin && role === 'available') options.push('selected');
+	if (admin && role === 'selected') options.push('available');
+	return options;
+}
+
 // Read the new stored contract while older datasets remain visible until refresh.
 // These aliases are derived views, never copies persisted back to guids.json.
 export function roundView<T extends GuidRow>(
@@ -52,6 +87,10 @@ export function roundView<T extends GuidRow>(
 		'date',
 		'opponent',
 		'venue',
+		'venue_address',
+		'venue_latitude',
+		'venue_longitude',
+		'court_type',
 		'points_for',
 		'points_against',
 		'sets_for',

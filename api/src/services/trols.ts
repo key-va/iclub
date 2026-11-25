@@ -184,11 +184,18 @@ export function parseFixture(html: string, teamName: string) {
         )
     )
         throw Error("TROLS team fixture is missing");
-    const venues = new Map<string, string>();
+    const venues = new Map<string, Pick<OfficialRound, "venue" | "venue_latitude" | "venue_longitude">>();
     for (const row of rows(html.slice(0, start))) {
-        const venue = row.html.match(/pop_map\('([^']+)'/)?.[1];
-        if (venue && row.cells.length >= 3)
-            venues.set(row.cells[1], text(venue));
+        const map = row.html.match(/pop_map\('([^']+)'(?:,\s*(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?))?/);
+        if (!map || row.cells.length < 3) continue;
+        const latitude = Number(map[2]);
+        const longitude = Number(map[3]);
+        venues.set(row.cells[1], {
+            venue: text(map[1]),
+            ...(Math.abs(latitude) <= 90 && Math.abs(longitude) <= 180
+                ? { venue_latitude: latitude, venue_longitude: longitude }
+                : {}),
+        });
     }
     const rounds: OfficialRound[] = [];
     const calendar: { date: string; name: string }[] = [];
@@ -202,14 +209,14 @@ export function parseFixture(html: string, teamName: string) {
             const opponent = home ? c[3] : c[2];
             if (!opponent) throw Error("TROLS opponent is missing");
             const bye = /^bye$/i.test(opponent);
-            const venue = bye ? "" : venues.get(c[2]);
+            const venue = bye ? undefined : venues.get(c[2]);
             if (!bye && !venue) throw Error("TROLS venue directory is missing");
             rounds.push({
                 number: Number(c[0]),
                 date: dateOf(c[1]),
                 opponent,
                 home_away: bye ? "" : home ? "home" : "away",
-                venue: venue ?? "",
+                ...(venue ?? { venue: "" }),
                 status: bye ? "bye" : "scheduled",
                 source_status: bye ? opponent : "",
             });
@@ -364,6 +371,44 @@ export function parseStandings(html: string): Standing[] {
         throw Error("Invalid TROLS standings");
     return standings;
 }
+async function venueDetails(venue: string): Promise<Pick<OfficialRound, "venue_address" | "court_type">> {
+    try {
+        const response = await fetch("https://trols.org.au/brta/clubs.php", {
+            method: "POST",
+            body: new URLSearchParams({ which: "2", club: venue }),
+            signal: AbortSignal.timeout(5000),
+            redirect: "error",
+        });
+        if (!response.ok) return {};
+        const html = await response.text();
+        if (html.length > 2_000_000) return {};
+        selected(html, "club", venue);
+        const directoryRows = rows(html);
+        const addressRow = directoryRows.find(row =>
+            row.cells.length === 4 && text(row.html.match(/pop_map\('([^']+)'/)?.[1] ?? "") === venue);
+        const addressCell = addressRow?.html.match(/^\s*<td\b[^>]*>([\s\S]*?)<\/td>/i)?.[1];
+        const address = addressCell?.split(/<br\s*\/?\s*>|,/i).map(text).filter(Boolean).join(", ");
+        const surfaces = directoryRows
+            .filter(row => row.cells.length === 1)
+            .flatMap(row => [...row.cells[0].matchAll(/(?:^|[,;]|\band\b)\s*\d+\s+([\w -]+?)\s+courts?\b/gi)]
+                .map(match => match[1].trim()));
+        return {
+            venue_address: address || undefined,
+            court_type: [...new Set(surfaces)].join(" / ") || undefined,
+        };
+    } catch {
+        // Venue directory information is optional and must never block fixture import.
+        return {};
+    }
+}
+
+async function addVenueDetails(rounds: OfficialRound[]) {
+    const venues = [...new Set(rounds.map(round => round.venue).filter(Boolean))];
+    const details = new Map(await Promise.all(venues.map(async venue =>
+        [venue, await venueDetails(venue)] as const)));
+    for (const round of rounds) Object.assign(round, details.get(round.venue));
+}
+
 export const trols: CompetitionProvider = {
     async options(input) {
         association(input.association);
@@ -468,6 +513,7 @@ export const trols: CompetitionProvider = {
         const finals = parseResults(results, team.name, parsed.rounds, parsed.calendar, standings);
         if (!standings.some((s) => s.name === team.name))
             throw Error("Team is missing from TROLS standings");
+        await addVenueDetails(parsed.rounds);
         return { ...parsed, finals, standings };
     },
 };

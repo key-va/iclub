@@ -3,7 +3,6 @@ import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/fu
 import { DefaultAzureCredential } from "@azure/identity";
 import { TableClient, odata } from "@azure/data-tables";
 import { doSignatureVerification } from "../services/doSignatureVerification";
-import { doUpsertEntity } from "../services/doUpsertEntity";
 import { doGuidsToPublic } from "../services/doGuidsToPublic";
 import { doSendPush } from "../services/doSendPush";
 
@@ -90,9 +89,17 @@ export async function matchAccept(request: HttpRequest, context: InvocationConte
     }
 
     // 4. Accept, publish and let the challenger know
-    const { partitionKey, rowKey, timestamp, etag, ...attributes } = match;
-
-    await doUpsertEntity("match", matchId, { ...attributes, state: "active" });
+    try {
+        await guidsClient.updateEntity(
+            { partitionKey: "match", rowKey: matchId, state: "active" },
+            "Merge",
+            { etag: String(match.etag) },
+        );
+    } catch (error: any) {
+        if (error?.statusCode === 412)
+            return { status: 409, jsonBody: { success: false, message: "The challenge has already changed" } };
+        throw error;
+    }
 
     await doGuidsToPublic();
 

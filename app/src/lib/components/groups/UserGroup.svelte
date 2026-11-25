@@ -1,4 +1,5 @@
 <script lang="ts">
+	import RejectJoinRequest from '#lib/components/RejectJoinRequest.svelte';
 	import { local } from '#lib/stores/local.ts';
 	import {
 		entityOf,
@@ -31,11 +32,14 @@
 </script>
 
 {#if group.is_participant === true || group.state === 'pending'}
-	{#snippet actions()}<ActionQuick
+	{#snippet actions()}
+		<ActionQuick
 			inline
 			name="accept"
 			action={() => acceptGroupMember(group.rk, user.rk)}
-		/>{/snippet}
+		/>
+		<RejectJoinRequest entityId={group.rk} userId={user.rk} />
+	{/snippet}
 	<RouteLinkHiddenAction
 		href={hrefOf(group.rk)}
 		title={nameOf(group.rk)}

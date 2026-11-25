@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { competitionFinal, competitionSlots, nextCompetitionMatch } from '../competitions/competitionBracket.ts';
+	import { entrantIncludesUser } from '../competitions/competitionPlayers.ts';
 	import MatchActions from './MatchActions.svelte';
 	import MessageThread from '#lib/components/messages/MessageThread.svelte';
 	import ActionConfirmation from '#lib/components/ActionConfirmation.svelte';
@@ -24,6 +25,8 @@
 	import RouteLink from '#lib/components/routeLink.svelte';
 
 	let { match, ladder, elim }: { match: GuidRow; ladder?: GuidRow; elim?: GuidRow } = $props();
+	const parent = $derived(elim ?? ladder);
+	const pairImageId = $derived(parent?.format === 'doubles' ? parent.rk : undefined);
 	const caller_id = $derived($local.caller_id);
 	const matchId = $derived(match.rk);
 	const players = $derived(
@@ -53,16 +56,16 @@
 	);
 	const isElimAdmin = $derived(!!elim && relationsOf(elim.rk)
 		.some((row) => row.rk === caller_id && row.is_admin === true));
-	const canCorrect = $derived(!!elim && isElimAdmin && match.state === 'complete' &&
-		nextCompetitionMatch(elim.rk, match)?.state !== 'complete');
+	const roundRobin = $derived(elim?.comp_system === 'round_robin');
+	const correctionRelevant = $derived(!!elim && isElimAdmin && match.state === 'complete');
+	const canCorrect = $derived(!!elim && correctionRelevant &&
+		(roundRobin ? elim.state !== 'complete' : nextCompetitionMatch(elim.rk, match)?.state !== 'complete'));
 	let correcting = $state(false);
 	const isPlayer = $derived(
-		matchUsers.some(
-			(user) =>
-				user.rk === caller_id &&
-				(elim ? user.rk === slots[0]?.rk || user.rk === slots[1]?.rk
-					: ['challenger', 'defender', 'participant'].includes(String(user.role)))
-		)
+		elim
+			? slots.some((slot) => entrantIncludesUser(slot?.rk, caller_id))
+			: matchUsers.some((user) => user.rk === caller_id &&
+				['challenger', 'defender', 'participant'].includes(String(user.role)))
 	);
 	const showScores = $derived(
 		match.state === 'active' ||
@@ -74,8 +77,9 @@
 		best_of_three: ['set 1', 'set 2', 'tie break'],
 		fast_four: ['set 1', 'set 2', 'set 3']
 	};
+	const matchFormat = $derived(String((elim ?? ladder)?.match_format ?? 'super_set'));
 	const labels = $derived(
-		setLabels[String(ladder?.match_format ?? 'super_set')] ??
+		setLabels[matchFormat] ??
 			setLabels.super_set
 	);
 	const maxGamesByFormat: Record<string, number> = {
@@ -84,15 +88,12 @@
 		fast_four: 4
 	};
 	const maxGames = $derived(
-		maxGamesByFormat[String(ladder?.match_format ?? 'super_set')] ?? 8
+		maxGamesByFormat[matchFormat] ?? 8
 	);
 	const formatRules = $derived.by(() => {
-		const format = String(
-			ladder?.match_format ?? ladderSettings.match_format.default
-		);
 		const setting = ladderSettings.match_format;
 		const rules =
-			setting.type === 'enum' ? setting.values[format]?.description : '';
+			setting.type === 'enum' ? setting.values[matchFormat]?.description : '';
 		return rules ? `Match format: ${rules}.` : '';
 	});
 	const isComplete = $derived(match?.state === 'complete');
@@ -103,7 +104,7 @@
 			: String(player.score).split(',');
 	const recordedChallenger = $derived(recordedGames(challenger));
 	const recordedDefender = $derived(recordedGames(defender));
-	const isFinal = $derived(!!elim && competitionFinal(elim.rk)?.rk === matchId);
+	const isFinal = $derived(!!elim && !roundRobin && competitionFinal(elim.rk)?.rk === matchId);
 	function roleText(player: Record<string, unknown>, fallback: string) {
 		if (!isComplete) return fallback;
 		if (isFinal && player.result) return player.result === 'winner' ? 'champion' : 'eliminated';
@@ -129,15 +130,15 @@
 	let showHelp = $state(false);
 
 	function editResult() {
-		challengerScores = [recordedChallenger[0] ?? '', '', ''];
-		defenderScores = [recordedDefender[0] ?? '', '', ''];
+		challengerScores = labels.map((_, i) => recordedChallenger[i] ?? '');
+		defenderScores = labels.map((_, i) => recordedDefender[i] ?? '');
 		correcting = true;
 	}
 
 	function submitElimScore() {
 		return recordElimResult(elim!.rk, matchId, correcting ? 'correct' : 'score',
 			challenger!.rk, defender!.rk,
-			{ first_score: challengerSets[0], second_score: defenderSets[0] });
+			{ first_score: challengerSets, second_score: defenderSets });
 	}
 
 
@@ -175,11 +176,9 @@
 			)
 	);
 	// "<winner> wins 6-2 6-3", with each set shown from the winner's side; the winner is whoever takes more sets
+	const challengerWon = $derived(challengerSets.filter((games, i) => games > defenderSets[i]).length);
+	const defenderWon = $derived(defenderSets.filter((games, i) => games > challengerSets[i]).length);
 	const scoreSummary = $derived.by(() => {
-		const won = (mine: number[], theirs: number[]) =>
-			mine.filter((games, i) => games > theirs[i]).length;
-		const challengerWon = won(challengerSets, defenderSets);
-		const defenderWon = won(defenderSets, challengerSets);
 		if (challengerWon === defenderWon)
 			return `${nameOf(challenger?.rk ?? '')} ${challengerSets.join(' ')} - ${defenderSets.join(' ')} ${nameOf(defender?.rk ?? '')}`;
 		const [winner, mine, theirs] =
@@ -197,13 +196,13 @@
 				href: hrefOf(challenger.rk),
 				title: nameOf(challenger.rk),
 				description: roleText(challenger, elim ? 'competitor' : 'challenger'),
-				image: imageOf(ladder?.format === 'doubles' ? ladder.rk : challenger.rk)
+				image: imageOf(pairImageId ?? challenger.rk)
 			}}
 			right={{
 				href: hrefOf(defender.rk),
 				title: nameOf(defender.rk),
 				description: roleText(defender, elim ? 'competitor' : 'defender'),
-				image: imageOf(ladder?.format === 'doubles' ? ladder.rk : defender.rk)
+				image: imageOf(pairImageId ?? defender.rk)
 			}}
 		/>
 		{#if isComplete && completeSummary}
@@ -211,7 +210,9 @@
 				<p class="info description">{completeSummary}</p>
 			</div>
 		{/if}
-		{#if match.state === 'pending'}
+		{#if match.state === 'withdrawn'}
+			<div class="row center"><p class="info description">challenge withdrawn</p></div>
+		{:else if match.state === 'pending'}
 			<div class="row center">
 				<p class="info">
 					waiting for <strong>{nameOf(defender.rk)}</strong> to accept
@@ -294,7 +295,7 @@
 				defender_score: defenderSets
 			})}
 		disabled={!scoreValid || !(isPlayer || isLadderAdmin || isElimAdmin)
-			|| (!!elim && challengerSets[0] === defenderSets[0])}
+			|| (!!elim && challengerWon === defenderWon)}
 		onsuccess={() => { correcting = false; }}
 	>
 		<button
@@ -316,7 +317,7 @@
 		<p class="info center">{nameOf(slots.find((player) => player)?.rk ?? '')} advances with a bye.</p>
 	</div>
 {:else if elim && match.state === 'waiting'}
-	<p class="info">Waiting for earlier results.</p>
+	<p class="info">{roundRobin ? 'Waiting for this round to open.' : 'Waiting for earlier results.'}</p>
 {/if}
 
 <RouteLink
@@ -326,12 +327,18 @@
 	image={imageOf((elim ?? ladder)?.rk ?? '')}
 ></RouteLink>
 
-{#if canCorrect}
+{#if correctionRelevant}
 	<EntityActions section="options">
 		{#snippet options()}
-			<button class="blue" onclick={() => correcting ? (correcting = false) : editResult()}>
-				<p>{correcting ? 'cancel correction' : 'correct score'}</p>
-			</button>
+			<ActionConfirmation inline navigate={false}
+				name={correcting ? 'cancel correction' : 'correct score'}
+				message={correcting ? 'Discard the changes to this score?' : 'Edit the recorded score?'}
+				disabled={!canCorrect}
+				action={async () => {
+					if (correcting) correcting = false;
+					else editResult();
+					return { success: true, message: '' };
+				}} />
 		{/snippet}
 	</EntityActions>
 {:else}

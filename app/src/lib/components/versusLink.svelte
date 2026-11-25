@@ -21,14 +21,14 @@
 			style="background-image: url('{left.image}');"
 		></div>
 		<p class="truncate">
-			<strong>{left.title}</strong><br /><span class="description">
+			<strong>{left.title}</strong><br /><span class="description row-description">
 				{left.description}
 			</span>
 		</p>
 	</a>
 	<a class="side end" href={right.href}>
 		<p class="truncate">
-			<strong>{right.title}</strong><br /><span class="description">
+			<strong>{right.title}</strong><br /><span class="description row-description">
 				{right.description}
 			</span>
 		</p>

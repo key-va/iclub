@@ -30,10 +30,10 @@ test('ladder visitor sees selected settings and join; membership management star
 test('round page only offers eligible confirmed availability choices for current members', async () => {
  const round={pk:'round',rk:'round_test',state:'pending'},team={pk:'team',rk:'team_test'};
  const rows=[{pk:team.rk,rk:'user_me',is_member:true},{pk:round.rk,rk:'user_me',role:'pending'}];
- let html=await show('round',{round,team},rows);assert.equal(has(html,'available'),true);assert.equal(has(html,'unavailable'),true);assert.equal(has(html,'More Options'),false);
- rows[1].role='selected';html=await show('round',{round,team},rows);assert.equal(has(html,'available'),false);assert.equal(has(html,'unavailable'),true);
- assert.equal(has(await show('round',{round,team},rows,'user_other'),'unavailable'),false);
- assert.equal(has(await show('round',{round:{...round,state:'complete'},team},rows),'unavailable'),false);
+ let html=await show('round',{round,team},rows);assert.equal(has(html,'available'),true);assert.equal(has(html,'out'),true);assert.equal(has(html,'More Options'),false);
+ rows[1].role='selected';html=await show('round',{round,team},rows);assert.match(html,/aria-label="available"[^>]*disabled/);assert.equal(has(html,'out'),true);
+ assert.equal(has(await show('round',{round,team},rows,'user_other'),'out'),false);
+ assert.equal(has(await show('round',{round:{...round,state:'complete'},team},rows),'out'),false);
 });
 test('match page shows accept for defenders/admins and forfeit only for participating users', async () => {
  const match={pk:'match',rk:'match_test',state:'pending'};
@@ -45,12 +45,12 @@ test('match page shows accept for defenders/admins and forfeit only for particip
 });
 
 
-test('pending entity approvals follow their summaries in ungrouped foreground controls', async () => {
+test('pending entity approvals follow their summaries as immediate actions', async () => {
  for(const [type,name] of [['ladder','approve this ladder'],['team','approve team'],['group','approve group']]) {
   const entity={pk:type,rk:`${type}_test`,name:'Pending entity',state:'pending',format:'singles',ladder_system:'win_points',match_format:'best_of_three',ext_association:'brta',ext_competition_name:'Tuesday Night',ext_section_name:'Section 1',ext_rank:3};
   const rows=[entity,{pk:entity.rk,rk:'club_test'},{pk:'club_test',rk:'user_me',is_admin:true}];
   const html=await show(type,{[type]:entity},rows);
-  assert.equal(has(html,name),true);assert.match(html,new RegExp(`class="pink"[^>]*aria-label="${name}"`));
+  assert.equal(has(html,name),true);assert.match(html,new RegExp(`class="blue"[^>]*aria-label="${name}"`));
   assert.doesNotMatch(html,/aria-label="Pending"|pending approval|pending club approval/);
   if(type!=='group'){
    const summary=type==='ladder'?'singles • win points • best of three':'BRTA • Section 1 • rank 3';
@@ -84,7 +84,7 @@ test('ladder sections show No pending matches without live matches, except when 
   html=await show('userLadder',{user,ladder},[...rows,...matches]);assert.equal(html.includes('No pending matches'),state==='complete');
  }
 });
-test('team sections show No pending rounds when no unfinished rounds require availability or selection',async()=>{
+test('own team sections list only pending and playing rounds',async()=>{
  const user={pk:'user',rk:'user_me',name:'Casey'},entity={pk:'team',rk:'team_test',name:'Team',state:'active'},team={pk:user.rk,rk:entity.rk,is_member:true};
  const rows=[user,entity,{pk:entity.rk,rk:user.rk,is_member:true}];
  let html=await show('userTeam',{user,team},rows);assert.match(html,/No pending rounds/);assert.match(html,/d="M5 12h14"/);assert.equal(has(html,'No pending rounds'),false);

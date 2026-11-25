@@ -1,3 +1,6 @@
+import { roundRobinDraw } from "./roundRobinDraw";
+import { matchFormatRules, setsWon } from "./matchFormats";
+import { createHash } from "node:crypto";
 import { HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
 import { DefaultAzureCredential } from "@azure/identity";
 import { TableClient, TransactionAction, odata } from "@azure/data-tables";
@@ -6,6 +9,7 @@ import { doSignatureVerification } from "./doSignatureVerification";
 import { doUpsertEntity } from "./doUpsertEntity";
 import { doUpsertRelation } from "./doUpsertRelation";
 import { doGuidsToPublic } from "./doGuidsToPublic";
+import { doCompetitorUsers } from "./doCompetitorUsers";
 import { doSendPush } from "./doSendPush";
 import { elimBracketId, elimDraw, elimRoundName } from "./elimDraw";
 
@@ -40,14 +44,45 @@ export async function get(pk: string, rk: string): Promise<Row | undefined> {
     }
 }
 
-const users = (id: string) => links(id, "user");
+const entryLinks = (id: string) => links(id, "user", "pair");
+
+export function entrantRows(comp: Row, members: Row[]) {
+    const prefix = comp.format === "doubles" ? "pair_" : "user_";
+    return members.filter(row => row.rowKey.startsWith(prefix) && row.is_participant === true);
+}
+
+export async function entryUsers(entrantId: string): Promise<string[]> {
+    const members = await doCompetitorUsers(client, entrantId);
+    if (entrantId.startsWith("pair_") && members.length !== 2)
+        throw new Error("A doubles pair must have two members");
+    return members;
+}
+
+export async function prepareCompPair(compId: string, ids: string[]) {
+    const ordered = [...ids].sort();
+    const digest = createHash("sha256").update(JSON.stringify([compId, ...ordered])).digest("hex");
+    const pairId = `pair_${compId.slice(5, 24)}_${digest.slice(0, 12)}`;
+    await writeIfChanged("pair", pairId, { name: (await Promise.all(ordered.map(entryName))).join(" and ") });
+    for (const id of ordered) await doUpsertRelation(pairId, id, { role: "member" });
+    return pairId;
+}
+
+async function entryName(id: string) {
+    const type = id.startsWith("pair_") ? "pair" : "user";
+    const name = String((await get(type, id))?.name ?? "").trim();
+    return (type === "pair" ? name : name.split(/\s+/)[0]) || "Player";
+}
+
+async function matchUserIds(players: Competitor[]) {
+    return (await Promise.all(players.map(player => entryUsers(player.id)))).flat();
+}
 
 export function props(row: Row) {
     const { partitionKey, rowKey, etag, timestamp, ...attributes } = row;
     return attributes;
 }
 
-export async function mirrorUser(row: Row) {
+export async function mirrorEntry(row: Row) {
     await doUpsertEntity(row.rowKey, row.partitionKey, props(row));
 }
 
@@ -72,12 +107,12 @@ export async function notify(
     }
 }
 
-async function links(id: string, type: string): Promise<Row[]> {
+async function links(id: string, ...types: string[]): Promise<Row[]> {
     const rows: Row[] = [];
     for await (const row of client.listEntities({
         queryOptions: { filter: odata`PartitionKey eq ${id}` },
     })) {
-        if (row.rowKey.startsWith(`${type}_`)) rows.push({ ...row, partitionKey: id, rowKey: row.rowKey });
+        if (types.some(type => row.rowKey.startsWith(`${type}_`))) rows.push({ ...row, partitionKey: id, rowKey: row.rowKey });
     }
     return rows;
 }
@@ -94,14 +129,14 @@ async function writeIfChanged(pk: string, rk: string, attributes: Record<string,
         await doUpsertEntity(pk, rk, attributes);
 }
 
-type Competitor = { id: string; slot: number; result?: string; score?: number };
+type Competitor = { id: string; slot: number; result?: string; score?: number | string };
 
 function competitors(rows: Row[]): Competitor[] {
     return rows.filter(row => row.slot === 1 || row.slot === 2).map(row => ({
         id: row.rowKey,
         slot: Number(row.slot),
         ...(typeof row.result === "string" ? { result: row.result } : {}),
-        ...(typeof row.score === "number" ? { score: row.score } : {}),
+        ...((typeof row.score === "number" || typeof row.score === "string") ? { score: row.score } : {}),
     }));
 }
 
@@ -110,16 +145,22 @@ function assignedPlayers(first: string, second: string): Competitor[] {
 }
 
 async function writeCompetitors(matchId: string, players: Competitor[]) {
-    const previous = await users(matchId);
+    const previous = await entryLinks(matchId);
+    const records = (await Promise.all(players.map(async ({ id, ...attributes }) => {
+        const side: Row = { partitionKey: matchId, rowKey: id, role: "competitor", ...attributes };
+        if (!id.startsWith("pair_")) return [side];
+        const { slot, ...outcome } = attributes;
+        const members = await entryUsers(id);
+        return [side, ...members.map(rowKey => ({
+            partitionKey: matchId, rowKey, role: "participant", ...outcome,
+        }))];
+    }))).flat();
     for (const row of previous) {
-        if (players.some(player => player.id === row.rowKey)) continue;
+        if (records.some(record => record.rowKey === row.rowKey)) continue;
         // Remove the reverse first so an interrupted removal can still be retried.
         await remove(row.rowKey, matchId);
         await remove(matchId, row.rowKey);
     }
-    const records = players.map(({ id, ...attributes }) => ({
-        partitionKey: matchId, rowKey: id, role: "competitor", ...attributes,
-    }));
     const updates: TransactionAction[] = records
         .filter(row => !sameAttributes(previous.find(old => old.rowKey === row.rowKey), props(row)))
         .map(row => ["upsert", row, "Replace"]);
@@ -132,24 +173,64 @@ function winnerOf(players: Competitor[]) {
     return players.find(player => player.result === "winner" || player.result === "bye")?.id ?? "";
 }
 
-async function projectMatch(matchId: string, label: string, players: Competitor[]) {
+async function projectMatch(matchId: string, label: string, players: Competitor[], open = true) {
     const bye = players.some(player => player.result === "bye");
     let name = `${label} Pending`;
     if (players.length === 2 || bye) {
-        const firstNames = await Promise.all(players.map(async player => {
-            const user = await get("user", player.id);
-            return String(user?.name ?? "").trim().split(/\s+/)[0] || "Player";
-        }));
+        const firstNames = await Promise.all(players.map(player => entryName(player.id)));
         name = bye ? `${firstNames[0]} (bye)` : firstNames.join(" vs ");
     }
     await writeCompetitors(matchId, players);
     await writeIfChanged("match", matchId, {
-        name, state: bye ? "bye" : winnerOf(players) ? "complete" : players.length === 2 ? "active" : "waiting",
+        name, state: bye ? "bye" : winnerOf(players) ? "complete" : players.length === 2 && open ? "active" : "waiting",
     });
+}
+
+async function prepareDrawMatch(
+    compId: string, round: number, position: number, label: string,
+    players: Competitor[], open = true,
+) {
+    const matchId = elimBracketId("match", compId, round, position);
+    // The match row is committed last so an interrupted projection can resume.
+    const existing = await get("match", matchId);
+    if (existing && sameAttributes(existing, { name: existing.name, state: existing.state }))
+        return;
+    await doUpsertRelation(compId, matchId);
+    await doUpsertRelation(elimBracketId("round", compId, round), matchId, { bracket_match: position });
+    await projectMatch(matchId, label, players, open);
+}
+
+async function startRoundRobin(comp: Row, entrants: Row[], renewGuard: () => Promise<void>) {
+    const id = comp.rowKey;
+    const schedule = roundRobinDraw(entrants.map(row => row.rowKey));
+    for (const [index, round] of schedule.entries()) {
+        const number = index + 1;
+        const roundId = elimBracketId("round", id, number);
+        const label = `Round ${number}`;
+        await renewGuard();
+        await writeIfChanged("round", roundId, { name: `${comp.name} ${label}` });
+        await doUpsertRelation(id, roundId, { bracket_round: number });
+        if (round.bye) await doUpsertRelation(roundId, round.bye, { role: "bye" });
+        // Wait for every in-flight write before releasing the comp guard on failure.
+        for (let offset = 0; offset < round.matches.length; offset += 8) {
+            await renewGuard();
+            const batch = await Promise.allSettled(round.matches.slice(offset, offset + 8)
+                .map(([first, second], i) => prepareDrawMatch(
+                    id, number, offset + i + 1, label, assignedPlayers(first, second), index === 0,
+                )));
+            for (const result of batch)
+                if (result.status === "rejected") throw result.reason;
+        }
+    }
 }
 
 export async function startDraw(elim: Row, entrants: Row[], renewGuard: () => Promise<void>) {
     const id = elim.rowKey;
+    if (elim.comp_system === "round_robin") {
+        await startRoundRobin(elim, entrants, renewGuard);
+        await updateComp(id, { state: "active", draw_notifications_pending: true }, ["draw_version"]);
+        return;
+    }
     const { rounds, slots } = elimDraw(id, entrants.map(row => ({
         id: row.rowKey, seed: Number(row.seed ?? 0),
     })));
@@ -171,14 +252,7 @@ export async function startDraw(elim: Row, entrants: Row[], renewGuard: () => Pr
                 players[0].result = "bye";
                 winners.set(matchId, players[0].id);
             }
-            // The clean match row is committed last. Its presence means the
-            // deterministic slots and mirrored links were fully written.
-            const existing = await get("match", matchId);
-            if (existing && sameAttributes(existing, { name: existing.name, state: existing.state }))
-                continue;
-            await doUpsertRelation(id, matchId);
-            await doUpsertRelation(roundId, matchId, { bracket_match: position });
-            await projectMatch(matchId, label, players);
+            await prepareDrawMatch(id, round, position, label, players);
         }
     }
     await updateComp(id, { state: "active", draw_notifications_pending: true }, ["draw_version"]);
@@ -187,9 +261,9 @@ export async function startDraw(elim: Row, entrants: Row[], renewGuard: () => Pr
 async function notifyDrawnMatch(matchId: string, context: InvocationContext) {
     const match = await get("match", matchId);
     if (match?.state !== "active") return;
-    const players = competitors(await users(matchId));
+    const players = competitors(await entryLinks(matchId));
     if (players.length !== 2) return;
-    await notify(context, players.map(player => player.id), undefined, String(match.name),
+    await notify(context, await matchUserIds(players), undefined, String(match.name),
         "Get ready, your next comp match is drawn", `match/${matchId}`, matchId);
 }
 
@@ -197,7 +271,8 @@ export async function publishDraw(id: string, context: InvocationContext, renewG
     await doGuidsToPublic();
     const comp = await get("comp", id);
     if (comp?.draw_notifications_pending !== true) return;
-    for (const match of await links(id, "match")) {
+    const parent = comp.comp_system === "round_robin" ? elimBracketId("round", id, 1) : id;
+    for (const match of await links(parent, "match")) {
         await renewGuard();
         await notifyDrawnMatch(match.rowKey, context);
     }
@@ -232,6 +307,7 @@ type PendingResult = {
     action: string;
     excludeUser?: string;
     drawnMatchId?: string;
+    openedRoundId?: string;
 };
 
 function legacyPlayers(match: Row): Competitor[] {
@@ -288,17 +364,44 @@ export async function migrateComp(elim: Row, renewGuard: () => Promise<void>) {
         ...(elim.state === "drawing" ? [] : ["draw_version"])]);
 }
 
+async function advanceRoundRobin(id: string, round: number, rounds: number, pending: PendingResult) {
+    if (!pending.openedRoundId) {
+        const matches = await links(elimBracketId("round", id, round), "match");
+        const allComplete = (await Promise.all(matches.map(link => get("match", link.rowKey))))
+            .every(match => match?.state === "complete");
+        if (!allComplete) return;
+        if (round === rounds) {
+            await updateComp(id, { state: "complete" }, []);
+            return;
+        }
+        const next = elimBracketId("round", id, round + 1);
+        const nextMatches = await links(next, "match");
+        const states = await Promise.all(nextMatches.map(link => get("match", link.rowKey)));
+        if (!states.some(match => match?.state === "waiting")) return;
+        pending.openedRoundId = next;
+        await updateComp(id, { pending_result: JSON.stringify(pending) }, []);
+    }
+    for (const link of await links(pending.openedRoundId, "match")) {
+        const match = await get("match", link.rowKey);
+        if (match?.state === "waiting")
+            await writeIfChanged("match", link.rowKey, { name: match.name, state: "active" });
+    }
+}
+
 export async function repairResult(id: string, pending: PendingResult, context: InvocationContext) {
     const { matchId, players } = pending;
     const { round, position, rounds } = await matchPlacement(id, matchId);
-    await projectMatch(matchId, elimRoundName(round, rounds), players);
-    if (round === rounds) {
+    const roundRobin = (await get("comp", id))?.comp_system === "round_robin";
+    await projectMatch(matchId, roundRobin ? `Round ${round}` : elimRoundName(round, rounds), players);
+    if (roundRobin) {
+        await advanceRoundRobin(id, round, rounds, pending);
+    } else if (round === rounds) {
         await updateComp(id, { state: "complete" }, []);
     } else {
         const nextPosition = Math.ceil(position / 2);
         const nextId = elimBracketId("match", id, round + 1, nextPosition);
         const feeders = await Promise.all([2 * nextPosition - 1, 2 * nextPosition].map(async feeder =>
-            winnerOf(competitors(await users(elimBracketId("match", id, round, feeder))))
+            winnerOf(competitors(await entryLinks(elimBracketId("match", id, round, feeder))))
         ));
         const nextPlayers = assignedPlayers(feeders[0], feeders[1]);
         if (nextPlayers.length === 2 && !pending.drawnMatchId &&
@@ -312,12 +415,15 @@ export async function repairResult(id: string, pending: PendingResult, context: 
     }
     await doGuidsToPublic();
     if (pending.drawnMatchId) await notifyDrawnMatch(pending.drawnMatchId, context);
+    if (pending.openedRoundId)
+        for (const link of await links(pending.openedRoundId, "match"))
+            await notifyDrawnMatch(link.rowKey, context);
     const match = await get("match", matchId);
     const notice = pending.action === "forfeit" ? "The match was forfeited"
         : pending.action === "walkover" ? "A walkover was recorded"
         : pending.action === "correct" ? "The match score was corrected"
         : "Match scores have been submitted";
-    await notify(context, players.map(player => player.id), pending.excludeUser,
+    await notify(context, await matchUserIds(players), pending.excludeUser,
         String(match?.name), notice, `match/${matchId}`, matchId);
     await updateComp(id, {}, ["pending_result"]);
 }
@@ -333,9 +439,11 @@ export async function score(
         return reply(404, "Competition match not found");
     const match = await get("match", matchId);
     if (!match) return reply(404, "Competition match not found");
-    const players = competitors(await users(matchId)).sort((a, b) => a.slot - b.slot);
+    const players = competitors(await entryLinks(matchId)).sort((a, b) => a.slot - b.slot);
     const [first, second] = players;
-    const playing = players.some(player => player.id === caller);
+    const sides = await Promise.all(players.map(player => entryUsers(player.id)));
+    const sideIndex = sides.findIndex(side => side.includes(caller));
+    const playing = sideIndex !== -1;
     const forfeit = action === "forfeit";
     if (action === "correct" && !admin)
         return reply(403, "Only a competition admin can correct scores");
@@ -348,17 +456,29 @@ export async function score(
     if (data.first_id !== first.id || data.second_id !== second.id)
         return reply(409, "The players changed. Refresh the match and try again");
 
-    const a = data.first_score;
-    const b = data.second_score;
-    if (!forfeit && (typeof a !== "number" || typeof b !== "number" || !Number.isInteger(a)
-        || !Number.isInteger(b) || a < 0 || a > 8 || b < 0 || b > 8 || a === b))
-        return reply(400, "Enter two different whole-number scores from 0 to 8");
-    const winner = forfeit ? (caller === first.id ? second.id : first.id)
-        : Number(a) > Number(b) ? first.id : second.id;
+    const { maxGames, maxSets } = matchFormatRules(elim.match_format);
+    const games = (score: unknown): number[] | undefined => {
+        const values = Array.isArray(score) ? score : [score];
+        if (values.length < 1 || values.length > maxSets ||
+            !values.every(value => Number.isInteger(value) && value >= 0 && value <= maxGames))
+            return;
+        return values as number[];
+    };
+    const a = forfeit ? [] : games(data.first_score);
+    const b = forfeit ? [] : games(data.second_score);
+    if (!a || !b || a.length !== b.length)
+        return reply(400, `Enter a whole-number score from 0 to ${maxGames} for both sides in each played set`);
+    const firstWon = setsWon(a, b);
+    const secondWon = setsWon(b, a);
+    if (!forfeit && firstWon === secondWon)
+        return reply(400, "The score must decide a winner");
+    const winner = forfeit ? (sideIndex === 0 ? second.id : first.id)
+        : firstWon > secondWon ? first.id : second.id;
+    const scores = [a, b].map(values => values.length === 1 ? values[0] : values.join(","));
     const updated = players.map(player => ({
         id: player.id, slot: player.slot,
         result: player.id === winner ? "winner" : forfeit ? "forfeiter" : "loser",
-        ...(forfeit ? {} : { score: Number(player.slot === 1 ? a : b) }),
+        ...(forfeit ? {} : { score: scores[player.slot - 1] }),
     }));
     if (updated.every((player, index) =>
         player.result === players[index].result && player.score === players[index].score
@@ -370,9 +490,16 @@ export async function score(
         return reply(409, "Enter the initial score first");
     if (match.state === "complete" && action !== "correct")
         return reply(409, "This match already has a result");
-    const { round, position, rounds } = await matchPlacement(id, matchId);
-    if (round < rounds) {
-        const next = await get("match", elimBracketId("match", id, round + 1, Math.ceil(position / 2)));
+    if (elim.comp_system === "round_robin") {
+        if (elim.state === "complete" && action === "correct")
+            return reply(409, "This Round Robin is complete");
+        if (match.state === "waiting")
+            return reply(409, "This round has not opened yet");
+    } else {
+        const { round, position, rounds } = await matchPlacement(id, matchId);
+        const next = round < rounds
+            ? await get("match", elimBracketId("match", id, round + 1, Math.ceil(position / 2)))
+            : undefined;
         if (next?.state === "complete")
             return reply(409, "The next match already has a recorded result");
     }
@@ -424,9 +551,10 @@ export async function withComp(request: HttpRequest, context: InvocationContext,
     if (!id?.startsWith("comp_")) return reply(400, "comp_id is required");
     const elim = await get("comp", id);
     if (!elim) return reply(404, "Competition not found");
-    if ((elim.comp_system ?? elim.competition_type) !== "elimination")
-        return reply(409, "This action requires an elimination competition");
+    if (!["elimination", "round_robin"].some(system => system === (elim.comp_system ?? elim.competition_type)))
+        return reply(409, "Choose a supported competition type");
     if (elim.state === "pending") return reply(409, "The competition is awaiting club approval");
+    if (elim.state === "rejected") return reply(409, "The comp creation request was rejected");
     const leaseLength = 300_000;
     let guard = Date.now() + leaseLength;
     if (Number(elim.operation_guard ?? 0) > Date.now())
@@ -453,7 +581,7 @@ export async function withComp(request: HttpRequest, context: InvocationContext,
     }
 
     try {
-        const members = await users(id);
+        const members = await entryLinks(id);
         const mine = members.find(row => row.rowKey === caller);
         return await run({ id, elim, caller, user, data, members, mine, admin: mine?.is_admin === true, renewGuard });
     } finally {
@@ -486,7 +614,7 @@ export async function saveMembership(id: string, changed: Map<string, Record<str
         ["upsert", { partitionKey: id, rowKey, ...values }, "Replace"]);
     await client.submitTransaction(updates);
     // Refresh all mirrors so the next request can repair interrupted writes.
-    for (const row of await users(id)) await mirrorUser(row);
+    for (const row of await entryLinks(id)) await mirrorEntry(row);
     await doGuidsToPublic();
 }
 

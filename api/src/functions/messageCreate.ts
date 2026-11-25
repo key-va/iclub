@@ -94,6 +94,10 @@ export async function messageCreate(request: HttpRequest, context: InvocationCon
         return { status: 404, jsonBody: { success: false, message: "Match, round or group not found" } };
     }
 
+    if (isGroup && match.state === "rejected") {
+        return { status: 409, jsonBody: { success: false, message: "The group creation request was rejected" } };
+    }
+
     const players: string[] = [];
     const teams: string[] = [];
 

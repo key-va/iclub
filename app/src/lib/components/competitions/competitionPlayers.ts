@@ -1,5 +1,16 @@
 import { entityOf, relationsOf, type GuidRow } from '#lib/stores/guids.ts';
 
+export function competitionPair(compId: string, userId: string) {
+	return relationsOf(userId).filter((row) => row.rk.startsWith('pair_') && row.role === 'member')
+		.map((row) => relationsOf(compId).find((entry) => entry.rk === row.rk && entry.is_participant === true))
+		.find((entry) => entry !== undefined);
+}
+
+export function entrantIncludesUser(entrantId: string | undefined, userId: string | null) {
+	return !!userId && (entrantId === userId || (!!entrantId?.startsWith('pair_') &&
+		relationsOf(entrantId).some((row) => row.rk === userId && row.role === 'member')));
+}
+
 export function competitionPlayerMatches(compId: string, userId: string) {
 	return relationsOf(userId)
 		.filter((row) => row.rk.startsWith('match_'))

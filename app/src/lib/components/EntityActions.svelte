@@ -42,7 +42,7 @@
 	</HiddenOptions>
 {:else if !more}
 	{#if section !== 'options' && (help || children)}<div
-			class="row right controls"
+			class="row right controls action-row"
 		>
 			{@render controls()}
 		</div>{/if}

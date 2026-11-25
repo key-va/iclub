@@ -7,7 +7,7 @@
 		imageOf,
 		type GuidRow
 	} from '#lib/stores/guids.ts';
-	import { roundRoleColour, isTeamAdmin } from './roundRules.ts';
+	import { roundRoleColour, roundRoleLabel, isTeamAdmin } from './roundRules.ts';
 	import { setRoundRole } from '#lib/stores/remote.ts';
 	import RouteLinkHiddenAction from '../RouteLinkHiddenAction.svelte';
 	import ActionQuick from '../ActionQuick.svelte';
@@ -16,30 +16,23 @@
 	const admin = $derived(
 		isTeamAdmin(relationsOf(team.rk).find((row) => row.rk === $local.caller_id))
 	);
-	const selectable = $derived(
-		!['complete', 'eliminated'].includes(String(round.state)) &&
-			admin &&
-			['available', 'selected'].includes(String(user.role))
+	const canManage = $derived(
+		admin && !['complete', 'eliminated'].includes(String(round.state))
 	);
 </script>
 
-{#snippet selectionAction()}
-	<ActionQuick
-		inline
-		name={user.role === 'selected' ? 'available' : 'select'}
-		action={() =>
-			setRoundRole(
-				round.rk,
-				user.role === 'selected' ? 'available' : 'selected',
-				user.rk
-			)}
-	/>
+{#snippet selectionActions()}
+	<ActionQuick inline name="playing" disabled={user.role !== 'available'}
+		action={() => setRoundRole(round.rk, 'selected', user.rk)} />
+	<ActionQuick inline name="available" disabled={user.role !== 'selected'}
+		action={() => setRoundRole(round.rk, 'available', user.rk)} />
 {/snippet}
 <RouteLinkHiddenAction
 	href={hrefOf(user.rk)}
 	title={nameOf(user.rk)}
-	description={String(user.role)}
+	description={roundRoleLabel(user.role)}
 	image={imageOf(user.rk)}
 	colour={roundRoleColour[String(user.role)] ?? 'grey'}
-	children={selectable ? selectionAction : undefined}
+	children={canManage ? selectionActions : undefined}
+	currentSelection={canManage ? undefined : 'no actions'}
 />
