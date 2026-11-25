@@ -1,19 +1,15 @@
 <script lang="ts">
-	import ActionConfirmation from './ActionConfirmation.svelte';
-	import { nameOf } from '#lib/stores/guids.ts';
+	import ActionQuick from './ActionQuick.svelte';
 	import { rejectJoinRequest } from '#lib/stores/remote.ts';
 
-	let { entityId, userId, inline = true }: {
+	let { entityId, userId }: {
 		entityId: string;
 		userId: string;
-		inline?: boolean;
 	} = $props();
 </script>
 
-<ActionConfirmation
-	{inline}
-	navigate={false}
+<ActionQuick
+	inline
 	name="reject"
-	message={`reject ${nameOf(userId)}’s request to join ${nameOf(entityId)}?`}
 	action={() => rejectJoinRequest(entityId, userId)}
 />

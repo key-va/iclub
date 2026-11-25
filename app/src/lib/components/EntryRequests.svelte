@@ -5,13 +5,14 @@
 	import RouteLinkHiddenAction from './RouteLinkHiddenAction.svelte';
 	import ActionQuick from './ActionQuick.svelte';
 
-	let { entityId, pending, doubles, acceptPlayer, acceptPair, acceptLabel }: {
+	let { entityId, pending, doubles, acceptPlayer, acceptPair, acceptLabel, description = 'waiting to join' }: {
 		entityId: string;
 		pending: GuidRow[];
 		doubles: boolean;
 		acceptPlayer: (id: string) => Promise<ApiResponse>;
 		acceptPair: (ids: [string, string]) => Promise<ApiResponse>;
 		acceptLabel?: (id: string) => string;
+		description?: string;
 	} = $props();
 	let selectedPairUserId = $state<string | null>(null);
 	const selectedPairUser = $derived(pending.find(player => player.rk === selectedPairUserId));
@@ -43,7 +44,7 @@
 			{/if}
 			<RejectJoinRequest {entityId} userId={player.rk} />
 		{/snippet}
-		<RouteLinkHiddenAction href={hrefOf(player.rk)} title={nameOf(player.rk)} description="waiting to join" image={imageOf(player.rk)} colour={selectedPairUserId === player.rk ? 'green' : 'orange'}
+		<RouteLinkHiddenAction href={hrefOf(player.rk)} title={nameOf(player.rk)} {description} image={imageOf(player.rk)} colour={selectedPairUserId === player.rk ? 'green' : 'orange'}
 			children={actions} />
 	{/each}
 </div>

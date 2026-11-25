@@ -45,12 +45,12 @@ test('match page shows accept for defenders/admins and forfeit only for particip
 });
 
 
-test('pending entity approvals follow their summaries in ungrouped foreground controls', async () => {
+test('pending entity approvals follow their summaries as immediate actions', async () => {
  for(const [type,name] of [['ladder','approve this ladder'],['team','approve team'],['group','approve group']]) {
   const entity={pk:type,rk:`${type}_test`,name:'Pending entity',state:'pending',format:'singles',ladder_system:'win_points',match_format:'best_of_three',ext_association:'brta',ext_competition_name:'Tuesday Night',ext_section_name:'Section 1',ext_rank:3};
   const rows=[entity,{pk:entity.rk,rk:'club_test'},{pk:'club_test',rk:'user_me',is_admin:true}];
   const html=await show(type,{[type]:entity},rows);
-  assert.equal(has(html,name),true);assert.match(html,new RegExp(`class="pink"[^>]*aria-label="${name}"`));
+  assert.equal(has(html,name),true);assert.match(html,new RegExp(`class="blue"[^>]*aria-label="${name}"`));
   assert.doesNotMatch(html,/aria-label="Pending"|pending approval|pending club approval/);
   if(type!=='group'){
    const summary=type==='ladder'?'singles • win points • best of three':'BRTA • Section 1 • rank 3';

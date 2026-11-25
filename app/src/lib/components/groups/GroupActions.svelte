@@ -1,4 +1,5 @@
 <script lang="ts">
+	import ActionQuick from '../ActionQuick.svelte';
 	import RejectCreationRequest from '#lib/components/RejectCreationRequest.svelte';
 	import ActionLink from '../ActionLink.svelte';
 	import EntityActions from '../EntityActions.svelte';
@@ -45,12 +46,11 @@
 		{#if clubAdmin && group.rejection_club}<RejectCreationRequest id={group.rk} resuming />{/if}
 	{:else if group.state === 'pending' && clubAdmin}
 		<RejectCreationRequest id={group.rk} />
-		<ActionConfirmation
+		<ActionQuick
 			inline
 			arrow
 			showLabel
 			name="approve group"
-			message={`Approve ${group.name}?`}
 			action={() => activateGroup(group.rk)}
 		/>
 	{:else if group.state === 'active' && (!mine || mine.state === 'pending')}

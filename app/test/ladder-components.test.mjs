@@ -192,7 +192,7 @@ test('pending application controls are limited to ladder admins and honour ladde
         const output = html('LadderRequests', { ladder });
         assert.equal(action(output, 'reject').endpoint, `ladder/${ladder.rk}/reject`);
         assert.deepEqual(action(output, 'reject').data, { user_id: 'user_partner' });
-        assert.match(output, /aria-label="reject"[^>]*data-confirmation="true"/);
+        assert.match(output, /aria-label="reject"[^>]*data-confirmation="false"/);
         if (format === 'singles') {
             assert.equal(action(output, 'accept').endpoint, `ladder/${ladder.rk}/accept`);
             assert.deepEqual(action(output, 'accept').data, { user_id: 'user_partner' });
@@ -229,7 +229,7 @@ test('ladder page chooses users or pairs and orders competitive standings by ran
     }
 });
 
-test('ladder approval and join confirmations use the requested labels and permissions', async () => {
+test('ladder approval and rejection are immediate and respect club permissions', async () => {
     const { items, ladder, link } = fixture();
     const renderPage = () => render(ladderPage, {
         context: new Map([['__request__', { page: { params: { ladder_id: ladder.rk } } }]])
@@ -242,7 +242,7 @@ test('ladder approval and join confirmations use the requested labels and permis
     assert.equal(action(renderPage(), 'approve this ladder').disabled, false);
     assert.equal(action(renderPage(), 'approve this ladder').endpoint, `ladder/${ladder.rk}/activate`);
     assert.equal(action(renderPage(), 'reject').endpoint, `ladder/${ladder.rk}/reject-creation`);
-    assert.match(renderPage(), /aria-label="reject"[^>]*data-confirmation="true"/);
+    assert.match(renderPage(), /aria-label="reject"[^>]*data-confirmation="false"/);
     await load(items, 'user_me');
     assert.equal(action(renderPage(), 'approve this ladder'), undefined);
     assert.equal(action(renderPage(), 'reject'), undefined);

@@ -184,19 +184,19 @@ test('Competition page mirrors ladder controls and scopes requests and ranking b
     assert.equal(hasAction(admin, 'Accept Bob'), true);
     assert.equal(hasAction(admin, 'Unrank Alice'), true);
     assert.equal(hasAction(admin, 'Rank Administrator'), true);
-    assert.match(admin, /entries open[\s\S]*waiting to join[\s\S]*Players[\s\S]*More Options/);
+    assert.match(admin, /entries open[\s\S]*unranked • pending[\s\S]*Players[\s\S]*More Options/);
     assert.equal(hasAction(admin, 'start draw'), true);
 
     const player = await output('comp', 'user_alice', undefined, rows);
     assert.match(player, /data-colour="blue"[^>]*><a [^>]*>Alice/);
-    assert.match(player, /ranked 1/);
-    assert.match(player, /<button[^>]*disabled[^>]*><p>unranked<\/p>/);
+    assert.match(player, /rank 1 • pending/);
+    assert.match(player, /<button[^>]*disabled[^>]*><p>unranked • pending<\/p>/);
     assert.doesNotMatch(player, /waiting to join|Accept Bob|Unrank Alice/);
     assert.match(player, /More Options[\s\S]*aria-label="withdraw"/);
     assert.equal(hasAction(player, 'start draw'), false);
 
     const applicant = await output('comp', 'user_bob', undefined, rows);
-    assert.match(applicant, /Bob[\s\S]*join request pending/);
+    assert.match(applicant, /Bob[\s\S]*unranked • pending/);
     assert.match(applicant, /aria-label="request to join"[^>]*disabled/);
     assert.equal(hasAction(applicant, 'Accept Bob'), false);
 
@@ -209,12 +209,14 @@ test('Competition page mirrors ladder controls and scopes requests and ranking b
     const approval = await output('comp', 'user_admin', undefined, rows);
     assert.match(approval, /Club knockout<\/strong><br\s*\/?><span class="description">comp<\/span>/);
     assert.match(approval, /awaiting club approval[\s\S]*aria-label="approve"/);
-    assert.doesNotMatch(approval, /Accept Bob|Unrank Alice|start draw/);
+    assert.doesNotMatch(approval, /Accept Bob|start draw/);
+    assert.match(approval, /aria-label="Unrank Alice"[^>]*disabled/);
 
     rows.find(row => row.rk === 'comp_test').state = 'active';
     const drawn = await output('comp', 'user_admin', undefined, rows);
-    assert.match(drawn, /ranked 1/);
-    assert.equal(hasAction(drawn, 'Unrank Alice'), false);
+    assert.match(drawn, /rank 1 • active/);
+    for (const label of ['Rank Alice', 'Unrank Alice'])
+        assert.match(drawn, new RegExp(`aria-label="${label}"[^>]*disabled`));
 });
 test('Browse shows active entities and competitions accepting entries', async () => {
     const rows = [
@@ -323,7 +325,7 @@ test('Competition rounds and user profiles show active matches and elimination s
     ];
     const comp = await output('comp', 'user_alice', undefined, rows);
     assert.match(comp, /data-colour="green"[^>]*><a [^>]*>Alice vs Administrator<\/a>[\s\S]*aria-label="Players"/);
-    assert.match(comp, /data-colour="red"[^>]*><a [^>]*>Bob<\/a><p>eliminated/);
+    assert.match(comp, /data-colour="red"[^>]*><a [^>]*>Bob<\/a><p>rank 2 • eliminated/);
     assert.match(comp, /aria-label="Club knockout Final"[\s\S]*data-white="true"[^>]*><a [^>]*>Alice vs Administrator/);
     assert.match(comp, /data-white="false"[^>]*><a [^>]*>R1 Pending/);
 
@@ -351,8 +353,8 @@ test('Competition rounds and user profiles show active matches and elimination s
         { pk: 'comp_test', rk: 'user_admin', is_participant: true },
     );
     const completed = await output('comp', 'user_alice', undefined, rows);
-    assert.match(completed, /data-colour="green"[^>]*><a [^>]*>Alice<\/a><p>champion/);
-    assert.match(completed, /data-colour="red"[^>]*><a [^>]*>Administrator<\/a><p>eliminated/);
+    assert.match(completed, /data-colour="green"[^>]*><a [^>]*>Alice<\/a><p>rank 1 • champion/);
+    assert.match(completed, /data-colour="red"[^>]*><a [^>]*>Administrator<\/a><p>unranked • eliminated/);
     assert.doesNotMatch(await output('user', 'user_alice', 'user_alice', rows), /Club knockout/);
     const final = await output('match', 'user_alice', 'match_final', rows);
     assert.match(final, /champion/);

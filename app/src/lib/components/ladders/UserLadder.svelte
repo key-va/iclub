@@ -1,4 +1,5 @@
 <script lang="ts">
+	import ActionQuick from '../ActionQuick.svelte';
 	import RejectJoinRequest from '#lib/components/RejectJoinRequest.svelte';
 	import HiddenOptions from '../hiddenOptions.svelte';
 	import {
@@ -79,17 +80,15 @@
 		detail={Number.isFinite(rank) && rank > 0 ? rankDetail : undefined}
 	/>
 	{#if canAccept}
-		<RejectJoinRequest entityId={ladder.rk} userId={user.rk} inline={false} />
-		{#if ladder.format === 'doubles'}<div class="row right">
+		<div class="row right">
+			<RejectJoinRequest entityId={ladder.rk} userId={user.rk} />
+			{#if ladder.format === 'doubles'}
 				<button class="grey" disabled><p>pending pair</p></button>
-			</div>
-		{:else}<ActionConfirmation
-				arrow
-				showLabel
-				name="accept joiner"
-				message={`accept ${nameOf(user.rk)} into ${nameOf(ladder.rk)}?`}
-				action={() => acceptLadderMemberConfirmation(ladder.rk, user.rk)}
-			/>{/if}
+			{:else}
+				<ActionQuick inline name="accept joiner"
+					action={() => acceptLadderMemberConfirmation(ladder.rk, user.rk)} />
+			{/if}
+		</div>
 	{:else if matches.length}
 		{#each matches as match (match.rk)}<UserMatch
 				match={entityOf(match.rk)!}

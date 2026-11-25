@@ -73,7 +73,7 @@
 		<EntityActions section="primary" summary={`${roundRobin ? 'round robin' : 'elimination'} • ${doubles ? 'doubles' : 'singles'} • ${matchFormat} • ${status}`}>
 			{#if elim.state === 'pending' && canApprove}
 				<RejectCreationRequest {id} />
-				<ActionConfirmation inline arrow showLabel name="approve" message={`approve ${elim.name}?`}
+				<ActionQuick inline arrow showLabel name="approve"
 					action={() => competitionEntry(id, 'activate')} />
 			{:else if elim.state === 'rejected' && elim.rejection_club && canApprove}
 				<RejectCreationRequest {id} resuming />
@@ -85,12 +85,13 @@
 
 		{#if open && admin && requests.length}
 			<EntryRequests entityId={id} pending={requests} {doubles} acceptLabel={(playerId) => `Accept ${nameOf(playerId)}`}
+				description={roundRobin ? undefined : "unranked • pending"}
 				acceptPlayer={(playerId) => competitionEntry(id, 'accept', playerId)}
 				acceptPair={(ids) => acceptCompetitionPair(id, ids)} />
 		{:else if open && mine?.state === 'pending'}
 			<div class="group">
 				<RouteLink href={hrefOf(mine.rk)} title={nameOf(mine.rk)}
-					image={imageOf(mine.rk)} description="join request pending" />
+					image={imageOf(mine.rk)} description={roundRobin ? "join request pending" : "unranked • pending"} />
 			</div>
 		{/if}
 
@@ -111,18 +112,22 @@
 				<HiddenOptions title={doubles ? 'Pairs' : 'Players'} badge={entrants.length} />
 				{#each entrants as row (row.rk)}
 					{@const ranked = Number(row.seed) > 0}
-					{@const canRank = open && admin && (ranked || seeds.length < 8)}
-					{@const description = competitionPlayerStatus(row, competitionPlayerMatches(id, row.rk), row.rk === champion)}
-					{#snippet rankAction()}
-						<ActionQuick inline name={ranked ? 'unrank' : 'rank'}
-							label={ranked ? `Unrank ${nameOf(row.rk)}` : `Rank ${nameOf(row.rk)}`}
-							action={() => competitionEntry(id, ranked ? 'unseed' : 'seed', row.rk)} />
+					{@const playerStatus = competitionPlayerStatus(row, competitionPlayerMatches(id, row.rk), row.rk === champion)}
+					{@const status = playerStatus === 'champion' || playerStatus === 'eliminated' ? playerStatus : drawReady ? 'active' : 'pending'}
+					{@const description = `${ranked ? `rank ${row.seed}` : 'unranked'} • ${status}`}
+					{#snippet rankActions()}
+						<ActionQuick inline name="rank" label={`Rank ${nameOf(row.rk)}`}
+							disabled={!open || ranked || seeds.length >= 8}
+							action={() => competitionEntry(id, 'seed', row.rk)} />
+						<ActionQuick inline name="unrank" label={`Unrank ${nameOf(row.rk)}`}
+							disabled={!open || !ranked}
+							action={() => competitionEntry(id, 'unseed', row.rk)} />
 					{/snippet}
 					<RouteLinkHiddenAction href={hrefOf(row.rk)} title={nameOf(row.rk)}
 						image={doubles ? pairIcon : imageOf(row.rk)} {description}
-						currentSelection={canRank ? undefined : description}
-						colour={description === 'champion' ? 'green' : description === 'eliminated' ? 'red' : ranked ? 'blue' : 'grey'}
-						children={canRank ? rankAction : undefined} />
+						currentSelection={admin ? undefined : description}
+						colour={status === 'champion' ? 'green' : status === 'eliminated' ? 'red' : ranked ? 'blue' : 'grey'}
+						children={admin ? rankActions : undefined} />
 				{/each}
 			{/if}
 		</div>
