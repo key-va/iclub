@@ -75,7 +75,7 @@ Current endpoints in `api/src/functions/`:
 
 - `system/about` ([systemAbout.ts](./api/src/functions/systemAbout.ts))
   - returns entity counts from `guids`
-  - returns `version` (`261110`) for the app footer, entity counts and `WEB_PUSH_PUBLIC_KEY` when configured (never private keys)
+  - returns `version` (`261125`) for the app footer, entity counts and `WEB_PUSH_PUBLIC_KEY` when configured (never private keys)
 - `system/restore` ([systemRestore.ts](./api/src/functions/systemRestore.ts))
   - replaces `guids` table from posted array, then republishes `guids.json`
 - `user/otp` ([userOtp.ts](./api/src/functions/userOtp.ts))
@@ -354,7 +354,7 @@ Keep shared infrastructure composable while implementing feature rules in their 
 ## Deployment plan and displayed version
 
 - SWA uses the Standard SKU in the shared infrastructure template for both branch-selected environments.
-- `system/about` owns the displayed `data.version` string, currently `261110`. The layout loads it through unsigned `getSystemAbout()` on mount and displays that exact value in the footer. There is no build-time/hardcoded frontend version fallback.
+- `system/about` owns the displayed `data.version` string, currently `261125`. The layout loads it through unsigned `getSystemAbout()` on mount and displays that exact value in the footer. There is no build-time/hardcoded frontend version fallback.
 - The about endpoint remains public and retains the Web Push public key required for registration; legacy OneSignal App IDs are not returned.
 
 ## Teams and TROLS competitions
