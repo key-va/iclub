@@ -1,4 +1,5 @@
 <script lang="ts">
+	import SummaryHelp from '#lib/components/SummaryHelp.svelte';
 	import { competitionFinal, competitionSlots, nextCompetitionMatch } from '../competitions/competitionBracket.ts';
 	import { entrantIncludesUser } from '../competitions/competitionPlayers.ts';
 	import MatchActions from './MatchActions.svelte';
@@ -127,7 +128,6 @@
 	});
 	let challengerScores = $state<string[]>(['', '', '']);
 	let defenderScores = $state<string[]>(['', '', '']);
-	let showHelp = $state(false);
 
 	function editResult() {
 		challengerScores = labels.map((_, i) => recordedChallenger[i] ?? '');
@@ -189,8 +189,13 @@
 	});
 </script>
 
-{#if challenger && defender}
-	<div class="group">
+{#snippet help()}
+	<p class="info">Enter the games won by each player in each set played. Count a tiebreak as one game and leave unplayed sets empty.</p>
+	{#if formatRules}<p class="info">{formatRules}</p>{/if}
+{/snippet}
+
+<SummaryHelp {help}>
+	{#if challenger && defender}
 		<VersusLink
 			left={{
 				href: hrefOf(challenger.rk),
@@ -219,7 +224,14 @@
 				</p>
 			</div>
 		{/if}
-	</div>
+	{:else if elim && match.state === 'bye'}
+		<p class="info center">{nameOf(slots.find((player) => player)?.rk ?? '')} advances with a bye.</p>
+	{:else if elim && match.state === 'waiting'}
+		<p class="info center">{roundRobin ? 'Waiting for this round to open.' : 'Waiting for earlier results.'}</p>
+	{/if}
+</SummaryHelp>
+
+{#if challenger && defender}
 	{#if !elim}
 		<MatchActions
 			section="primary"
@@ -266,18 +278,6 @@
 					<p class="error">Scores must be a number from 0 to {maxGames}.</p>
 				</div>
 			{/if}
-			{#if showHelp}
-				<div class="row left help">
-					<p>
-						Match score: enter the games won by each player in each set played,
-						with a tiebreak counting as a single game. Leave unplayed sets
-						empty.
-					</p>
-				</div>
-				<div class="row left help">
-					<p>{formatRules}</p>
-				</div>
-			{/if}
 		</div>
 	{/if}
 {/if}
@@ -297,29 +297,12 @@
 		disabled={!scoreValid || !(isPlayer || isLadderAdmin || isElimAdmin)
 			|| (!!elim && challengerWon === defenderWon)}
 		onsuccess={() => { correcting = false; }}
-	>
-		<button
-			class="blue"
-			aria-label="help"
-			aria-pressed={showHelp}
-			onclick={() => (showHelp = !showHelp)}
-		>
-			<p>?</p>
-		</button>
-	</ActionConfirmation>
+	/>
 {/if}
 
 {#if !elim || challenger && defender}
 	<MessageThread parentId={matchId} showTime />
 {/if}
-{#if elim && match.state === 'bye'}
-	<div class="group">
-		<p class="info center">{nameOf(slots.find((player) => player)?.rk ?? '')} advances with a bye.</p>
-	</div>
-{:else if elim && match.state === 'waiting'}
-	<p class="info">{roundRobin ? 'Waiting for this round to open.' : 'Waiting for earlier results.'}</p>
-{/if}
-
 <RouteLink
 	href={hrefOf((elim ?? ladder)?.rk ?? '')}
 	title={(elim ?? ladder)?.name ?? 'someone'}

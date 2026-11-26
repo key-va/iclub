@@ -1,4 +1,5 @@
 <script lang="ts">
+	import SummaryHelp from '#lib/components/SummaryHelp.svelte';
 	import { prepareSquareImage } from '#lib/components/images/prepareSquareImage.ts';
 	import ActionConfirmation from '#lib/components/ActionConfirmation.svelte';
 	import { updateUser, deleteUser } from '#lib/stores/remote.ts';
@@ -21,7 +22,6 @@
 	let image = $state('');
 	let imageError = $state('');
 	let fileInput = $state<HTMLInputElement>();
-	let showHelp = $state(false);
 
 	// Seed the form once the user has loaded, and again if the stored name changes
 	$effect(() => {
@@ -107,6 +107,9 @@
 			entity={user}
 			image={image || imageOf(user.rk)}
 		/>
+		<SummaryHelp summary="profile details">
+			{#snippet help()}<p class="info">Profile image updates may take some time to show. Your email and phone number are used for login and account validation and are never shown in the app.</p>{/snippet}
+		</SummaryHelp>
 
 		<div class="group">
 			<div class="row right">
@@ -150,13 +153,6 @@
 				<div class="row right"><p class="error">{imageError}</p></div>
 			{/if}
 
-			{#if showHelp}
-				<div class="row left">
-					<p class="info">
-						Updates to your profile image may take some time to show
-					</p>
-				</div>
-			{/if}
 
 			<div class="row right">
 				<input
@@ -191,15 +187,6 @@
 					</p>
 				</div>
 			{/if}
-			{#if showHelp}
-				<div class="row left">
-					<p class="info">
-						Your email and phone number are never shown in the app, they are
-						used only for login and account validation. Entering them here will
-						update the information on file.
-					</p>
-				</div>
-			{/if}
 		</div>
 
 		<ActionConfirmation
@@ -208,30 +195,7 @@
 			action={() => updateUser(userId, updateData)}
 			disabled={!changed}
 			onsuccess={clearForm}
-		>
-			<button
-				class="blue"
-				aria-label="help"
-				aria-pressed={showHelp}
-				onclick={() => (showHelp = !showHelp)}
-			>
-				<svg
-					viewBox="0 0 24 24"
-					width="1rem"
-					height="1rem"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="3"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-					role="img"
-					aria-label="Help"
-				>
-					<path d="M9 9a3 3 0 1 1 4.5 2.6c-1 .6-1.5 1.2-1.5 2.4" />
-					<path d="M12 18h.01" />
-				</svg>
-			</button>
-		</ActionConfirmation>
+		/>
 
 		<HiddenOptions inline title="More Options">
 			<button class="blue" aria-label="logout" onclick={logout}>

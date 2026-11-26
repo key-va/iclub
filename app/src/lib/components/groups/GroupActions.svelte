@@ -40,6 +40,7 @@
 	{section}
 	options={(group.state === 'active' && mine) || mine?.is_admin === true ? membershipOptions : undefined}
 >
+	{#snippet help()}<p class="info">Use the group chat to arrange social hits and other club activities.</p>{/snippet}
 	{#if group.state === 'rejected'}
 		<p class="description">creation request rejected</p>
 		{#if clubAdmin && group.rejection_club}<RejectCreationRequest id={group.rk} resuming />{/if}

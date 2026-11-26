@@ -1,4 +1,5 @@
 <script lang="ts">
+	import SummaryHelp from '#lib/components/SummaryHelp.svelte';
 	import { onMount } from 'svelte';
 	import HiddenOptions from '../hiddenOptions.svelte';
 	import RouteLink from '../routeLink.svelte';
@@ -60,7 +61,8 @@
 	});
 </script>
 
-<div class="group">
+<SummaryHelp>
+	{#snippet help()}<p class="info">Check the fixture and mark your availability. Team administrators select available players.</p>{/snippet}
 	{#if complete}
 		<p class="info center"><strong>{fixtureName}</strong></p>
 		<p class="info center">
@@ -82,5 +84,5 @@
 	{:else}
 		<HiddenOptions title={fixtureName} description={venueDetails} />
 	{/if}
-</div>
+</SummaryHelp>
 <RoundActions {round} {team} />

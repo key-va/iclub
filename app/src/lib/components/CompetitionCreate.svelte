@@ -1,4 +1,5 @@
 <script lang="ts">
+	import SummaryHelp from '#lib/components/SummaryHelp.svelte';
 	import { matchFormatSetting } from './ladders/ladderSettings.ts';
 	import { prepareSquareImage } from '#lib/components/images/prepareSquareImage.ts';
 	import ActionConfirmation from '#lib/components/ActionConfirmation.svelte';
@@ -40,7 +41,6 @@
 	let name = $state(page.url.searchParams.get('name') ?? '');
 	let image = $state('');
 	let imageError = $state('');
-	let showHelp = $state(false);
 	let fileInput = $state<HTMLInputElement>();
 
 	const cleanName = $derived(name.trim());
@@ -79,6 +79,19 @@
 		subtitle="create"
 		image={image || $branding.icon}
 	/>
+	<SummaryHelp>
+		{#snippet help()}
+			<p class="info">{isCompetition ? 'Choose how entrants compete and how a winner is decided.' : 'Create a shared chat space for social hits and club activities.'}</p>
+			{#if isCompetition}
+				{#each Object.values(settings) as setting}
+					<p class="info"><strong>{setting.label}</strong> — {setting.description}</p>
+					{#each Object.values(setting.values) as option}
+						<p class="info"><strong>{option.label}</strong> — {option.description}</p>
+					{/each}
+				{/each}
+			{/if}
+		{/snippet}
+	</SummaryHelp>
 
 	{#if !$branding.clubId}<p class="info">
 			Open your club website to create a {isCompetition ? 'competition' : 'group'}.
@@ -134,21 +147,7 @@
 						{/each}
 					</select>
 				</div>
-				{#if showHelp}
-					<div class="row left help">
-						<p>
-							<strong>{setting.label}</strong>: {setting.description}<br />
-							{#each Object.entries(setting.values) as [option, details], i (option)}
-								{#if i > 0}<br />{/if}<strong>{details.label}</strong>: {details.description}
-							{/each}
-						</p>
-					</div>
-				{/if}
 			{/each}
-		{:else if showHelp}
-			<div class="row left">
-				<p class="info"><strong>group</strong>: create a group to facilitate a chat space to arrange social hits and activities</p>
-			</div>
 		{/if}
 	</div>
 
@@ -157,37 +156,11 @@
 		message={`create the ${title.toLowerCase()} ${cleanName}?`}
 		action={() => (isCompetition ? createCompetition : createGroup)(createData)}
 		disabled={cleanName === '' || !$branding.clubId}
-	>
-		<button
-			class="blue"
-			aria-label="help"
-			aria-pressed={showHelp}
-			onclick={() => (showHelp = !showHelp)}
-		>
-			<svg
-				viewBox="0 0 24 24"
-				width="1rem"
-				height="1rem"
-				fill="none"
-				stroke="currentColor"
-				stroke-width="3"
-				stroke-linecap="round"
-				stroke-linejoin="round"
-				role="img"
-				aria-label="Help"
-			>
-				<path d="M9 9a3 3 0 1 1 4.5 2.6c-1 .6-1.5 1.2-1.5 2.4" />
-				<path d="M12 18h.01" />
-			</svg>
-		</button>
-	</ActionConfirmation>
+	/>
 </div>
 
 <style>
 	.page {
 		width: 100%;
-	}
-	.help p {
-		padding: 1em 2em;
 	}
 </style>

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import SummaryHelp from '#lib/components/SummaryHelp.svelte';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
@@ -44,6 +45,9 @@
 			entity={team}
 			image={image || imageOf(team.rk)}
 		/>
+		<SummaryHelp summary="team details">
+			{#snippet help()}<p class="info">You can change the team icon. The team name is fixed by the competition source.</p>{/snippet}
+		</SummaryHelp>
 		<div class="row right">
 			<input
 				type="text"

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import SummaryHelp from '#lib/components/SummaryHelp.svelte';
 	import { branding } from '#lib/stores/branding.ts';
 	import UserLogin from '#lib/components/userLogin.svelte';
 	import EntityHeader from '#lib/components/EntityHeader.svelte';
@@ -11,6 +12,9 @@
 
 <div class="page">
 	<EntityHeader title={$branding.name} subtitle="login" image={$branding.icon} />
+	<SummaryHelp summary="sign in">
+		{#snippet help()}<p class="info">Sign in with your email or phone number. You can also browse as a guest.</p>{/snippet}
+	</SummaryHelp>
 
 	{#if isLoggedIn}
 		<RouteLink

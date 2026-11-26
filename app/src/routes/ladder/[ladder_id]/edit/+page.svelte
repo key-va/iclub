@@ -1,4 +1,5 @@
 <script lang="ts">
+	import SummaryHelp from '#lib/components/SummaryHelp.svelte';
 	import { prepareSquareImage } from '#lib/components/images/prepareSquareImage.ts';
 	import ActionConfirmation from '#lib/components/ActionConfirmation.svelte';
 	import { updateLadder, deleteLadder } from '#lib/stores/remote.ts';
@@ -76,6 +77,9 @@
 			entity={ladder}
 			image={image || imageOf(ladder.rk)}
 		/>
+		<SummaryHelp summary="ladder details">
+			{#snippet help()}<p class="info">You can change the ladder name and image after creation.</p>{/snippet}
+		</SummaryHelp>
 
 		<div class="row right">
 			<input

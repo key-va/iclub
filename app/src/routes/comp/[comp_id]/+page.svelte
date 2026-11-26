@@ -73,6 +73,9 @@
 	{#if elim && (roundRobin || (elim.comp_system ?? elim.competition_type) === 'elimination')}
 		<EntityHeader entity={elim} />
 		<EntityActions section="primary" summary={`${roundRobin ? 'round robin' : 'elimination'} • ${doubles ? 'doubles' : 'singles'} • ${matchFormat} • ${status}`}>
+			{#snippet help()}
+				<p class="info">{roundRobin ? 'Each entrant plays every other entrant once. The final standings decide the champion.' : 'The winner advances and the loser is eliminated.'}</p>
+			{/snippet}
 			{#if elim.state === 'pending' && canApprove}
 				<RejectCreationRequest {id} />
 				<ActionConfirmation inline arrow showLabel name="approve" message={`approve ${elim.name}?`}

@@ -42,6 +42,7 @@
 	options={(team.state === 'active' && mine) || (team.state === 'pending' && isTeamAdmin(mine)) ? membershipOptions : undefined}
 	summary={teamDescription(team)}
 >
+	{#snippet help()}<p class="info">Open a round to mark your availability. Team administrators select players for each round.</p>{/snippet}
 	{#if team.state === 'rejected'}
 		<p class="description">creation request rejected</p>
 		{#if clubAdmin && team.rejection_club}<RejectCreationRequest id={team.rk} resuming />{/if}

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import SummaryHelp from '#lib/components/SummaryHelp.svelte';
 	import { page } from '$app/state';
 	import {
 		guids,
@@ -27,6 +28,9 @@
 			title={pair.name ?? 'Pair'}
 			image={comp ? imageOf(comp.rk) : ladderRow ? imageOf(ladderRow.rk) : null}
 		/>
+		<SummaryHelp summary="doubles partnership">
+			{#snippet help()}<p class="info">A pair is a doubles partnership. Open its ladder or a match to see current play and results.</p>{/snippet}
+		</SummaryHelp>
 		<MatchRecord parentId={id} />
 		{#if comp}
 			<UserCompetition user={pair} competition={comp} />

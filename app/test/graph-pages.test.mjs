@@ -402,7 +402,7 @@ test('A comp bye shows the player’s saved name in a centred white group', asyn
         { pk: 'match_bye', rk: 'user_alice', role: 'competitor', slot: 1, result: 'bye' },
     ];
     const html = await output('match', 'user_alice', 'match_bye', rows);
-    assert.match(html, /<div class="group"><p class="info center">Alice advances with a bye\.<\/p><\/div>/);
+    assert.match(html, /<div class="group">[\s\S]*?<p class="info center">Alice advances with a bye\.<\/p>[\s\S]*?<div class="row center"><button[^>]*aria-label="help"/);
 });
 
 test('User profiles count completed wins and losses and match headers keep the entity type', async () => {
@@ -418,7 +418,7 @@ test('User profiles count completed wins and losses and match headers keep the e
         );
     }
     const profile = await output('user', 'user_alice', 'user_alice', rows);
-    assert.match(profile, /<div class="group"><p class="info center description">1 won • lost 3<\/p>/);
+    assert.match(profile, /<p class="info center description">1 won • lost 3<\/p>[\s\S]*?<div class="row center"><button[^>]*aria-label="help"[^>]*aria-expanded="false"/);
     assert.match(await output('user', 'user_bob', 'user_bob', rows), /0 won • lost 0/);
 
     const match = await output('match', 'user_alice', 'match_win', rows);

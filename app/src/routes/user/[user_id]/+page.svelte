@@ -68,7 +68,11 @@
 <div class="page">
 	{#if user_entity}
 		<EntityHeader entity={user_entity} />
-		<MatchRecord parentId={user_id} />
+		<MatchRecord parentId={user_id}>
+			{#snippet help()}<p class="info">{viewingOwnPage
+				? 'See what’s coming up and what needs your attention, including matches to play, challenges to respond to and rounds to mark your availability for'
+				: 'See this player’s upcoming matches and team rounds, along with any actions you can take.'}</p>{/snippet}
+		</MatchRecord>
 
 		{#if adminClubs.length}
 			<div class="group">

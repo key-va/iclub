@@ -1,4 +1,5 @@
 <script lang="ts">
+	import SummaryHelp from '#lib/components/SummaryHelp.svelte';
 	import { prepareSquareImage } from '#lib/components/images/prepareSquareImage.ts';
 	import ActionConfirmation from '#lib/components/ActionConfirmation.svelte';
 	import { updateComp, updateGroup } from '#lib/stores/remote.ts';
@@ -86,6 +87,9 @@
 			{entity}
 			image={image || imageOf(entity.rk)}
 		/>
+		<SummaryHelp summary="name and image">
+			{#snippet help()}<p class="info">Update the name or image for this activity.</p>{/snippet}
+		</SummaryHelp>
 
 		<div class="row right">
 			<input

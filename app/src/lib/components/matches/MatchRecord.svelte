@@ -1,6 +1,8 @@
 <script lang="ts">
+	import type { Snippet } from 'svelte';
+	import SummaryHelp from '#lib/components/SummaryHelp.svelte';
 	import { entityOf, relationsOf, typeOf } from '#lib/stores/guids.ts';
-	let { parentId }: { parentId: string } = $props();
+	let { parentId, help }: { parentId: string; help?: Snippet } = $props();
 
 	const results = $derived.by(() => {
 		let won = 0;
@@ -14,6 +16,6 @@
 	});
 </script>
 
-<div class="group">
+<SummaryHelp {help}>
 	<p class="info center description">{results.won} won • lost {results.lost}</p>
-</div>
+</SummaryHelp>
