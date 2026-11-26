@@ -6,6 +6,8 @@
 	import UserTeam from '#lib/components/teams/UserTeam.svelte';
 
 	import EntityHeader from '#lib/components/EntityHeader.svelte';
+	import { goto } from '$app/navigation';
+	import { clearSession } from '#lib/stores/auth.ts';
 	import { page } from '$app/state';
 	import { local } from '#lib/stores/local.ts';
 	import {
@@ -57,6 +59,10 @@
 	const teams = $derived(activeMemberships.filter((row) => typeOf(row.rk) === 'team'));
 	const ladders = $derived(activeMemberships.filter((row) => typeOf(row.rk) === 'ladder'));
 
+	async function logout() {
+		await clearSession();
+		await goto('/login');
+	}
 </script>
 
 <div class="page">
@@ -109,6 +115,9 @@
 
 		{#if viewingOwnPage}
 			<HiddenOptions inline title="More Options">
+				<button class="blue" aria-label="logout" onclick={logout}>
+					<p>logout</p>
+				</button>
 				<ActionLink href={`${hrefOf(user_id)}/edit`} />
 			</HiddenOptions>
 		{/if}

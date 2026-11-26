@@ -457,9 +457,9 @@ test('Round Robin shows standings, scheduled fixtures and joint champions withou
     assert.doesNotMatch(await output('user', 'user_alice', 'user_alice', rows), /Club round robin/);
 });
 
-test('Only the profile owner sees the edit link in More Options', async () => {
+test('Only the profile owner sees logout and edit in More Options', async () => {
     const own = await output('user', 'user_alice');
-    assert.match(own, /aria-label="More Options">[\s\S]*href="\/user\/user_alice\/edit" aria-label="edit"/);
+    assert.match(own, /aria-label="More Options">[\s\S]*aria-label="logout"[\s\S]*href="\/user\/user_alice\/edit" aria-label="edit"/);
     const other = await output('user', 'user_bob');
-    assert.doesNotMatch(other, /aria-label="More Options"|aria-label="edit"/);
+    assert.doesNotMatch(other, /aria-label="(?:More Options|logout|edit)"/);
 });
