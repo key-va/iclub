@@ -24,7 +24,7 @@ before(async () => {
     guids = (await server.ssrLoadModule('/src/lib/stores/guids.ts')).guids;
     local = await server.ssrLoadModule('/src/lib/stores/local.ts');
     pages = Object.fromEntries(await Promise.all(['group', 'team', 'round', 'match', 'user', 'comp', 'pair', 'browse'].map(async type =>
-        [type, (await server.ssrLoadModule(type === 'browse' ? '/src/routes/browse/+page.svelte' : `/src/routes/${type}/[${type}_id]/+page.svelte`)).default])));
+        [type, (await server.ssrLoadModule(type === 'browse' ? `/src/routes/${type}/+page.svelte` : `/src/routes/${type}/[${type}_id]/+page.svelte`)).default])));
 });
 after(async () => { await server?.close(); });
 function fixture() {
@@ -247,7 +247,7 @@ test('Competition page mirrors ladder controls and scopes requests and ranking b
     for (const label of ['Rank Alice', 'Unrank Alice'])
         assert.match(drawn, new RegExp(`aria-label="${label}"[^>]*disabled`));
 });
-test('Browse shows active entities and competitions accepting entries', async () => {
+test('Browse shows About and lists active entities and competitions accepting entries', async () => {
     const rows = [
         { pk: 'ladder', rk: 'ladder_active', name: 'Open ladder', state: 'active' },
         { pk: 'team', rk: 'team_pending', name: 'Pending team', state: 'pending' },
@@ -258,10 +258,11 @@ test('Browse shows active entities and competitions accepting entries', async ()
         { pk: 'comp', rk: 'comp_finished', name: 'Finished draw', state: 'complete' }
     ];
     const html = await output('browse', 'user_admin', undefined, rows);
+    assert.match(html, /data-white="true"><a href="\/about">About<\/a>[\s\S]*placeholder="filter"[\s\S]*Open ladder/);
     assert.match(html, /Open ladder/);
     assert.match(html, /Open entries<\/a><p>comp<\/p>/);
     assert.match(html, /Active draw/);
-    assert.doesNotMatch(html, /data-white="true"|Pending team|Pending group|Pending comp|Finished draw/);
+    assert.doesNotMatch(html, />Browse<|>Profile<|Pending team|Pending group|Pending comp|Finished draw/);
     const profile = await output('user', 'user_admin', 'user_admin', [
         ...fixture(), ...rows,
         ...rows.flatMap((row) => [
@@ -454,4 +455,11 @@ test('Round Robin shows standings, scheduled fixtures and joint champions withou
     const complete = await output('comp', 'user_admin', undefined, rows);
     assert.equal((complete.match(/1 points • rank 1 • champion/g) ?? []).length, 3);
     assert.doesNotMatch(await output('user', 'user_alice', 'user_alice', rows), /Club round robin/);
+});
+
+test('Only the profile owner sees logout and edit in More Options', async () => {
+    const own = await output('user', 'user_alice');
+    assert.match(own, /aria-label="More Options">[\s\S]*aria-label="logout"[\s\S]*href="\/user\/user_alice\/edit" aria-label="edit"/);
+    const other = await output('user', 'user_bob');
+    assert.doesNotMatch(other, /aria-label="(?:More Options|logout|edit)"/);
 });

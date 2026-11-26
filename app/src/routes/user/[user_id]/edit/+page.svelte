@@ -233,11 +233,7 @@
 			</button>
 		</ActionConfirmation>
 
-		<HiddenOptions
-			inline
-			title="More Options"
-			description="logout or delete account"
-		>
+		<HiddenOptions inline title="More Options">
 			<button class="blue" aria-label="logout" onclick={logout}>
 				<p>logout</p>
 			</button>

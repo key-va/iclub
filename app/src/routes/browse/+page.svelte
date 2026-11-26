@@ -6,7 +6,7 @@
 
 	import RouteLink from '#lib/components/routeLink.svelte';
 
-	const { caller_id, device_id } = $local;
+	const isLoggedIn = $derived(Boolean($local.caller_id && $local.device_id));
 
 	let filter = $state('');
 	function clearFilter() {
@@ -30,6 +30,8 @@
 		subtitle="browse"
 		image={$branding.icon}
 	/>
+
+	<RouteLink href="/about" title="About" description="help and about" isWhite />
 
 	<div class="group">
 		<div class="row right">
@@ -84,7 +86,7 @@
 		/>
 	{/each}
 
-	{#if caller_id && device_id && filter.trim() && filtered.length === 0}
+	{#if isLoggedIn && filter.trim() && filtered.length === 0}
 		<RouteLink
 			href={`/ladder/create?name=${encodeURIComponent(filter.trim())}`}
 			title="New Ladder"

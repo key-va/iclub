@@ -130,8 +130,8 @@
 
 <div class="fixed-top">
 	<div class="row right">
-		<a class="button" href="/menu" aria-label="menu">
-			<button aria-label="menu">
+		<a class="button" href="/browse" aria-label="Browse">
+			<button aria-label="Browse">
 				<svg
 					viewBox="0 0 24 24"
 					width="1rem"
@@ -142,7 +142,7 @@
 					stroke-linecap="round"
 					stroke-linejoin="round"
 					role="img"
-					aria-label="Menu"
+					aria-label="Browse"
 				>
 					<line x1="4" y1="5" x2="20" y2="5" />
 					<line x1="4" y1="12" x2="20" y2="12" />

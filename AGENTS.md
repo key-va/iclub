@@ -224,10 +224,9 @@ Do not introduce new storage abstractions unless a real gap is proven.
 - root redirect: [app/src/routes/+page.svelte](./app/src/routes/+page.svelte)
 - shared layout/init: [app/src/routes/+layout.svelte](./app/src/routes/+layout.svelte)
 - browser and installed-app login: [app/src/routes/login/+page.svelte](./app/src/routes/login/+page.svelte)
-- browse/filter list: [app/src/routes/browse/+page.svelte](./app/src/routes/browse/+page.svelte)
 - generic entity view: [app/src/routes/genc/[entity_id]/+page.svelte](./app/src/routes/genc/[entity_id]/+page.svelte)
 - user view/edit: [app/src/routes/user/[user_id]/+page.svelte](./app/src/routes/user/[user_id]/+page.svelte), [app/src/routes/user/[user_id]/edit/+page.svelte](./app/src/routes/user/[user_id]/edit/+page.svelte)
-- menu/about: [app/src/routes/menu/+page.svelte](./app/src/routes/menu/+page.svelte), [app/src/routes/about/+page.svelte](./app/src/routes/about/+page.svelte)
+- browse with filter and entity list, and about: [app/src/routes/browse/+page.svelte](./app/src/routes/browse/+page.svelte), [app/src/routes/about/+page.svelte](./app/src/routes/about/+page.svelte)
 - bot view: [app/src/routes/bot/[bot_id]/+page.svelte](./app/src/routes/bot/[bot_id]/+page.svelte) (avatar and a note that it is an automation account)
 
 ### Push-related static files
@@ -370,7 +369,7 @@ Keep shared infrastructure composable while implementing feature rules in their 
 - New team endpoints use conditional ETag updates on existing club/team entities for short-lived operation leases, preventing concurrent duplicate creation, sync and role transitions. Team `operation_guard` stores an expiry timestamp while busy and `0` when released; it is operational metadata, not a boolean. The legacy `operation_until` field is honored during rollout and removed on migration. The guard remains on the team entity; nothing was moved to `auths`. No new table or lock entity exists. Mutation errors may require a refresh/retry; storage remains sequential across mirrored rows, as elsewhere in the app. Missing round-user mirrors are repaired during sync/backfill.
 - A successful selection notifies the nominated player; `selected -> unavailable` notifies team admins, linking to the affected round. Notifications follow graph publication and are best effort; push failure never undoes a role change and there is no durable queue.
 - `message/create` accepts exactly one of `match_id` or `round_id`. Round messaging reuses `doPostMessage`, signed requests and public graph relations, and is open to authenticated non-members. It notifies approved team members other than the sender based on team membership, not round-player links. The service's legacy `matchId` argument names its parent entity ID and also accepts round IDs.
-- UI: `/team/create`, `/team/{id}`, `/round/{id}`, browse/menu links, pending team approvals on the club administrator's user page, and upcoming rounds grouped by team on the user home page. `components/rounds/roundRules.ts` and `roundRoleDot.svelte` share the role colours and graph-derived displays. No home-page API was added.
+- UI: `/team/create`, `/team/{id}`, `/round/{id}`, Browse links, pending team approvals on the club administrator's user page, and upcoming rounds grouped by team on the user home page. `components/rounds/roundRules.ts` and `roundRoleDot.svelte` share the role colours and graph-derived displays. No home-page API was added.
 - Verification: existing backend/frontend commands still apply. `api/test/team.test.cjs` exercises graph/permission/sync/notification rules; `api/test/trols.test.cjs` uses captured public TROLS HTML with personal contact rows removed. `app/test/rounds.test.mjs` verifies inverse round relationships, grouping, filtering, colours and results. See `docs/teams.md` for usage and operational limits.
 
 ## Groups
