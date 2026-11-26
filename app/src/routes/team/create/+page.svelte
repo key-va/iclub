@@ -1,5 +1,4 @@
 <script lang="ts">
-	import SummaryHelp from '#lib/components/SummaryHelp.svelte';
 	import { prepareSquareImage } from '#lib/components/images/prepareSquareImage.ts';
 	import ActionConfirmation from '#lib/components/ActionConfirmation.svelte';
 
@@ -24,6 +23,7 @@
 	let sequence = 0;
 	let image = $state('');
 	let imageError = $state('');
+	let showHelp = $state(false);
 	let fileInput = $state<HTMLInputElement>();
 	async function pickImage() {
 		image = '';
@@ -89,9 +89,6 @@
 		image={image || $branding.icon}
 		truncate={false}
 	/>
-	<SummaryHelp summary="team import">
-		{#snippet help()}<p class="info">Import a team from an external competition. Select the competition, season, section and team to request it for your club.</p>{/snippet}
-	</SummaryHelp>
 	{#if !$branding.clubId}<div class="row right">
 			<p>Open your club website to request a team.</p>
 		</div>{/if}
@@ -192,6 +189,11 @@
 				</button>
 			</div>{/if}
 		{#if imageError}<p role="alert">{imageError}</p>{/if}
+		{#if showHelp}
+			<div class="row left">
+				<p class="info"><strong>team</strong>: import a team from an external competition data source</p>
+			</div>
+		{/if}
 	</div>
 	<ActionConfirmation
 		name="request team"
@@ -205,7 +207,30 @@
 				...(image ? { image } : {})
 			})}
 		disabled={!team || loading || !$branding.clubId}
-	/>
+	>
+		<button
+			class="blue"
+			aria-label="help"
+			aria-pressed={showHelp}
+			onclick={() => (showHelp = !showHelp)}
+		>
+			<svg
+				viewBox="0 0 24 24"
+				width="1rem"
+				height="1rem"
+				fill="none"
+				stroke="currentColor"
+				stroke-width="3"
+				stroke-linecap="round"
+				stroke-linejoin="round"
+				role="img"
+				aria-label="Help"
+			>
+				<path d="M9 9a3 3 0 1 1 4.5 2.6c-1 .6-1.5 1.2-1.5 2.4" />
+				<path d="M12 18h.01" />
+			</svg>
+		</button>
+	</ActionConfirmation>
 </div>
 
 <style>

@@ -11,7 +11,15 @@
 		<div class="row center">
 			<button type="button" class="blue" aria-label={open ? 'hide help' : 'help'}
 				aria-expanded={open} onclick={() => (open = !open)}>
-				<p aria-hidden="true">{open ? '×' : '?'}</p>
+				<svg viewBox="0 0 24 24" width="1rem" height="1rem"
+					fill="none" stroke="currentColor" stroke-width="3"
+					stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+					{#if open}
+						<path d="M18 6 6 18M6 6l12 12" />
+					{:else}
+						<path d="M9 9a3 3 0 1 1 4.5 2.6c-1 .6-1.5 1.2-1.5 2.4M12 18h.01" />
+					{/if}
+				</svg>
 			</button>
 		</div>
 	{/if}

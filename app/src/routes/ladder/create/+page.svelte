@@ -1,5 +1,4 @@
 <script lang="ts">
-	import SummaryHelp from '#lib/components/SummaryHelp.svelte';
 	import { prepareSquareImage } from '#lib/components/images/prepareSquareImage.ts';
 	import ActionConfirmation from '#lib/components/ActionConfirmation.svelte';
 	import { createLadder } from '#lib/stores/remote.ts';
@@ -26,6 +25,7 @@
 	let image = $state('');
 	let imageError = $state('');
 	let fileInput = $state<HTMLInputElement>();
+	let showHelp = $state(false);
 
 	const cleanName = $derived(name.trim());
 
@@ -83,21 +83,6 @@
 		subtitle="create"
 		image={image || $branding.icon}
 	/>
-	<SummaryHelp summary="ladder settings">
-		{#snippet help()}
-			<p class="info">Choose who can play, how matches are scored and how players move up the ladder.</p>
-			{#each Object.values(ladderSettings) as setting}
-				<p class="info"><strong>{setting.label}</strong> — {setting.description}</p>
-				{#if setting.type === 'enum'}
-					{#each Object.values(setting.values) as option}
-						<p class="info"><strong>{option.label}</strong> — {option.description}</p>
-					{/each}
-				{:else}
-					<p class="info">From {setting.min} to {setting.max}, default {setting.default}.</p>
-				{/if}
-			{/each}
-		{/snippet}
-	</SummaryHelp>
 
 	<div class="group">
 		<div class="row right">
@@ -162,6 +147,20 @@
 					/>
 				{/if}
 			</div>
+			{#if showHelp}
+				<div class="row left help">
+					<p>
+						<strong>{setting.label}</strong>: {setting.description}<br />
+						{#if setting.type === 'enum'}
+							{#each Object.entries(setting.values) as [option, details], i (option)}
+								{#if i > 0}<br />{/if}<strong>{details.label}</strong>: {details.description}
+							{/each}
+						{:else}
+							from {setting.min} to {setting.max}, default {setting.default}
+						{/if}
+					</p>
+				</div>
+			{/if}
 			{#if setting.type === 'number' && !numberOk(key)}
 				<div class="row right">
 					<p class="error">
@@ -177,11 +176,37 @@
 		message={`create the ladder ${cleanName}?`}
 		action={() => createLadder(createData)}
 		disabled={cleanName === '' || !numbersValid || !$branding.clubId}
-	/>
+	>
+		<button
+			class="blue"
+			aria-label="help"
+			aria-pressed={showHelp}
+			onclick={() => (showHelp = !showHelp)}
+		>
+			<svg
+				viewBox="0 0 24 24"
+				width="1rem"
+				height="1rem"
+				fill="none"
+				stroke="currentColor"
+				stroke-width="3"
+				stroke-linecap="round"
+				stroke-linejoin="round"
+				role="img"
+				aria-label="Help"
+			>
+				<path d="M9 9a3 3 0 1 1 4.5 2.6c-1 .6-1.5 1.2-1.5 2.4" />
+				<path d="M12 18h.01" />
+			</svg>
+		</button>
+	</ActionConfirmation>
 </div>
 
 <style>
 	.page {
 		width: 100%;
+	}
+	.help p {
+		padding: 1em 2em;
 	}
 </style>
