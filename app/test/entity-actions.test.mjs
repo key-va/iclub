@@ -45,6 +45,15 @@ test('match page shows accept for defenders/admins and forfeit only for particip
 });
 
 
+test('pending ladder shows its creator the approval status next to help', async () => {
+ const ladder = { pk: 'ladder', rk: 'ladder_test', name: 'Pending ladder', state: 'pending' };
+ const rows = [ladder, { pk: ladder.rk, rk: 'user_me', is_admin: true }];
+ const creator = await show('ladder', { ladder }, rows);
+ assert.match(creator, /aria-label="help"[^>]*>[\s\S]*?<button type="button" class="grey" disabled=""><p>pending club approval<\/p>/);
+ const visitor = await show('ladder', { ladder }, rows, 'user_other');
+ assert.doesNotMatch(visitor, /pending club approval/);
+});
+
 test('pending entity approvals and rejections use confirmation styling', async () => {
  for(const [type,name] of [['ladder','approve this ladder'],['team','approve team'],['group','approve group']]) {
   const entity={pk:type,rk:`${type}_test`,name:'Pending entity',state:'pending',format:'singles',ladder_system:'win_points',match_format:'best_of_three',ext_association:'brta',ext_competition_name:'Tuesday Night',ext_section_name:'Section 1',ext_rank:3};

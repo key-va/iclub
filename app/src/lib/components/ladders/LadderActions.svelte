@@ -88,6 +88,10 @@
 			message={`approve ${ladder.name} to make it active?`}
 			action={() => activateLadder(ladder.rk)}
 		/>
+	{:else if ladder.state === 'pending' && mine?.is_admin === true}
+		<button type="button" class="grey" disabled>
+			<p>pending club approval</p>
+		</button>
 	{:else if associated && mine?.state !== 'pending'}
 		{#if mine?.is_participant === true}
 			{#if mine.state === 'away'}<ActionConfirmation
