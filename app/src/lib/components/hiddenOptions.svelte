@@ -104,6 +104,7 @@
 	<div
 		bind:this={contentNode}
 		class="content inline"
+		class:inline-options={buttonOnly}
 		class:action-row={moreOptions}
 		role="group"
 		aria-label={`${title} options`}

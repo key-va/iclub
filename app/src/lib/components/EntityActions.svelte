@@ -28,7 +28,7 @@
 			</HiddenOptions>
 		{/if}
 		{#if help}
-			<button type="button" class="blue" aria-label="help" aria-expanded={showHelp}
+			<button type="button" class="blue help-toggle" aria-label="help" aria-expanded={showHelp}
 				onclick={() => (showHelp = !showHelp)}>
 				<p>?</p>
 			</button>

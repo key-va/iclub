@@ -295,8 +295,9 @@ table {
 .action-link { text-decoration: none; }
 
 
-/* Only the last option in a page action row carries an arrow. */
-.action-row > :is(button, a):has(~ :is(button, a)) > .action-arrow {
+/* Only show an arrow when the action is the final control in the row. */
+.action-row > :is(button, a):has(~ :is(button, a)) > .action-arrow,
+.action-row > .inline-options:has(~ .help-toggle) > :is(button, a) > .action-arrow {
     display: none;
 }
 
