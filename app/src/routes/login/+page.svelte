@@ -23,7 +23,7 @@
 	{:else}
 		<UserLogin />
 		<RouteLink 
-		href="/browse"
+		href="/menu"
 		title="Guest"
 		description="browse the app as a guest"
 	/>	

@@ -1,51 +1,113 @@
 <script lang="ts">
 	import { branding } from '#lib/stores/branding.ts';
 	import EntityHeader from '#lib/components/EntityHeader.svelte';
-	import { hrefOf } from '#lib/stores/guids.ts';
 	import { local } from '#lib/stores/local.ts';
+	import { entities, hrefOf, imageOf, isBrowsableEntity } from '#lib/stores/guids.ts';
 
 	import RouteLink from '#lib/components/routeLink.svelte';
 
-	const { caller_id, device_id } = $local;
+	const isLoggedIn = $derived(Boolean($local.caller_id && $local.device_id));
+
+	let filter = $state('');
+	function clearFilter() {
+		filter = '';
+	}
+
+	const browsable = $derived($entities.filter(isBrowsableEntity));
+
+	const filtered = $derived.by(() => {
+		const q = filter.trim().toLowerCase();
+		if (!q) return browsable;
+		return browsable.filter((e) =>
+			`${e.name ?? ''} ${e.pk}`.toLowerCase().includes(q)
+		);
+	});
 </script>
 
 <div class="page">
-	<EntityHeader title={$branding.name} subtitle="menu" image={$branding.icon} />
+	<EntityHeader
+		title={$branding.name}
+		subtitle="menu"
+		image={$branding.icon}
+	/>
 
-	{#if caller_id && device_id}
+	<RouteLink href="/about" title="About" description="help and about" isWhite />
+
+	<div class="group">
+		<div class="row right">
+			<input
+				type="text"
+				placeholder="filter"
+				autocomplete="off"
+				bind:value={filter}
+			/>
+			<button aria-label="Filter" onclick={() => clearFilter()}>
+				<svg
+					viewBox="0 0 24 24"
+					width="1rem"
+					height="1rem"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="3"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					role="img"
+				>
+					<path d="M18 6 6 18M6 6l12 12" />
+				</svg>
+			</button>
+		</div>
+	</div>
+
+	{#each filtered.filter((e) => e.pk === 'ladder') as entity (entity.rk)}
 		<RouteLink
-			href="/browse"
-			title="Browse"
-			description="ladders, teams, groups and competitions"
-			isWhite={true}
+			href={hrefOf(entity.rk)}
+			title={entity.name ?? 'no name'}
+			description={entity.pk}
+			image={imageOf(entity.rk)}
+		/>
+	{/each}
+
+	{#each filtered.filter((e) => e.pk === 'team') as entity (entity.rk)}
+		<RouteLink
+			href={hrefOf(entity.rk)}
+			title={entity.name ?? 'no name'}
+			description={entity.pk}
+			image={imageOf(entity.rk)}
+		/>
+	{/each}
+
+	{#each filtered.filter((entity) => ['group', 'comp'].includes(entity.pk)) as entity (entity.rk)}
+		<RouteLink
+			href={hrefOf(entity.rk)}
+			title={entity.name ?? 'no name'}
+			description={entity.pk}
+			image={imageOf(entity.rk)}
+		/>
+	{/each}
+
+	{#if isLoggedIn && filter.trim() && filtered.length === 0}
+		<RouteLink
+			href={`/ladder/create?name=${encodeURIComponent(filter.trim())}`}
+			title="New Ladder"
+			description="create a new ladder"
 		/>
 		<RouteLink
-			href="{hrefOf(caller_id)}/edit"
-			title="Profile"
-			description="edit your profile"
-			isWhite={false}
-		/>
-	{:else}
-		<RouteLink
-			href="/login"
-			title="Login"
-			description="login or create account"
-			isWhite={true}
+			href="/team/create"
+			title="New Team"
+			description="create a new team"
 		/>
 		<RouteLink
-			href="/browse"
-			title="Browse"
-			description="ladders, teams, groups and competitions"
-			isWhite={false}
+			href={`/group/create?name=${encodeURIComponent(filter.trim())}`}
+			title="New Group"
+			description="create a new group"
+		/>
+		<RouteLink
+			href={`/comp/create?name=${encodeURIComponent(filter.trim())}`}
+			title="New Competition"
+			description="create a new comp"
 		/>
 	{/if}
-
-	<RouteLink
-		href="/about"
-		title="About"
-		description="help and about"
-		isWhite={false}
-	/>
 </div>
 
 <style>

@@ -19,6 +19,7 @@
 		type GuidRow
 	} from '#lib/stores/guids.ts';
 
+	import ActionLink from '#lib/components/ActionLink.svelte';
 	import HiddenOptions from '#lib/components/hiddenOptions.svelte';
 	import RouteLink from '#lib/components/routeLink.svelte';
 
@@ -84,7 +85,7 @@
 			{#if viewingOwnPage && pendingCreations.length === 0 && ladders.length === 0 && teams.length === 0 && groups.length === 0 && competitions.length === 0}
 				<div class="group">
 					<RouteLink
-						href="/browse"
+						href="/menu"
 						title="Browse"
 						description="ladders, teams, groups and competitions"
 					/>
@@ -105,6 +106,12 @@
 		{/each}
 
 		<MatchHistory parentId={user_id} />
+
+		{#if viewingOwnPage}
+			<HiddenOptions inline title="More Options">
+				<ActionLink href={`${hrefOf(user_id)}/edit`} />
+			</HiddenOptions>
+		{/if}
 	{:else}
 		<div class="row right">
 			<p class="truncate">
