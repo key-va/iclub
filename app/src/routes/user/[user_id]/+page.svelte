@@ -85,7 +85,7 @@
 			{#if viewingOwnPage && pendingCreations.length === 0 && ladders.length === 0 && teams.length === 0 && groups.length === 0 && competitions.length === 0}
 				<div class="group">
 					<RouteLink
-						href="/menu"
+						href="/browse"
 						title="Browse"
 						description="ladders, teams, groups and competitions"
 					/>

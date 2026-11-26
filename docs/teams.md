@@ -1,6 +1,6 @@
 # Teams and BRTA competitions
 
-On the club's registered hostname, open **Menu**, enter a filter with no matches, and select **New Team**. Select BRTA, competition/season, section and team. These choices come from TROLS and do not write graph data. The submitted request becomes pending under the hostname's club, with its icon unless a custom JPEG is supplied. Club ownership exists only on mirrored club-team relations. The requester has both `is_admin: true` and `is_member: true` on mirrored user-team relations; no `club_id` or `requested_by` attribute is stored on the team.
+On the club's registered hostname, open **Browse**, enter a filter with no matches, and select **New Team**. Select BRTA, competition/season, section and team. These choices come from TROLS and do not write graph data. The submitted request becomes pending under the hostname's club, with its icon unless a custom JPEG is supplied. Club ownership exists only on mirrored club-team relations. The requester has both `is_admin: true` and `is_member: true` on mirrored user-team relations; no `club_id` or `requested_by` attribute is stored on the team.
 
 A club administrator sees pending teams on their home/user page, opens a team and chooses **approve team**. Approval first validates a complete TROLS snapshot. External fetch/parse failure leaves the team pending so approval can be retried. On success rounds are imported and the team becomes active under the requesting administrator. The user-team admin flag already identifies the requester while the team is pending.
 

@@ -39,7 +39,7 @@ test('empty or malformed push still displays a visible notification', async () =
 
 test('notification click focuses and navigates an existing app window', async () => {
     const actions = [];
-    const w = worker([{ url: 'https://app.example/menu', navigate: async url => actions.push(url), focus: async () => actions.push('focus') }]);
+    const w = worker([{ url: 'https://app.example/browse', navigate: async url => actions.push(url), focus: async () => actions.push('focus') }]);
     await w.dispatch('notificationclick', { notification: { data: { url: 'https://app.example/match/match_1' }, close: () => actions.push('close') } });
     assert.deepEqual(actions, ['close', 'https://app.example/match/match_1', 'focus']);
     assert.equal(w.opened.length, 0);

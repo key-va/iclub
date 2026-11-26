@@ -23,8 +23,8 @@ before(async () => {
     render = (await server.ssrLoadModule('svelte/server')).render;
     guids = (await server.ssrLoadModule('/src/lib/stores/guids.ts')).guids;
     local = await server.ssrLoadModule('/src/lib/stores/local.ts');
-    pages = Object.fromEntries(await Promise.all(['group', 'team', 'round', 'match', 'user', 'comp', 'pair', 'menu'].map(async type =>
-        [type, (await server.ssrLoadModule(type === 'menu' ? `/src/routes/${type}/+page.svelte` : `/src/routes/${type}/[${type}_id]/+page.svelte`)).default])));
+    pages = Object.fromEntries(await Promise.all(['group', 'team', 'round', 'match', 'user', 'comp', 'pair', 'browse'].map(async type =>
+        [type, (await server.ssrLoadModule(type === 'browse' ? `/src/routes/${type}/+page.svelte` : `/src/routes/${type}/[${type}_id]/+page.svelte`)).default])));
 });
 after(async () => { await server?.close(); });
 function fixture() {
@@ -247,7 +247,7 @@ test('Competition page mirrors ladder controls and scopes requests and ranking b
     for (const label of ['Rank Alice', 'Unrank Alice'])
         assert.match(drawn, new RegExp(`aria-label="${label}"[^>]*disabled`));
 });
-test('Menu combines About and Browse and shows active entities and competitions accepting entries', async () => {
+test('Browse shows About and lists active entities and competitions accepting entries', async () => {
     const rows = [
         { pk: 'ladder', rk: 'ladder_active', name: 'Open ladder', state: 'active' },
         { pk: 'team', rk: 'team_pending', name: 'Pending team', state: 'pending' },
@@ -257,7 +257,7 @@ test('Menu combines About and Browse and shows active entities and competitions 
         { pk: 'comp', rk: 'comp_active', name: 'Active draw', state: 'active' },
         { pk: 'comp', rk: 'comp_finished', name: 'Finished draw', state: 'complete' }
     ];
-    const html = await output('menu', 'user_admin', undefined, rows);
+    const html = await output('browse', 'user_admin', undefined, rows);
     assert.match(html, /data-white="true"><a href="\/about">About<\/a>[\s\S]*placeholder="filter"[\s\S]*Open ladder/);
     assert.match(html, /Open ladder/);
     assert.match(html, /Open entries<\/a><p>comp<\/p>/);

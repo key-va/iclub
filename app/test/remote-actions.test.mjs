@@ -157,7 +157,7 @@ test('login and account creation remain unsigned while preserving the authentica
 
 test('confirmation destinations come from entity IDs or safe local API paths', () => {
     assert.equal(remote.navigationHref('user_one'), '/user/user_one');
-    assert.equal(remote.navigationHref('/menu'), '/menu');
+    assert.equal(remote.navigationHref('/browse'), '/browse');
     assert.equal(remote.navigationHref('/login'), '/login');
     assert.throws(() => remote.navigationHref('//outside.example'), /Invalid navigation/);
 });

@@ -35,7 +35,7 @@ test('successful deletion returns a real local destination while retaining clean
     assert.equal(writes.find(row => row[0] === 'doUpsertEntity')[3].name, 'User Removed');
     const ladder = await ladderDelete(request('user_admin', { ladder_id: 'ladder_test' }), context);
     assert.equal(ladder.status, 200);
-    assert.equal(ladder.jsonBody.subject, '/menu');
+    assert.equal(ladder.jsonBody.subject, '/browse');
     assert.ok(writes.some(row => row[0] === 'guids' && row[1] === 'ladder' && row[2] === 'ladder_test'));
 });
 
