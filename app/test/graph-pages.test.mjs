@@ -23,8 +23,8 @@ before(async () => {
     render = (await server.ssrLoadModule('svelte/server')).render;
     guids = (await server.ssrLoadModule('/src/lib/stores/guids.ts')).guids;
     local = await server.ssrLoadModule('/src/lib/stores/local.ts');
-    pages = Object.fromEntries(await Promise.all(['group', 'team', 'round', 'match', 'user', 'comp', 'pair', 'browse', 'menu'].map(async type =>
-        [type, (await server.ssrLoadModule(['browse', 'menu'].includes(type) ? `/src/routes/${type}/+page.svelte` : `/src/routes/${type}/[${type}_id]/+page.svelte`)).default])));
+    pages = Object.fromEntries(await Promise.all(['group', 'team', 'round', 'match', 'user', 'comp', 'pair', 'menu'].map(async type =>
+        [type, (await server.ssrLoadModule(type === 'menu' ? `/src/routes/${type}/+page.svelte` : `/src/routes/${type}/[${type}_id]/+page.svelte`)).default])));
 });
 after(async () => { await server?.close(); });
 function fixture() {
@@ -259,7 +259,6 @@ test('Menu combines About and Browse and shows active entities and competitions 
     ];
     const html = await output('menu', 'user_admin', undefined, rows);
     assert.match(html, /data-white="true"><a href="\/about">About<\/a>[\s\S]*placeholder="filter"[\s\S]*Open ladder/);
-    assert.match(await output('browse', 'user_admin', undefined, rows), /About[\s\S]*Open ladder/);
     assert.match(html, /Open ladder/);
     assert.match(html, /Open entries<\/a><p>comp<\/p>/);
     assert.match(html, /Active draw/);

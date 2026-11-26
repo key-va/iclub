@@ -91,7 +91,7 @@ export async function ladderDelete(request: HttpRequest, context: InvocationCont
         jsonBody: {
             success: true,
             message: "Okay, ladder deleted",
-            subject: "/browse"
+            subject: "/menu"
         }
     };
 }
