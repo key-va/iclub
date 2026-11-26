@@ -1,5 +1,4 @@
 <script lang="ts">
-	import EntityActions from '#lib/components/EntityActions.svelte';
 	import { prepareSquareImage } from '#lib/components/images/prepareSquareImage.ts';
 	import ActionConfirmation from '#lib/components/ActionConfirmation.svelte';
 	import { updateComp, updateGroup } from '#lib/stores/remote.ts';
@@ -87,17 +86,6 @@
 			{entity}
 			image={image || imageOf(entity.rk)}
 		/>
-		<EntityActions>
-			<ActionConfirmation
-				inline
-				name="update"
-				message={updateMessage}
-				action={() => (type === 'comp' ? updateComp : updateGroup)(id, updateData)}
-				disabled={!changed}
-				onsuccess={clearForm}
-			/>
-			{#snippet help()}<p class="info">You can update the name and image.</p>{/snippet}
-		</EntityActions>
 
 		<div class="row right">
 			<input
@@ -147,6 +135,13 @@
 			</p>
 		</div>
 
+		<ActionConfirmation
+			name="update"
+			message={updateMessage}
+			action={() => (type === 'comp' ? updateComp : updateGroup)(id, updateData)}
+			disabled={!changed}
+			onsuccess={clearForm}
+		/>
 	{:else}
 		<div class="row right">
 			<p class="truncate">

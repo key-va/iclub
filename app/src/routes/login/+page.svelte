@@ -1,5 +1,4 @@
 <script lang="ts">
-	import EntityActions from '#lib/components/EntityActions.svelte';
 	import { branding } from '#lib/stores/branding.ts';
 	import UserLogin from '#lib/components/userLogin.svelte';
 	import EntityHeader from '#lib/components/EntityHeader.svelte';
@@ -12,9 +11,6 @@
 
 <div class="page">
 	<EntityHeader title={$branding.name} subtitle="login" image={$branding.icon} />
-	<EntityActions>
-		{#snippet help()}<p class="info">Use your email or phone number to sign in, or open Browse as a guest.</p>{/snippet}
-	</EntityActions>
 
 	{#if isLoggedIn}
 		<RouteLink

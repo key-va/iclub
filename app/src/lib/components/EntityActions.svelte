@@ -3,37 +3,55 @@
 	import HiddenOptions from './hiddenOptions.svelte';
 	let {
 		summary = '',
+		section = 'all',
+		more = false,
 		help,
 		children,
-		moreOptions
+		options
 	}: {
 		summary?: string;
+		section?: 'all' | 'primary' | 'options';
+		more?: boolean;
 		help?: Snippet;
 		children?: Snippet;
-		moreOptions?: Snippet;
+		options?: Snippet;
 	} = $props();
 	let showHelp = $state(false);
 </script>
 
-{#if summary}
-	<div class="group"><p class="info center description">{summary}</p></div>
+{#if section !== 'options'}
+	{#if summary}<div class="group">
+			<p class="info center description">{summary}</p>
+		</div>{/if}
 {/if}
 {#if showHelp && help}<div class="group help">{@render help()}</div>{/if}
-{#if children || moreOptions || help}
-	<div class="row right controls action-row">
-		{@render children?.()}
-		{#if moreOptions}
-			<HiddenOptions buttonOnly title="More Options">
-				{@render moreOptions()}
-			</HiddenOptions>
-		{/if}
-		{#if help}
-			<button type="button" class="blue help-toggle" aria-label="help" aria-expanded={showHelp}
-				onclick={() => (showHelp = !showHelp)}>
-				<p>?</p>
-			</button>
-		{/if}
-	</div>
+{#snippet controls()}
+	{#if help}<button
+			class="blue"
+			aria-label="help"
+			aria-expanded={showHelp}
+			onclick={() => (showHelp = !showHelp)}
+		>
+			<p>?</p>
+		</button>{/if}
+	{@render children?.()}
+{/snippet}
+{#if more && section !== 'primary'}
+	<HiddenOptions inline title="More Options">
+		{@render controls()}{@render options?.()}
+	</HiddenOptions>
+{:else if !more}
+	{#if section !== 'options' && (help || children)}<div
+			class="row right controls action-row"
+		>
+			{@render controls()}
+		</div>{/if}
+	{#if options && section !== 'primary'}<HiddenOptions
+			inline
+			title="More Options"
+		>
+			{@render options()}
+		</HiddenOptions>{/if}
 {/if}
 
 <style>

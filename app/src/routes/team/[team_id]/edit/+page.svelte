@@ -1,5 +1,4 @@
 <script lang="ts">
-	import EntityActions from '#lib/components/EntityActions.svelte';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
@@ -45,17 +44,6 @@
 			entity={team}
 			image={image || imageOf(team.rk)}
 		/>
-		<EntityActions>
-			<ActionConfirmation
-				inline
-				name="update"
-				message={`update the ${team.name} icon?`}
-				action={() => updateTeam(teamId, { image })}
-				disabled={!image}
-				onsuccess={clearForm}
-			/>
-			{#snippet help()}<p class="info">You can change the team icon.</p>{/snippet}
-		</EntityActions>
 		<div class="row right">
 			<input
 				type="text"
@@ -99,6 +87,13 @@
 				<p class="error">{imageError}</p>
 			</div>{/if}
 		<p class="info center">The team name is fixed. You can change its icon.</p>
+		<ActionConfirmation
+			name="update"
+			message={`update the ${team.name} icon?`}
+			action={() => updateTeam(teamId, { image })}
+			disabled={!image}
+			onsuccess={clearForm}
+		/>
 	{:else}
 		<div class="row right">
 			<p>

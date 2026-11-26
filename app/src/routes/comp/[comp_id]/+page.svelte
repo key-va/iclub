@@ -72,21 +72,17 @@
 <div class="page">
 	{#if elim && (roundRobin || (elim.comp_system ?? elim.competition_type) === 'elimination')}
 		<EntityHeader entity={elim} />
-		{#snippet entryOptions()}
-			{#if canLeave}
-				<ActionConfirmation inline name={mine?.state === 'pending' ? 'cancel request' : 'withdraw'}
-					message={mine?.state === 'pending' ? 'Cancel your join request?' : 'Withdraw your entry?'}
-					action={() => competitionEntry(id, 'leave')} />
-			{/if}
-		{/snippet}
-		<EntityActions moreOptions={canLeave ? entryOptions : undefined} summary={`${roundRobin ? 'round robin' : 'elimination'} • ${doubles ? 'doubles' : 'singles'} • ${matchFormat} • ${status}`}>
-			{#if canJoin}
+		<EntityActions section="primary" summary={`${roundRobin ? 'round robin' : 'elimination'} • ${doubles ? 'doubles' : 'singles'} • ${matchFormat} • ${status}`}>
+			{#if elim.state === 'pending' && canApprove}
+				<RejectCreationRequest {id} />
+				<ActionConfirmation inline arrow showLabel name="approve" message={`approve ${elim.name}?`}
+					action={() => competitionEntry(id, 'activate')} />
+			{:else if elim.state === 'rejected' && elim.rejection_club && canApprove}
+				<RejectCreationRequest {id} resuming />
+			{:else if canJoin}
 				<ActionConfirmation inline arrow showLabel name="request to join" message={`request to join ${elim.name}?`}
 					action={() => competitionEntry(id, 'join')} disabled={!caller || mine?.state === 'pending'} />
 			{/if}
-			{#snippet help()}
-				<p class="info">{roundRobin ? 'Each entrant plays every other entrant once. The standings decide the winner.' : 'The winner advances and the loser is eliminated.'}</p>
-			{/snippet}
 		</EntityActions>
 
 		{#if open && admin && requests.length}
@@ -154,24 +150,22 @@
 			{/each}
 		{/if}
 
-		{#if canDraw || canEdit || (canApprove && (elim.state === 'pending' || (elim.state === 'rejected' && elim.rejection_club)))}
-			<HiddenOptions inline title="Admin Options">
-				{#if elim.state === 'pending' && canApprove}
-					<RejectCreationRequest {id} />
-					<ActionConfirmation inline arrow showLabel name="approve" message={`approve ${elim.name}?`}
-						action={() => competitionEntry(id, 'activate')} />
-				{:else if elim.state === 'rejected' && elim.rejection_club && canApprove}
-					<RejectCreationRequest {id} resuming />
-				{/if}
-
-				{#if canDraw}
-					<ActionConfirmation inline name={drawing ? 'resume draw' : 'start draw'} message={drawMessage}
-						action={() => competitionEntry(id, 'draw')} disabled={!drawing && entrants.length < 2} />
-				{/if}
-				{#if canEdit}<ActionLink href={`/comp/${id}/edit`} />{/if}
-			</HiddenOptions>
+		{#if canLeave || canDraw || canEdit}
+			<EntityActions section="options">
+				{#snippet options()}
+					{#if canLeave}
+						<ActionConfirmation inline name={mine?.state === 'pending' ? 'cancel request' : 'withdraw'}
+							message={mine?.state === 'pending' ? 'Cancel your join request?' : 'Withdraw your entry?'}
+							action={() => competitionEntry(id, 'leave')} />
+					{/if}
+					{#if canDraw}
+						<ActionConfirmation inline name={drawing ? 'resume draw' : 'start draw'} message={drawMessage}
+							action={() => competitionEntry(id, 'draw')} disabled={!drawing && entrants.length < 2} />
+					{/if}
+					{#if canEdit}<ActionLink href={`/comp/${id}/edit`} />{/if}
+				{/snippet}
+			</EntityActions>
 		{/if}
-
 	{:else if elim}
 		<EntityHeader entity={elim} />
 		<p>This competition type is unavailable.</p>

@@ -1,6 +1,4 @@
 <script lang="ts">
-	import HiddenOptions from '#lib/components/hiddenOptions.svelte';
-	import EntityActions from '#lib/components/EntityActions.svelte';
 	import { prepareSquareImage } from '#lib/components/images/prepareSquareImage.ts';
 	import ActionConfirmation from '#lib/components/ActionConfirmation.svelte';
 	import { updateLadder, deleteLadder } from '#lib/stores/remote.ts';
@@ -12,6 +10,7 @@
 	import { guids, entityOf, imageOf } from '#lib/stores/guids.ts';
 	import { local } from '#lib/stores/local.ts';
 
+	import HiddenOptions from '#lib/components/hiddenOptions.svelte';
 
 	const ladderId = $derived(page.params.ladder_id ?? '');
 	const ladder = $derived(entityOf(ladderId));
@@ -77,17 +76,6 @@
 			entity={ladder}
 			image={image || imageOf(ladder.rk)}
 		/>
-		<EntityActions>
-			<ActionConfirmation
-				inline
-				name="update"
-				message={updateMessage}
-				action={() => updateLadder(ladderId, updateData)}
-				disabled={!changed}
-				onsuccess={clearForm}
-			/>
-			{#snippet help()}<p class="info">You can update the ladder name and image after creation.</p>{/snippet}
-		</EntityActions>
 
 		<div class="row right">
 			<input
@@ -137,7 +125,15 @@
 			</p>
 		</div>
 
-		<HiddenOptions inline title="Admin Options">
+		<ActionConfirmation
+			name="update"
+			message={updateMessage}
+			action={() => updateLadder(ladderId, updateData)}
+			disabled={!changed}
+			onsuccess={clearForm}
+		/>
+
+		<HiddenOptions inline title="More" description="delete ladder">
 			<ActionConfirmation
 				inline
 				name="delete"

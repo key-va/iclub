@@ -18,15 +18,14 @@ async function show(kind, props, rows, caller = 'user_me') {
  await loadGraph(graph, rows); local.set({ caller_id: caller, device_id: null, connect_key: null });
  return render(views[kind], { props }).body;
 }
-test('ladder visitor sees selected settings and join; member options start collapsed before help', async () => {
+test('ladder visitor sees selected settings and join; membership management starts collapsed', async () => {
  const ladder = { pk:'ladder',rk:'ladder_test',name:'Ladder',state:'active',format:'singles',ladder_system:'half_rank',match_format:'best_of_three' };
  const visitor = await show('ladder',{ladder},[ladder]);
- assert.match(visitor,/singles • half rank • best of three/);assert.match(visitor,/aria-label="request to join"[\s\S]*?aria-label="help"/);
+ assert.match(visitor,/singles • half rank • best of three/);assert.equal(has(visitor,'request to join'),true);assert.equal(has(visitor,'help'),true);
  const adminOnly = await show('ladder',{ladder},[ladder,{pk:ladder.rk,rk:'user_me',is_admin:true}]);
  assert.equal(has(adminOnly,'request to join'),true);
  const member = await show('ladder',{ladder},[ladder,{pk:ladder.rk,rk:'user_me',is_participant:true,state:'active'}]);
- assert.match(member, /aria-expanded="false"><p>More Options<\/p>[\s\S]*aria-label="help"/);
- assert.doesNotMatch(member, /aria-label="(?:away|leave ladder|request to join)"/);
+ assert.equal(has(member,'More Options'),true);assert.equal(has(member,'request to join'),false);assert.equal(has(member,'away'),false);
 });
 test('round page only offers eligible confirmed availability choices for current members', async () => {
  const round={pk:'round',rk:'round_test',state:'pending'},team={pk:'team',rk:'team_test'};
@@ -39,31 +38,26 @@ test('round page only offers eligible confirmed availability choices for current
 test('match page shows accept for defenders/admins and forfeit only for participating users', async () => {
  const match={pk:'match',rk:'match_test',state:'pending'};
  const rows=[{pk:match.rk,rk:'user_me',role:'defender'},{pk:match.rk,rk:'ladder_test'},{pk:'ladder_test',rk:'user_admin',is_admin:true}];
- let html=await show('match',{match},rows);assert.equal(has(html,'accept'),true);assert.equal(has(html,'forfeit'),false);assert.match(html, /<p>More Options<\/p>/);
+ let html=await show('match',{match},rows);assert.equal(has(html,'accept'),true);assert.equal(has(html,'forfeit'),false);assert.equal(has(html,'More Options'),true);
  html=await show('match',{match},rows,'user_admin');assert.equal(has(html,'accept'),true);assert.equal(has(html,'forfeit'),false);
  html=await show('match',{match},rows,'user_other');assert.equal(has(html,'accept'),false);assert.equal(has(html,'forfeit'),false);
- html=await show('match',{match:{...match,state:'active'}},rows);assert.equal(has(html,'accept'),false);assert.equal(has(html,'forfeit'),false);assert.match(html, /<p>More Options<\/p>/);
+ html=await show('match',{match:{...match,state:'active'}},rows);assert.equal(has(html,'accept'),false);assert.equal(has(html,'forfeit'),false);assert.equal(has(html,'More Options'),true);
 });
 
 
-test('pending ladder shows its creator the approval status next to help', async () => {
- const ladder = { pk: 'ladder', rk: 'ladder_test', name: 'Pending ladder', state: 'pending' };
- const rows = [ladder, { pk: ladder.rk, rk: 'user_me', is_admin: true }];
- const creator = await show('ladder', { ladder }, rows);
- assert.match(creator, /<button type="button" class="grey" disabled=""><p>pending club approval<\/p>[\s\S]*?aria-label="help"/);
- const visitor = await show('ladder', { ladder }, rows, 'user_other');
- assert.doesNotMatch(visitor, /pending club approval/);
-});
-
-test('pending entity approvals appear in collapsed Admin Options for club admins', async () => {
- for(const type of ['ladder','team','group']) {
-  const entity={pk:type,rk:`${type}_test`,name:'Pending entity',state:'pending'};
+test('pending entity approvals and rejections use confirmation styling', async () => {
+ for(const [type,name] of [['ladder','approve this ladder'],['team','approve team'],['group','approve group']]) {
+  const entity={pk:type,rk:`${type}_test`,name:'Pending entity',state:'pending',format:'singles',ladder_system:'win_points',match_format:'best_of_three',ext_association:'brta',ext_competition_name:'Tuesday Night',ext_section_name:'Section 1',ext_rank:3};
   const rows=[entity,{pk:entity.rk,rk:'club_test'},{pk:'club_test',rk:'user_me',is_admin:true}];
-  const main=await show(type,{[type]:entity},rows);
-  assert.doesNotMatch(main,/Admin Options|aria-label="approve/);
-  const admin=await show(type,{[type]:entity,adminOnly:true},rows);
-  assert.match(admin,/aria-label="Admin Options" aria-expanded="false"/);
-  assert.doesNotMatch(await show(type,{[type]:entity,adminOnly:true},rows,'user_other'),/Admin Options/);
+  const html=await show(type,{[type]:entity},rows);
+  assert.equal(has(html,name),true);assert.match(html,new RegExp(`class="pink"[^>]*aria-label="${name}"`));
+  assert.match(html, /class="pink"[^>]*aria-label="reject"/);
+  assert.doesNotMatch(html,/aria-label="Pending"|pending approval|pending club approval/);
+  if(type!=='group'){
+   const summary=type==='ladder'?'singles • win points • best of three':'BRTA • Section 1 • rank 3';
+   assert.ok(html.indexOf(summary)<html.indexOf(`aria-label="${name}"`));
+   assert.equal((html.match(/class="group"/g)??[]).length,1);
+  }
  }
 });
 
@@ -77,8 +71,8 @@ test('team editor shows a read-only name and limits editing to team admins',asyn
  local.set({caller_id:'user_other',device_id:null,connect_key:null});const blocked=render(views.teamEdit,{context}).body;
  assert.match(blocked,/Only a team admin can edit this team/);assert.equal(has(blocked,'update'),false);assert.doesNotMatch(blocked,/aria-label="team name"/);
  const pending={...rows[0],state:'pending'};
- const pendingPage=await show('team',{team:pending,adminOnly:true},[pending,rows[1]]);
- assert.match(pendingPage, /aria-label="Admin Options" aria-expanded="false"/);
+ const pendingPage=await show('team',{team:pending},[pending,rows[1]]);
+ assert.equal(has(pendingPage,'More Options'),true);
  const pendingEdit=render(views.teamEdit,{context}).body;
  assert.match(pendingEdit,/aria-label="team icon"/);assert.equal(has(pendingEdit,'update'),true);
 });

@@ -1,5 +1,4 @@
 <script lang="ts">
-	import EntityActions from '#lib/components/EntityActions.svelte';
 	import EntityHeader from '#lib/components/EntityHeader.svelte';
 	import { page } from '$app/state';
 	import { local } from '#lib/stores/local.ts';
@@ -25,9 +24,6 @@
 <div class="page">
 	{#if entity}
 		<EntityHeader {entity} />
-		<EntityActions>
-			{#snippet help()}<p class="info">Open a linked row to view a related item.</p>{/snippet}
-		</EntityActions>
 	{:else}
 		<div class="row right">
 			<p class="truncate">

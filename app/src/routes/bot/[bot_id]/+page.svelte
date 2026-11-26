@@ -1,5 +1,4 @@
 <script lang="ts">
-	import EntityActions from '#lib/components/EntityActions.svelte';
 	import EntityHeader from '#lib/components/EntityHeader.svelte';
 	import { page } from '$app/state';
 	import { entityOf } from '#lib/stores/guids.ts';
@@ -9,9 +8,6 @@
 
 <div class="page">
 	<EntityHeader entity={bot} title="Bot" subtitle="bot" />
-	<EntityActions>
-		{#snippet help()}<p class="info">Bot accounts perform automated actions for Intra Club.</p>{/snippet}
-	</EntityActions>
 
 	{#if bot}
 		<div class="group">

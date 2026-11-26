@@ -174,7 +174,7 @@ test('match defender permissions, competitor names and messages survive the look
     const challenger = await output('match', 'user_alice');
     assert.equal(hasAction(challenger, 'accept'), false);
     assert.match(challenger, /class="row right controls action-row[^"]*"[\s\S]*?aria-label="withdraw"/);
-    assert.match(challenger, /aria-label="More Options"[\s\S]*aria-label="forfeit"[\s\S]*aria-label="help"/);
+    assert.match(challenger, /aria-label="More Options"[\s\S]*aria-label="forfeit"/);
     assert.equal(hasAction(html, 'withdraw'), false);
 });
 test('user home resolves team details and outstanding round role/date separately', async () => {
@@ -212,7 +212,7 @@ test('Competition page mirrors ladder controls and scopes requests and ranking b
     assert.equal(hasAction(admin, 'Accept Bob'), true);
     assert.equal(hasAction(admin, 'Unrank Alice'), true);
     assert.equal(hasAction(admin, 'Rank Administrator'), true);
-    assert.match(admin, /entries open[\s\S]*aria-label="help"[\s\S]*unranked • pending[\s\S]*Players[\s\S]*aria-label="Admin Options"[\s\S]*aria-label="start draw"/);
+    assert.match(admin, /entries open[\s\S]*unranked • pending[\s\S]*Players[\s\S]*More Options/);
     assert.equal(hasAction(admin, 'start draw'), true);
 
     const player = await output('comp', 'user_alice', undefined, rows);
@@ -220,7 +220,7 @@ test('Competition page mirrors ladder controls and scopes requests and ranking b
     assert.match(player, /rank 1 • pending/);
     assert.match(player, /<button[^>]*disabled[^>]*><p>no actions<\/p>/);
     assert.doesNotMatch(player, /waiting to join|Accept Bob|Unrank Alice/);
-    assert.match(player, /aria-label="withdraw"[\s\S]*aria-label="help"/);
+    assert.match(player, /More Options[\s\S]*aria-label="withdraw"/);
     assert.equal(hasAction(player, 'start draw'), false);
 
     const applicant = await output('comp', 'user_bob', undefined, rows);
@@ -370,8 +370,8 @@ test('Competition rounds and user profiles show active matches and elimination s
     const match = await output('match', 'user_alice', 'match_final', rows);
     assert.match(match, /competitor/);
     assert.doesNotMatch(match, />challenger<|>defender</);
-    assert.match(match, /aria-label="submit"[\s\S]*aria-label="help"/);
-    assert.match(match, /aria-label="More Options"[\s\S]*aria-label="forfeit"[\s\S]*aria-label="help"/);
+    assert.match(match, /aria-label="help"[\s\S]*aria-label="submit"/);
+    assert.match(match, /aria-label="More Options"[\s\S]*aria-label="forfeit"/);
     const adminRows = [...rows, { pk: 'comp_test', rk: 'user_bob', is_admin: true }];
     assert.equal(hasAction(await output('match', 'user_bob', 'match_final', adminRows), 'forfeit'), false);
 
@@ -457,10 +457,9 @@ test('Round Robin shows standings, scheduled fixtures and joint champions withou
     assert.doesNotMatch(await output('user', 'user_alice', 'user_alice', rows), /Club round robin/);
 });
 
-test('Only the profile owner sees the profile editor link in More Options', async () => {
+test('Only the profile owner sees logout and edit in More Options', async () => {
     const own = await output('user', 'user_alice');
-    assert.match(own, /aria-label="More Options"[\s\S]*href="\/user\/user_alice\/edit" aria-label="profile"[\s\S]*aria-label="help"/);
-    assert.doesNotMatch(own, /aria-label="logout"/);
+    assert.match(own, /aria-label="More Options">[\s\S]*aria-label="logout"[\s\S]*href="\/user\/user_alice\/edit" aria-label="edit"/);
     const other = await output('user', 'user_bob');
-    assert.doesNotMatch(other, /aria-label="(?:More Options|logout|profile)"/);
+    assert.doesNotMatch(other, /aria-label="(?:More Options|logout|edit)"/);
 });

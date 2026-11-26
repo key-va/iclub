@@ -12,7 +12,6 @@
 		isWhite?: boolean;
 		// true shows the content in place of the title (action buttons); false shows it below the row (help text)
 		inline?: boolean;
-		buttonOnly?: boolean;
 		// ms of inactivity before the content hides again; 0 keeps it until tapped again
 		timeout?: number;
 		// the hidden content; without it the row is plain information
@@ -26,13 +25,12 @@
 		badge,
 		isWhite = false,
 		inline = false,
-		buttonOnly = false,
 		timeout,
 		children
 	}: Props = $props();
 
-	const moreOptions = $derived(title === 'More Options' || title === 'More' || title === 'Admin Options');
-	const replaceRow = $derived(inline || moreOptions || buttonOnly);
+	const moreOptions = $derived(title === 'More Options' || title === 'More');
+	const replaceRow = $derived(inline || moreOptions);
 	const revertAfter = $derived(
 		moreOptions ? 9000 : (timeout ?? (replaceRow ? 9000 : 0))
 	);
@@ -100,78 +98,63 @@
 	{/if}
 {/snippet}
 
-{#snippet inlineContent()}
-	<div
-		bind:this={contentNode}
-		class="content inline"
-		class:inline-options={buttonOnly}
-		class:action-row={moreOptions}
-		role="group"
-		aria-label={`${title} options`}
-		use:trackActions={onActionActivity}
-		onpointerdown={() => activity++}
-		onfocusin={() => activity++}
-	>
-		{@render children?.()}
-	</div>
-{/snippet}
-
-{#if buttonOnly}
-	{#if open}
-		{@render inlineContent()}
-	{:else}
-		<button type="button" bind:this={toggleButton} class="blue" aria-expanded={open} onclick={toggle}>
-			<p>{title}</p>
-		</button>
-	{/if}
-{:else}
-	<div class={isWhite ? 'group' : ''}>
-		<div class="row right">
-			{#if open && replaceRow}
-				{@render inlineContent()}
-			{:else}
-				<p class="truncate">
-					<strong>{title}</strong>{#if description || detail}<br /><span
-							class="description row-description"
-						>
-							{description}{@render detail?.()}
-						</span>{/if}
-				</p>
-			{/if}
-
-			{#if children && (!open || !replaceRow)}
-				<button
-					bind:this={toggleButton}
-					class="blue"
-					aria-label={title}
-					aria-expanded={open}
-					disabled={pendingActions > 0}
-					onclick={toggle}
-				>
-					{@render glyph()}
-				</button>
-			{:else if !children}
-				<div class="round-icon-small {badge !== undefined ? 'grey' : 'blue'}">
-					{@render glyph()}
-				</div>
-			{/if}
-		</div>
-
-		{#if open && !replaceRow}
+<div class={isWhite ? 'group' : ''}>
+	<div class="row right">
+		{#if open && replaceRow}
 			<div
-				class="content details"
+				bind:this={contentNode}
+				class="content inline"
 				class:action-row={moreOptions}
 				role="group"
-				aria-label={title}
+				aria-label={`${title} options`}
 				use:trackActions={onActionActivity}
 				onpointerdown={() => activity++}
 				onfocusin={() => activity++}
 			>
 				{@render children?.()}
 			</div>
+		{:else}
+			<p class="truncate">
+				<strong>{title}</strong>{#if description || detail}<br /><span
+						class="description row-description"
+					>
+						{description}{@render detail?.()}
+					</span>{/if}
+			</p>
+		{/if}
+
+		{#if children && (!open || !replaceRow)}
+			<button
+				bind:this={toggleButton}
+				class="blue"
+				aria-label={title}
+				aria-expanded={open}
+				disabled={pendingActions > 0}
+				onclick={toggle}
+			>
+				{@render glyph()}
+			</button>
+		{:else if !children}
+			<div class="round-icon-small {badge !== undefined ? 'grey' : 'blue'}">
+				{@render glyph()}
+			</div>
 		{/if}
 	</div>
-{/if}
+
+	{#if open && !replaceRow}
+		<div
+			class="content details"
+			class:action-row={moreOptions}
+			role="group"
+			aria-label={title}
+			use:trackActions={onActionActivity}
+			onpointerdown={() => activity++}
+			onfocusin={() => activity++}
+		>
+			{@render children?.()}
+		</div>
+	{/if}
+</div>
 
 <style>
 	.inline {

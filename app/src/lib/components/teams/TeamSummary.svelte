@@ -69,7 +69,7 @@
 	let syncMessage = $state('');
 </script>
 
-<TeamActions {team} />
+<TeamActions {team} section="primary" />
 {#if team.state === 'active'}
 	{#if admin && pending.length}
 		<div class="group">
@@ -149,4 +149,4 @@
 	</HiddenOptions>
 {/if}
 
-<TeamActions {team} adminOnly />
+<TeamActions {team} section="options" />
