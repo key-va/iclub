@@ -19,32 +19,36 @@
 	let showHelp = $state(false);
 </script>
 
-{#if section !== 'options'}
-	{#if summary}<div class="group">
-			<p class="info center description">{summary}</p>
-		</div>{/if}
+{#if section !== 'options' && (summary || help)}
+	<div class="group">
+		{#if summary}<p class="info center description">{summary}</p>{/if}
+		{#if help}
+			<div class="row center">
+				<button
+					type="button"
+					class="blue"
+					aria-label={showHelp ? 'hide help' : 'help'}
+					aria-expanded={showHelp}
+					onclick={() => (showHelp = !showHelp)}
+				>
+					<p aria-hidden="true">{showHelp ? '×' : '?'}</p>
+				</button>
+			</div>
+		{/if}
+	</div>
 {/if}
-{#if showHelp && help}<div class="group help">{@render help()}</div>{/if}
-{#snippet controls()}
-	{#if help}<button
-			class="blue"
-			aria-label="help"
-			aria-expanded={showHelp}
-			onclick={() => (showHelp = !showHelp)}
-		>
-			<p>?</p>
-		</button>{/if}
-	{@render children?.()}
-{/snippet}
+{#if section !== 'options' && showHelp && help}
+	<div class="group help">{@render help()}</div>
+{/if}
 {#if more && section !== 'primary'}
 	<HiddenOptions inline title="More Options">
-		{@render controls()}{@render options?.()}
+		{@render children?.()}{@render options?.()}
 	</HiddenOptions>
 {:else if !more}
-	{#if section !== 'options' && (help || children)}<div
+	{#if section !== 'options' && children}<div
 			class="row right controls action-row"
 		>
-			{@render controls()}
+			{@render children?.()}
 		</div>{/if}
 	{#if options && section !== 'primary'}<HiddenOptions
 			inline
@@ -55,6 +59,10 @@
 {/if}
 
 <style>
+	.help {
+		text-align: left;
+	}
+
 	.controls {
 		flex-wrap: wrap;
 	}

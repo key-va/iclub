@@ -25,6 +25,7 @@ test('ladder visitor sees selected settings and join; membership management star
  const adminOnly = await show('ladder',{ladder},[ladder,{pk:ladder.rk,rk:'user_me',is_admin:true}]);
  assert.equal(has(adminOnly,'request to join'),true);
  const member = await show('ladder',{ladder},[ladder,{pk:ladder.rk,rk:'user_me',is_participant:true,state:'active'}]);
+ assert.match(member, /<div class="group">[\s\S]*?<p[^>]*>singles • half rank • best of three<\/p>[\s\S]*?<div class="row center"><button[^>]*aria-label="help"[^>]*aria-expanded="false"/);
  assert.equal(has(member,'More Options'),true);assert.equal(has(member,'request to join'),false);assert.equal(has(member,'away'),false);
 });
 test('round page only offers eligible confirmed availability choices for current members', async () => {
