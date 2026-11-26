@@ -3,15 +3,15 @@
 	import { setRoundRole } from '#lib/stores/remote.ts';
 	import { roundQuickOptions, roundQuickRoles, roundRoleLabel } from './roundRules.ts';
 
-	let { roundId, role, editable, admin }: {
+	let { roundId, role, editable, allowSelection = false }: {
 		roundId: string;
 		role: unknown;
 		editable: boolean;
-		admin: boolean;
+		allowSelection?: boolean;
 	} = $props();
 
-	const visibleRoles = $derived(roundQuickRoles.filter((option) => admin || option !== 'selected'));
-	const options = $derived(editable ? roundQuickOptions(role, admin) : []);
+	const visibleRoles = $derived(roundQuickRoles.filter((option) => allowSelection || option !== 'selected'));
+	const options = $derived(editable ? roundQuickOptions(role, allowSelection) : []);
 </script>
 
 {#each visibleRoles as option}

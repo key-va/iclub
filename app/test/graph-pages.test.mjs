@@ -125,7 +125,7 @@ test('team member roles and derived round details survive raw relation lookups',
     assert.equal((html.match(/href="\/round\/round_test"/g) ?? []).length, 1);
     assert.match(html, /href="\/user\/user_alice">Alice/);
     assert.equal(hasAction(html, 'accept'), true);
-    assert.equal(hasAction(html, 'playing'), true);
+    assert.equal(hasAction(html, 'playing'), false);
     const member = await output('team', 'user_alice');
     assert.equal(hasAction(member, 'accept'), false);
     assert.equal(hasAction(member, 'playing'), false);
@@ -195,6 +195,15 @@ test('user home resolves team details and outstanding round role/date separately
     assert.match(html, /Round 1/);
     assert.match(html, /2026-11-20/);
     assert.match(html, /playing/);
+    const rows = fixture();
+    rows.push(
+        { pk: 'user_admin', rk: 'round_test', role: 'pending' },
+        { pk: 'round_test', rk: 'user_admin', role: 'pending' }
+    );
+    const adminHome = await output('user', 'user_admin', 'user_admin', rows);
+    assert.equal(hasAction(adminHome, 'out'), true);
+    assert.equal(hasAction(adminHome, 'available'), true);
+    assert.equal(hasAction(adminHome, 'playing'), false);
 });
 
 test('pending team/group memberships on user pages retain admin acceptance actions', async () => {

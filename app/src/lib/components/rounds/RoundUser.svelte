@@ -23,7 +23,7 @@
 
 {#snippet rowActions()}
 	{#if canEditOwn}
-		<RoundQuickOptions roundId={round.rk} role={user.role} editable={true} {admin} />
+		<RoundQuickOptions roundId={round.rk} role={user.role} editable={true} allowSelection={admin} />
 	{:else}
 		<ActionQuick inline name="playing" disabled={user.role !== 'available'}
 			action={() => setRoundRole(round.rk, 'selected', user.rk)} />
