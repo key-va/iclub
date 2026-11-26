@@ -1,4 +1,5 @@
 <script lang="ts">
+	import EntityActions from '#lib/components/EntityActions.svelte';
 	import MatchRecord from '#lib/components/matches/MatchRecord.svelte';
 	import UserCompetition from '#lib/components/competitions/UserCompetition.svelte';
 	import MatchHistory from '#lib/components/matches/MatchHistory.svelte';
@@ -6,8 +7,6 @@
 	import UserTeam from '#lib/components/teams/UserTeam.svelte';
 
 	import EntityHeader from '#lib/components/EntityHeader.svelte';
-	import { goto } from '$app/navigation';
-	import { clearSession } from '#lib/stores/auth.ts';
 	import { page } from '$app/state';
 	import { local } from '#lib/stores/local.ts';
 	import {
@@ -59,16 +58,23 @@
 	const teams = $derived(activeMemberships.filter((row) => typeOf(row.rk) === 'team'));
 	const ladders = $derived(activeMemberships.filter((row) => typeOf(row.rk) === 'ladder'));
 
-	async function logout() {
-		await clearSession();
-		await goto('/login');
-	}
 </script>
+
+{#snippet personalOptions()}
+	<ActionLink href={`${hrefOf(user_id)}/edit`} name="profile" />
+{/snippet}
 
 <div class="page">
 	{#if user_entity}
 		<EntityHeader entity={user_entity} />
 		<MatchRecord parentId={user_id} />
+		<EntityActions moreOptions={viewingOwnPage ? personalOptions : undefined}>
+			{#snippet help()}
+				<p class="info">{viewingOwnPage
+					? 'See what’s coming up and what needs your attention, including matches to play, challenges to respond to and rounds to mark your availability for'
+					: 'See this player’s upcoming matches and team rounds, along with any actions you can take.'}</p>
+			{/snippet}
+		</EntityActions>
 
 		{#if adminClubs.length}
 			<div class="group">
@@ -113,14 +119,6 @@
 
 		<MatchHistory parentId={user_id} />
 
-		{#if viewingOwnPage}
-			<HiddenOptions inline title="More Options">
-				<button class="blue" aria-label="logout" onclick={logout}>
-					<p>logout</p>
-				</button>
-				<ActionLink href={`${hrefOf(user_id)}/edit`} />
-			</HiddenOptions>
-		{/if}
 	{:else}
 		<div class="row right">
 			<p class="truncate">

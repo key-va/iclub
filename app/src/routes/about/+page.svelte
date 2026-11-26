@@ -1,4 +1,5 @@
 <script lang="ts">
+	import EntityActions from '#lib/components/EntityActions.svelte';
 	import { branding } from '#lib/stores/branding.ts';
 	import EntityHeader from '#lib/components/EntityHeader.svelte';
 	import { local } from '#lib/stores/local.ts';
@@ -8,6 +9,9 @@
 
 <div class="page">
 	<EntityHeader title={$branding.name} subtitle="about" image={$branding.icon} />
+	<EntityActions>
+		{#snippet help()}<p class="info">Open Browse to find ladders, competitions, teams and groups.</p>{/snippet}
+	</EntityActions>
 
     <div class="group">
 	<div class="row center">

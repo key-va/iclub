@@ -1,11 +1,11 @@
 <script lang="ts">
+	import HiddenOptions from '../hiddenOptions.svelte';
 	import { competitionFinal, competitionSlots, nextCompetitionMatch } from '../competitions/competitionBracket.ts';
 	import { entrantIncludesUser } from '../competitions/competitionPlayers.ts';
 	import MatchActions from './MatchActions.svelte';
 	import MessageThread from '#lib/components/messages/MessageThread.svelte';
 	import ActionConfirmation from '#lib/components/ActionConfirmation.svelte';
 
-	import EntityActions from '#lib/components/EntityActions.svelte';
 	import { completeMatch, recordElimResult } from '#lib/stores/remote.ts';
 
 	import { local } from '#lib/stores/local.ts';
@@ -127,7 +127,6 @@
 	});
 	let challengerScores = $state<string[]>(['', '', '']);
 	let defenderScores = $state<string[]>(['', '', '']);
-	let showHelp = $state(false);
 
 	function editResult() {
 		challengerScores = labels.map((_, i) => recordedChallenger[i] ?? '');
@@ -220,15 +219,37 @@
 			</div>
 		{/if}
 	</div>
-	{#if !elim}
-		<MatchActions
-			section="primary"
-			{match}
-			forfeitData={scoreValid
-				? { challenger_score: challengerSets, defender_score: defenderSets }
-				: {}}
+
+{/if}
+
+<MatchActions {match} forfeitData={scoreValid
+	? { challenger_score: challengerSets, defender_score: defenderSets }
+	: {}}>
+	{#snippet help()}
+		<p class="info">Enter the games won by each player in each set played. Count a tiebreak as one game and leave unplayed sets empty.</p>
+		{#if formatRules}<p class="info">{formatRules}</p>{/if}
+	{/snippet}
+	{#if showScores && (!elim || challenger && defender)}
+		<ActionConfirmation
+			inline
+			arrow
+			showLabel
+			name={correcting ? 'save correction' : 'submit'}
+			message={`${scoreSummary}?`}
+			action={() => elim
+				? submitElimScore()
+				: completeMatch(matchId, {
+					challenger_score: challengerSets,
+					defender_score: defenderSets
+				})}
+			disabled={!scoreValid || !(isPlayer || isLadderAdmin || isElimAdmin)
+				|| (!!elim && challengerWon === defenderWon)}
+			onsuccess={() => { correcting = false; }}
 		/>
 	{/if}
+</MatchActions>
+
+{#if challenger && defender}
 
 	{#if showScores}
 		<div class="group">
@@ -266,48 +287,10 @@
 					<p class="error">Scores must be a number from 0 to {maxGames}.</p>
 				</div>
 			{/if}
-			{#if showHelp}
-				<div class="row left help">
-					<p>
-						Match score: enter the games won by each player in each set played,
-						with a tiebreak counting as a single game. Leave unplayed sets
-						empty.
-					</p>
-				</div>
-				<div class="row left help">
-					<p>{formatRules}</p>
-				</div>
-			{/if}
 		</div>
 	{/if}
 {/if}
 
-{#if showScores && (!elim || challenger && defender)}
-	<ActionConfirmation
-		arrow
-		showLabel
-		name={correcting ? 'save correction' : 'submit'}
-		message={`${scoreSummary}?`}
-		action={() => elim
-			? submitElimScore()
-			: completeMatch(matchId, {
-				challenger_score: challengerSets,
-				defender_score: defenderSets
-			})}
-		disabled={!scoreValid || !(isPlayer || isLadderAdmin || isElimAdmin)
-			|| (!!elim && challengerWon === defenderWon)}
-		onsuccess={() => { correcting = false; }}
-	>
-		<button
-			class="blue"
-			aria-label="help"
-			aria-pressed={showHelp}
-			onclick={() => (showHelp = !showHelp)}
-		>
-			<p>?</p>
-		</button>
-	</ActionConfirmation>
-{/if}
 
 {#if !elim || challenger && defender}
 	<MessageThread parentId={matchId} showTime />
@@ -327,28 +310,19 @@
 	image={imageOf((elim ?? ladder)?.rk ?? '')}
 ></RouteLink>
 
+
 {#if correctionRelevant}
-	<EntityActions section="options">
-		{#snippet options()}
-			<ActionConfirmation inline navigate={false}
-				name={correcting ? 'cancel correction' : 'correct score'}
-				message={correcting ? 'Discard the changes to this score?' : 'Edit the recorded score?'}
-				disabled={!canCorrect}
-				action={async () => {
-					if (correcting) correcting = false;
-					else editResult();
-					return { success: true, message: '' };
-				}} />
-		{/snippet}
-	</EntityActions>
-{:else}
-	<MatchActions
-		{match}
-		section="options"
-		forfeitData={scoreValid
-			? { challenger_score: challengerSets, defender_score: defenderSets }
-			: {}}
-	/>
+	<HiddenOptions inline title="Admin Options">
+		<ActionConfirmation inline navigate={false}
+			name={correcting ? 'cancel correction' : 'correct score'}
+			message={correcting ? 'Discard the changes to this score?' : 'Edit the recorded score?'}
+			disabled={!canCorrect}
+			action={async () => {
+				if (correcting) correcting = false;
+				else editResult();
+				return { success: true, message: '' };
+			}} />
+	</HiddenOptions>
 {/if}
 
 <style>

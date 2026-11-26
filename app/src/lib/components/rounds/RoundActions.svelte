@@ -19,7 +19,9 @@
 	const showActions = $derived(member && !!mine && !['complete', 'eliminated'].includes(String(round.state)));
 </script>
 
-{#if showActions}<EntityActions>
+<EntityActions>
+	{#snippet help()}<p class="info">Set your availability for this round. Team administrators select available players.</p>{/snippet}
+	{#if showActions}
 		{#each roles as role}<ActionConfirmation
 				inline
 				arrow={role === 'available'}
@@ -29,4 +31,5 @@
 				disabled={!options.includes(role)}
 				action={() => confirmRoundRole(round.rk, role)}
 			/>{/each}
-	</EntityActions>{/if}
+	{/if}
+</EntityActions>

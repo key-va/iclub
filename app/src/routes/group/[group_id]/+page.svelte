@@ -18,7 +18,7 @@
 		<GroupSummary {group} />
 
 		{#if group.state !== 'rejected'}<MessageThread parentId={id} />{/if}
-		<GroupActions {group} section="options" />
+		<GroupActions {group} adminOnly />
 	{:else}
 		<div class="row right">
 			<p class="truncate">

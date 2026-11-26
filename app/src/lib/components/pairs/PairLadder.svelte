@@ -1,4 +1,5 @@
 <script lang="ts">
+	import EntityActions from '#lib/components/EntityActions.svelte';
 	import RouteLinkHiddenAction from '#lib/components/RouteLinkHiddenAction.svelte';
 	import PairMembers from './PairMembers.svelte';
 	import MatchHistory from '#lib/components/matches/MatchHistory.svelte';
@@ -24,7 +25,6 @@
 	} from '#lib/stores/guids.ts';
 
 	import RouteLink from '#lib/components/routeLink.svelte';
-	import HiddenOptions from '#lib/components/hiddenOptions.svelte';
 
 	let { pair, ladderRow }: { pair: GuidRow; ladderRow?: GuidRow } = $props();
 	const pairId = $derived(pair.rk);
@@ -78,6 +78,16 @@
 	);
 </script>
 
+{#snippet personalOptions()}
+	<ActionConfirmation inline name="retire"
+		message={`retire ${nameOf(pairId)}? Ongoing matches will be forfeited`}
+		action={() => retirePair(pairId)} />
+{/snippet}
+
+<EntityActions moreOptions={!retired && canRetire ? personalOptions : undefined}>
+	{#snippet help()}<p class="info">A pair is a doubles partnership. Retiring a pair withdraws it from the ladder and forfeits its ongoing matches.</p>{/snippet}
+</EntityActions>
+
 {#if ladder}
 	<div class="group">
 		<PairMembers {pairId} />
@@ -111,13 +121,3 @@
 {/if}
 
 <MatchHistory parentId={pairId} />
-{#if !retired && canRetire}
-	<HiddenOptions inline title="More Options" description="retire partnership">
-		<ActionConfirmation
-			inline
-			name="retire"
-			message={`retire ${nameOf(pairId)}? Ongoing matches will be forfeited`}
-			action={() => retirePair(pairId)}
-		/>
-	</HiddenOptions>
-{/if}

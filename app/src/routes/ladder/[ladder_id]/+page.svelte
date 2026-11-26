@@ -79,7 +79,7 @@
 	{#if ladder}
 		<EntityHeader entity={ladder} />
 
-		<LadderActions {ladder} section="primary" />
+		<LadderActions {ladder} />
 		<LadderRequests {ladder} />
 
 		<div class="group">
@@ -127,7 +127,8 @@
 				/>
 			{/each}
 		</HiddenOptions>
-		<LadderActions {ladder} section="options" />
+
+		<LadderActions {ladder} adminOnly />
 	{:else}
 		<div class="row right">
 			<p class="truncate">

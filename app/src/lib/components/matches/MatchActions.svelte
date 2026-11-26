@@ -1,4 +1,5 @@
 <script lang="ts">
+	import type { Snippet } from 'svelte';
 	import { local } from '#lib/stores/local.ts';
 	import { relationsOf, type GuidRow } from '#lib/stores/guids.ts';
 	import { acceptMatch, forfeitCompetitionMatch, forfeitMatch, withdrawMatch } from '#lib/stores/remote.ts';
@@ -10,12 +11,14 @@
 	let {
 		match,
 		quick = false,
-		section = 'all',
+		help,
+		children,
 		forfeitData = {}
 	}: {
 		match: GuidRow;
 		quick?: boolean;
-		section?: 'all' | 'primary' | 'options';
+		help?: Snippet;
+		children?: Snippet;
 		forfeitData?: Record<string, unknown>;
 	} = $props();
 	const links = $derived(relationsOf(match.rk));
@@ -52,7 +55,7 @@
 	{@render withdrawButton()}
 {/snippet}
 {#snippet withdrawButton()}
-	<ActionQuick inline name="withdraw" arrow={!quick}
+	<ActionQuick inline name="withdraw"
 		disabled={!canWithdraw}
 		action={() => withdrawMatch(match.rk)}
 	/>
@@ -65,9 +68,9 @@
 		message={`accept ${match.name}?`}
 		action={() => acceptMatch(match.rk)}
 	/>{/snippet}
-{#snippet primaryButtons()}
-	{#if canAccept}{@render acceptButton()}{/if}
+{#snippet personalOptions()}
 	{#if canWithdraw}{@render withdrawButton()}{/if}
+	{#if forfeitRelevant}{@render forfeitOption()}{/if}
 {/snippet}
 {#snippet forfeitOption()}<ActionConfirmation
 		inline
@@ -80,10 +83,9 @@
 	/>{/snippet}
 {#if quick}
 	{@render quickButtons()}
-{:else if canAccept || canWithdraw || forfeitRelevant}
-	<EntityActions
-			{section}
-			children={canAccept || canWithdraw ? primaryButtons : undefined}
-			options={forfeitRelevant ? forfeitOption : undefined}
-		/>
+{:else}
+	<EntityActions {help} moreOptions={canWithdraw || forfeitRelevant ? personalOptions : undefined}>
+		{#if canAccept}{@render acceptButton()}{/if}
+		{@render children?.()}
+	</EntityActions>
 {/if}
