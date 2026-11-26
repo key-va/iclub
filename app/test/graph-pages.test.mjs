@@ -100,6 +100,7 @@ test('pending creations are visible to their creator and club approvals only to 
 test('group names, participants, pending approvals and message senders resolve separately', async () => {
     const html = await output('group');
     assert.match(html, /Social group/);
+    assert.match(html, /1 member • 1 message[\s\S]*?aria-label="help"[\s\S]*?aria-label="Group Members"/);
     assert.match(html, /href="\/user\/user_alice">Alice/);
     assert.match(html, /href="\/user\/user_bob">Bob/);
     assert.match(html, /See you on court/);
@@ -118,7 +119,7 @@ test('team member roles and derived round details survive raw relation lookups',
     const html = await output('team', 'user_admin', undefined, items);
     assert.match(html, /Team A/);
     assert.match(html, /data-colour="red" data-white="true"[^>]*><a href="\/round\/round_test">Round 1<\/a><p>away • 1 playing • 1 available/);
-    assert.match(html, /1 available[\s\S]*aria-label="Leaderboard"[\s\S]*aria-label="Future Rounds"[\s\S]*Round 2[\s\S]*aria-label="refresh data"[\s\S]*aria-label="Members"[\s\S]*aria-label="Past Rounds"/);
+    assert.match(html, /1 available[\s\S]*aria-label="Leaderboard"[\s\S]*aria-label="Future Rounds"[\s\S]*Round 2[\s\S]*aria-label="refresh data"[\s\S]*aria-label="Team Members"[\s\S]*aria-label="Past Rounds"/);
     assert.match(html, /Round 1/);
     assert.match(html, /2026-11-27/);
     assert.equal((html.match(/href="\/round\/round_test"/g) ?? []).length, 1);

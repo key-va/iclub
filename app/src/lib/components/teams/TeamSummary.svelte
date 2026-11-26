@@ -136,7 +136,7 @@
 		</div>
 	{/if}
 
-	<HiddenOptions title="Members">
+	<HiddenOptions title="Team Members">
 		{#each members as user (user.rk)}
 			<TeamUser {team} {user} />
 		{/each}

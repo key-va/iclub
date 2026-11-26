@@ -13,9 +13,9 @@
 	import HiddenOptions from '#lib/components/hiddenOptions.svelte';
 
 	let { group }: { group: GuidRow } = $props();
-	const id = $derived(group.rk);
+	const rows = $derived(relationsOf(group.rk));
 	const users = $derived(
-		relationsOf(id).filter(
+		rows.filter(
 			(row) =>
 				typeOf(row.rk) === 'user' && row.state !== 'left' && entityOf(row.rk)
 		)
@@ -26,9 +26,13 @@
 		users.filter((user) => user.is_participant === true)
 	);
 	const pending = $derived(users.filter((user) => user.state === 'pending'));
+	const messageCount = $derived(rows.filter((row) => typeOf(row.rk) === 'message' && entityOf(row.rk)).length);
+	const summary = $derived(
+		`${participants.length} ${participants.length === 1 ? 'member' : 'members'} • ${messageCount} ${messageCount === 1 ? 'message' : 'messages'}`
+	);
 </script>
 
-{#if group.state !== 'active'}<GroupActions {group} section="primary" />{/if}
+<GroupActions {group} {summary} section="primary" />
 <div class="group">
 	{#if group.state === 'active'}
 		{#if admin}
@@ -40,11 +44,9 @@
 			<HiddenOptions title="Pending" description="waiting to join" />
 		{/if}
 	{/if}
-	<HiddenOptions title="Participants">
+	<HiddenOptions title="Group Members">
 		{#each participants as user (user.rk)}
 			<GroupUser {group} {user} />
 		{/each}
 	</HiddenOptions>
 </div>
-
-{#if group.state === 'active'}<GroupActions {group} section="primary" />{/if}

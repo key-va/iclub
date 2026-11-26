@@ -8,8 +8,9 @@
 	import { joinGroup, leaveGroup, activateGroup } from '#lib/stores/remote.ts';
 	let {
 		group,
+		summary,
 		section = 'all'
-	}: { group: GuidRow; section?: 'all' | 'primary' | 'options' } = $props();
+	}: { group: GuidRow; summary?: string; section?: 'all' | 'primary' | 'options' } = $props();
 	const mine = $derived(
 		relationsOf(group.rk).find(
 			(row) => row.rk === $local.caller_id && row.state !== 'left'
@@ -38,6 +39,7 @@
 
 <EntityActions
 	{section}
+	{summary}
 	options={(group.state === 'active' && mine) || mine?.is_admin === true ? membershipOptions : undefined}
 >
 	{#snippet help()}<p class="info">Use the group chat to arrange social hits and other club activities.</p>{/snippet}
