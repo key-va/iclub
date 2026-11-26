@@ -47,6 +47,16 @@
 		/>
 		<SummaryHelp summary="team details">
 			{#snippet help()}<p class="info">You can change the team icon. The team name is fixed by the competition source.</p>{/snippet}
+			{#snippet actions()}
+				<ActionConfirmation
+					inline
+					name="update"
+					message={`update the ${team.name} icon?`}
+					action={() => updateTeam(teamId, { image })}
+					disabled={!image}
+					onsuccess={clearForm}
+				/>
+			{/snippet}
 		</SummaryHelp>
 		<div class="row right">
 			<input
@@ -91,13 +101,6 @@
 				<p class="error">{imageError}</p>
 			</div>{/if}
 		<p class="info center">The team name is fixed. You can change its icon.</p>
-		<ActionConfirmation
-			name="update"
-			message={`update the ${team.name} icon?`}
-			action={() => updateTeam(teamId, { image })}
-			disabled={!image}
-			onsuccess={clearForm}
-		/>
 	{:else}
 		<div class="row right">
 			<p>

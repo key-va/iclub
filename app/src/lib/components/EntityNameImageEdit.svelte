@@ -89,6 +89,16 @@
 		/>
 		<SummaryHelp summary="name and image">
 			{#snippet help()}<p class="info">Update the name or image for this activity.</p>{/snippet}
+			{#snippet actions()}
+				<ActionConfirmation
+					inline
+					name="update"
+					message={updateMessage}
+					action={() => (type === 'comp' ? updateComp : updateGroup)(id, updateData)}
+					disabled={!changed}
+					onsuccess={clearForm}
+				/>
+			{/snippet}
 		</SummaryHelp>
 
 		<div class="row right">
@@ -139,13 +149,6 @@
 			</p>
 		</div>
 
-		<ActionConfirmation
-			name="update"
-			message={updateMessage}
-			action={() => (type === 'comp' ? updateComp : updateGroup)(id, updateData)}
-			disabled={!changed}
-			onsuccess={clearForm}
-		/>
 	{:else}
 		<div class="row right">
 			<p class="truncate">

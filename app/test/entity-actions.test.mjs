@@ -25,14 +25,14 @@ test('ladder visitor sees selected settings and join; membership management star
  const adminOnly = await show('ladder',{ladder},[ladder,{pk:ladder.rk,rk:'user_me',is_admin:true}]);
  assert.equal(has(adminOnly,'request to join'),true);
  const member = await show('ladder',{ladder},[ladder,{pk:ladder.rk,rk:'user_me',is_participant:true,state:'active'}]);
- assert.match(member, /<div class="group">[\s\S]*?<p[^>]*>singles • half rank • best of three<\/p>[\s\S]*?<div class="row center"><button[^>]*aria-label="help"[^>]*aria-expanded="false"/);
+ assert.match(member, /<div class="group">[\s\S]*?<p[^>]*>singles • half rank • best of three<\/p>[\s\S]*?<div class="row right action-row page-actions">[\s\S]*?<p>no actions<\/p>[\s\S]*?<button[^>]*aria-label="help"[^>]*aria-expanded="false"/);
  assert.equal(has(member,'More Options'),true);assert.equal(has(member,'request to join'),false);assert.equal(has(member,'away'),false);
 });
 test('round page only offers eligible confirmed availability choices for current members', async () => {
  const round={pk:'round',rk:'round_test',state:'pending'},team={pk:'team',rk:'team_test'};
  const rows=[{pk:team.rk,rk:'user_me',is_member:true},{pk:round.rk,rk:'user_me',role:'pending'}];
  let html=await show('round',{round,team},rows);assert.equal(has(html,'available'),true);assert.equal(has(html,'out'),true);assert.equal(has(html,'More Options'),false);
- rows[1].role='selected';html=await show('round',{round,team},rows);assert.match(html,/aria-label="available"[^>]*disabled/);assert.equal(has(html,'out'),true);
+ rows[1].role='selected';html=await show('round',{round,team},rows);assert.equal(has(html,'available'),false);assert.equal(has(html,'out'),true);
  assert.equal(has(await show('round',{round,team},rows,'user_other'),'out'),false);
  assert.equal(has(await show('round',{round:{...round,state:'complete'},team},rows),'out'),false);
 });

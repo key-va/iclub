@@ -1,5 +1,4 @@
 <script lang="ts">
-	import EntityActions from '../EntityActions.svelte';
 	import ActionConfirmation from '../ActionConfirmation.svelte';
 	import { local } from '#lib/stores/local.ts';
 	import { relationsOf, type GuidRow } from '#lib/stores/guids.ts';
@@ -19,14 +18,13 @@
 	const showActions = $derived(member && !!mine && !['complete', 'eliminated'].includes(String(round.state)));
 </script>
 
-{#if showActions}<EntityActions>
-		{#each roles as role}<ActionConfirmation
+{#if showActions}
+		{#each roles.filter((role) => options.includes(role)) as role}<ActionConfirmation
 				inline
 				arrow={role === 'available'}
 				showLabel
 				name={roundRoleLabel(role)}
 				message={`mark yourself as ${roundRoleLabel(role)}?`}
-				disabled={!options.includes(role)}
 				action={() => confirmRoundRole(round.rk, role)}
 			/>{/each}
-	</EntityActions>{/if}
+	{/if}

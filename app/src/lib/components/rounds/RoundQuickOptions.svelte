@@ -10,10 +10,11 @@
 		admin: boolean;
 	} = $props();
 
+	const visibleRoles = $derived(roundQuickRoles.filter((option) => admin || option !== 'selected'));
 	const options = $derived(editable ? roundQuickOptions(role, admin) : []);
 </script>
 
-{#each roundQuickRoles as option}
+{#each visibleRoles as option}
 	<ActionQuick
 		inline
 		name={roundRoleLabel(option)}

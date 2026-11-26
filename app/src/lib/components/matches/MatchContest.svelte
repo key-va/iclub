@@ -195,6 +195,36 @@
 {/snippet}
 
 <SummaryHelp {help}>
+	{#snippet actions()}
+		{#if challenger && defender && !elim}
+			<MatchActions
+				inline
+				{match}
+				forfeitData={scoreValid
+					? { challenger_score: challengerSets, defender_score: defenderSets }
+					: {}}
+			/>
+		{/if}
+
+		{#if showScores && (!elim || challenger && defender)}
+			<ActionConfirmation
+				inline
+				arrow
+				showLabel
+				name={correcting ? 'save correction' : 'submit'}
+				message={`${scoreSummary}?`}
+				action={() => elim
+					? submitElimScore()
+					: completeMatch(matchId, {
+						challenger_score: challengerSets,
+						defender_score: defenderSets
+					})}
+				disabled={!scoreValid || !(isPlayer || isLadderAdmin || isElimAdmin)
+					|| (!!elim && challengerWon === defenderWon)}
+				onsuccess={() => { correcting = false; }}
+			/>
+		{/if}
+	{/snippet}
 	{#if challenger && defender}
 		<VersusLink
 			left={{
@@ -232,16 +262,6 @@
 </SummaryHelp>
 
 {#if challenger && defender}
-	{#if !elim}
-		<MatchActions
-			section="primary"
-			{match}
-			forfeitData={scoreValid
-				? { challenger_score: challengerSets, defender_score: defenderSets }
-				: {}}
-		/>
-	{/if}
-
 	{#if showScores}
 		<div class="group">
 			{#each labels as label, i (label)}
@@ -282,24 +302,6 @@
 	{/if}
 {/if}
 
-{#if showScores && (!elim || challenger && defender)}
-	<ActionConfirmation
-		arrow
-		showLabel
-		name={correcting ? 'save correction' : 'submit'}
-		message={`${scoreSummary}?`}
-		action={() => elim
-			? submitElimScore()
-			: completeMatch(matchId, {
-				challenger_score: challengerSets,
-				defender_score: defenderSets
-			})}
-		disabled={!scoreValid || !(isPlayer || isLadderAdmin || isElimAdmin)
-			|| (!!elim && challengerWon === defenderWon)}
-		onsuccess={() => { correcting = false; }}
-	/>
-{/if}
-
 {#if !elim || challenger && defender}
 	<MessageThread parentId={matchId} showTime />
 {/if}
@@ -310,13 +312,12 @@
 	image={imageOf((elim ?? ladder)?.rk ?? '')}
 ></RouteLink>
 
-{#if correctionRelevant}
+{#if canCorrect}
 	<EntityActions section="options">
 		{#snippet options()}
 			<ActionConfirmation inline navigate={false}
 				name={correcting ? 'cancel correction' : 'correct score'}
 				message={correcting ? 'Discard the changes to this score?' : 'Edit the recorded score?'}
-				disabled={!canCorrect}
 				action={async () => {
 					if (correcting) correcting = false;
 					else editResult();

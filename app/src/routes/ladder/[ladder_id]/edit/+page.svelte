@@ -79,6 +79,16 @@
 		/>
 		<SummaryHelp summary="ladder details">
 			{#snippet help()}<p class="info">You can change the ladder name and image after creation.</p>{/snippet}
+			{#snippet actions()}
+				<ActionConfirmation
+					inline
+					name="update"
+					message={updateMessage}
+					action={() => updateLadder(ladderId, updateData)}
+					disabled={!changed}
+					onsuccess={clearForm}
+				/>
+			{/snippet}
 		</SummaryHelp>
 
 		<div class="row right">
@@ -129,13 +139,6 @@
 			</p>
 		</div>
 
-		<ActionConfirmation
-			name="update"
-			message={updateMessage}
-			action={() => updateLadder(ladderId, updateData)}
-			disabled={!changed}
-			onsuccess={clearForm}
-		/>
 
 		<HiddenOptions inline title="More" description="delete ladder">
 			<ActionConfirmation

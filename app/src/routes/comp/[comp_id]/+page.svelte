@@ -48,13 +48,14 @@
 	});
 	const canJoin = $derived(open && mine?.is_participant !== true);
 	const canLeave = $derived(open && (mine?.is_participant === true || mine?.state === 'pending'));
-	const canDraw = $derived(admin && (open || drawing));
+
 	const entrants = $derived(
 		links.filter((row) => typeOf(row.rk) === (doubles ? 'pair' : 'user') && row.is_participant === true)
 			.sort((a, b) => nameOf(a.rk).localeCompare(nameOf(b.rk)))
 	);
 	const seeds = $derived(entrants.filter((row) => Number(row.seed) > 0)
 		.sort((a, b) => Number(a.seed) - Number(b.seed)));
+	const canDraw = $derived(admin && (drawing || (open && entrants.length >= 2)));
 	const requests = $derived(links.filter((row) => typeOf(row.rk) === 'user' && row.state === 'pending'));
 	const rounds = $derived(competitionRounds(id));
 	const champion = $derived(elim && !roundRobin ? competitionChampion(elim) : '');
@@ -163,7 +164,7 @@
 					{/if}
 					{#if canDraw}
 						<ActionConfirmation inline name={drawing ? 'resume draw' : 'start draw'} message={drawMessage}
-							action={() => competitionEntry(id, 'draw')} disabled={!drawing && entrants.length < 2} />
+							action={() => competitionEntry(id, 'draw')} />
 					{/if}
 					{#if canEdit}<ActionLink href={`/comp/${id}/edit`} />{/if}
 				{/snippet}

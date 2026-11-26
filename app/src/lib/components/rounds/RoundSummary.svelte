@@ -62,6 +62,7 @@
 </script>
 
 <SummaryHelp>
+	{#snippet actions()}<RoundActions {round} {team} />{/snippet}
 	{#snippet help()}<p class="info">Check the fixture and mark your availability. Team administrators select available players.</p>{/snippet}
 	{#if complete}
 		<p class="info center"><strong>{fixtureName}</strong></p>
@@ -85,4 +86,3 @@
 		<HiddenOptions title={fixtureName} description={venueDetails} />
 	{/if}
 </SummaryHelp>
-<RoundActions {round} {team} />

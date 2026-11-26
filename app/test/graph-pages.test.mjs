@@ -125,10 +125,14 @@ test('team member roles and derived round details survive raw relation lookups',
     assert.equal((html.match(/href="\/round\/round_test"/g) ?? []).length, 1);
     assert.match(html, /href="\/user\/user_alice">Alice/);
     assert.equal(hasAction(html, 'accept'), true);
-    assert.equal(hasAction(await output('team', 'user_alice'), 'accept'), false);
+    assert.equal(hasAction(html, 'playing'), true);
+    const member = await output('team', 'user_alice');
+    assert.equal(hasAction(member, 'accept'), false);
+    assert.equal(hasAction(member, 'playing'), false);
     const visitor = await output('team', 'user_visitor', undefined, items);
-    for (const label of ['out', 'available', 'playing'])
+    for (const label of ['out', 'available'])
         assert.equal((visitor.match(new RegExp(`aria-label="${label}"[^>]*disabled`, 'g')) ?? []).length, 2);
+    assert.equal(hasAction(visitor, 'playing'), false);
 });
 test('round roles drive availability and selection while names come from entities', async () => {
     const html = await output('round');
@@ -138,6 +142,12 @@ test('round roles drive availability and selection while names come from entitie
     const player = await output('round', 'user_alice');
     assert.equal(hasAction(player, 'out'), true);
     assert.equal(hasAction(player, 'playing'), false);
+    const ownRow = player.match(/<article[^>]*><a href="\/user\/user_alice">Alice<\/a>[\s\S]*?<\/article>/)?.[0] ?? '';
+    assert.match(ownRow, /aria-label="out"/);
+    assert.match(ownRow, /aria-label="available"[^>]*disabled/);
+    const otherRow = player.match(/<article[^>]*><a href="\/user\/user_bob">Bob<\/a>[\s\S]*?<\/article>/)?.[0] ?? '';
+    assert.match(otherRow, /no actions/);
+    assert.doesNotMatch(otherRow, /aria-label="(?:out|available|playing)"/);
 });
 test('profile ladder match dots distinguish active, defending and waiting viewers', async () => {
     const rows = fixture();
@@ -174,7 +184,7 @@ test('match defender permissions, competitor names and messages survive the look
     assert.equal(hasAction(html, 'accept'), true);
     const challenger = await output('match', 'user_alice');
     assert.equal(hasAction(challenger, 'accept'), false);
-    assert.match(challenger, /class="row right controls action-row[^"]*"[\s\S]*?aria-label="withdraw"/);
+    assert.match(challenger, /class="row right action-row page-actions"[\s\S]*?aria-label="withdraw"[\s\S]*?aria-label="help"/);
     assert.match(challenger, /aria-label="More Options"[\s\S]*aria-label="forfeit"/);
     assert.equal(hasAction(html, 'withdraw'), false);
 });
@@ -371,7 +381,7 @@ test('Competition rounds and user profiles show active matches and elimination s
     const match = await output('match', 'user_alice', 'match_final', rows);
     assert.match(match, /competitor/);
     assert.doesNotMatch(match, />challenger<|>defender</);
-    assert.match(match, /aria-label="help"[\s\S]*aria-label="submit"/);
+    assert.match(match, /aria-label="submit"[\s\S]*aria-label="help"/);
     assert.match(match, /aria-label="More Options"[\s\S]*aria-label="forfeit"/);
     const adminRows = [...rows, { pk: 'comp_test', rk: 'user_bob', is_admin: true }];
     assert.equal(hasAction(await output('match', 'user_bob', 'match_final', adminRows), 'forfeit'), false);
@@ -403,7 +413,7 @@ test('A comp bye shows the player’s saved name in a centred white group', asyn
         { pk: 'match_bye', rk: 'user_alice', role: 'competitor', slot: 1, result: 'bye' },
     ];
     const html = await output('match', 'user_alice', 'match_bye', rows);
-    assert.match(html, /<div class="group">[\s\S]*?<p class="info center">Alice advances with a bye\.<\/p>[\s\S]*?<div class="row center"><button[^>]*aria-label="help"/);
+    assert.match(html, /<div class="group">[\s\S]*?<p class="info center">Alice advances with a bye\.<\/p>[\s\S]*?<div class="row right action-row page-actions">[\s\S]*?<p>no actions<\/p>[\s\S]*?<button[^>]*aria-label="help"/);
 });
 
 test('User profiles count completed wins and losses and match headers keep the entity type', async () => {
@@ -419,7 +429,7 @@ test('User profiles count completed wins and losses and match headers keep the e
         );
     }
     const profile = await output('user', 'user_alice', 'user_alice', rows);
-    assert.match(profile, /<p class="info center description">1 won • lost 3<\/p>[\s\S]*?<div class="row center"><button[^>]*aria-label="help"[^>]*aria-expanded="false"/);
+    assert.match(profile, /<p class="info center description">1 won • lost 3<\/p>[\s\S]*?<div class="row right action-row page-actions">[\s\S]*?<p>no actions<\/p>[\s\S]*?<button[^>]*aria-label="help"[^>]*aria-expanded="false"/);
     assert.match(await output('user', 'user_bob', 'user_bob', rows), /0 won • lost 0/);
 
     const match = await output('match', 'user_alice', 'match_win', rows);

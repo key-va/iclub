@@ -109,6 +109,16 @@
 		/>
 		<SummaryHelp summary="profile details">
 			{#snippet help()}<p class="info">Profile image updates may take some time to show. Your email and phone number are used for login and account validation and are never shown in the app.</p>{/snippet}
+			{#snippet actions()}
+				<ActionConfirmation
+					inline
+					name="update"
+					message={updateMessage}
+					action={() => updateUser(userId, updateData)}
+					disabled={!changed}
+					onsuccess={clearForm}
+				/>
+			{/snippet}
 		</SummaryHelp>
 
 		<div class="group">
@@ -189,13 +199,6 @@
 			{/if}
 		</div>
 
-		<ActionConfirmation
-			name="update"
-			message={updateMessage}
-			action={() => updateUser(userId, updateData)}
-			disabled={!changed}
-			onsuccess={clearForm}
-		/>
 
 		<HiddenOptions inline title="More Options">
 			<button class="blue" aria-label="logout" onclick={logout}>

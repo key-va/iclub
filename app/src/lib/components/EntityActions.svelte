@@ -20,14 +20,14 @@
 </script>
 
 {#if section !== 'options' && (summary || help)}
-	<SummaryHelp {summary} {help} />
+	<SummaryHelp {summary} {help} actions={more ? undefined : children} />
 {/if}
 {#if more && section !== 'primary'}
 	<HiddenOptions inline title="More Options">
 		{@render children?.()}{@render options?.()}
 	</HiddenOptions>
 {:else if !more}
-	{#if section !== 'options' && children}<div
+	{#if section !== 'options' && !summary && !help && children}<div
 			class="row right controls action-row"
 		>
 			{@render children?.()}

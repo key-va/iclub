@@ -10,11 +10,13 @@
 	let {
 		match,
 		quick = false,
+		inline = false,
 		section = 'all',
 		forfeitData = {}
 	}: {
 		match: GuidRow;
 		quick?: boolean;
+		inline?: boolean;
 		section?: 'all' | 'primary' | 'options';
 		forfeitData?: Record<string, unknown>;
 	} = $props();
@@ -24,12 +26,6 @@
 	const pendingLadder = $derived(match.state === 'pending' && links.some(row => row.rk.startsWith('ladder_')));
 	const canWithdraw = $derived(pendingLadder && isMatchSide(links, $local.caller_id, 'challenger'));
 	const canAccept = $derived(canAcceptLadderMatch(match, $local.caller_id));
-	const forfeitRelevant = $derived(
-		comp ? (match.state === 'active' || match.state === 'waiting') &&
-			!!mine && ['competitor', 'participant'].includes(String(mine.role))
-		: ['pending', 'active'].includes(String(match.state)) &&
-			!!mine && ['challenger', 'defender', 'participant'].includes(String(mine.role))
-	);
 	const canForfeit = $derived(
 		comp ? canForfeitCompetitionMatch(match, $local.caller_id) :
 		['pending', 'active'].includes(String(match.state)) &&
@@ -76,14 +72,15 @@
 		name="forfeit"
 		message={`forfeit ${match.name}?`}
 		action={forfeit}
-		disabled={!canForfeit}
 	/>{/snippet}
 {#if quick}
 	{@render quickButtons()}
-{:else if canAccept || canWithdraw || forfeitRelevant}
+{:else if inline}
+	{@render primaryButtons()}
+{:else if canAccept || canWithdraw || canForfeit}
 	<EntityActions
 			{section}
 			children={canAccept || canWithdraw ? primaryButtons : undefined}
-			options={forfeitRelevant ? forfeitOption : undefined}
+			options={canForfeit ? forfeitOption : undefined}
 		/>
 {/if}

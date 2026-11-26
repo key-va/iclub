@@ -309,3 +309,12 @@ table {
 .group .entity-header .description {
     color: #808080;
 }
+
+.page-actions {
+    flex-wrap: wrap;
+}
+
+.page-actions > button.grey:not(.no-page-actions),
+.page-actions:has(> :is(button:not(.grey, .help-toggle), a.action-link)) > .no-page-actions {
+    display: none;
+}
