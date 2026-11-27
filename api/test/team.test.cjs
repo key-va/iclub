@@ -391,7 +391,7 @@ test("selection authority allows admin self-selection while rejecting outsiders,
     pushes.length = 0;
     assert.equal((await role(A, U, "selected")).status, 200);
     assert.deepEqual(pushes[0].userIds, [U]);
-    assert.match(pushes[0].content, /playing in Round 14/);
+    assert.match(pushes[0].content, /selected to play in Round 14/);
     assert.equal(pushes[0].path, "round/round_r");
     assert.equal((await role(A, U, "selected")).status, 200);
     assert.equal(pushes.length, 1);

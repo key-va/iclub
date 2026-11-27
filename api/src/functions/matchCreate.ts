@@ -236,7 +236,7 @@ export async function matchCreate(request: HttpRequest, context: InvocationConte
         userIds: defenderUsers,
         exceptUserId: caller_id,
         heading: name,
-        content: `You have been challenged to a match, accept within ${Number(ladder.cool_period ?? 3)} days or forfeit your rank`,
+        content: `${label(challengerUser)} has issued you a challenge match. Accept within ${Number(ladder.cool_period ?? 3)} days or forfeit your rank`,
         path: `match/${matchId}`,
         collapseId: matchId
     }, context);

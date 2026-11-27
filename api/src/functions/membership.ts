@@ -1,3 +1,4 @@
+import { notificationName } from '../services/notificationName';
 import {
 	app,
 	HttpRequest,
@@ -182,6 +183,7 @@ async function changeMembership(
 		return reply(409, 'You are not away');
 
 	const notifications = [];
+	let callerName: string | undefined;
 	if (type === 'ladder' && action !== 'return') {
 		for (const link of (await links(competitor)).filter((row) =>
 			row.rowKey.startsWith('match_')
@@ -196,11 +198,12 @@ async function changeMembership(
 				context
 			);
 			if (!result.ok) return reply(result.status, result.message);
+			callerName ??= await notificationName(client, caller_id);
 			notifications.push({
 				userIds: result.userIds!,
 				exceptUserId: caller_id,
 				heading: result.matchName!,
-				content: `Opponent ${action === 'away' ? 'went away' : 'left the ladder'}; match forfeited`,
+				content: `${callerName} ${action === 'away' ? 'went away' : 'left the ladder'}. Match forfeited.`,
 				path: `match/${link.rowKey}`,
 				collapseId: link.rowKey
 			});

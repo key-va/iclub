@@ -84,7 +84,7 @@ export async function rejectJoin(
 
     await sendRejection(
         id, String(entity.name), [userId],
-        `your pending request was rejected, please review the ${entity.name} rules or reach out to your club admin`,
+        `Your pending request was rejected. Please review the ${entity.name} rules or reach out to your club admin.`,
         context,
     );
     return reply(200, "Join request rejected", id);
@@ -92,7 +92,7 @@ export async function rejectJoin(
 
 export async function sendRejection(
     id: string, name: string, userIds: string[], content: string,
-    context: InvocationContext, caller?: string, path = `${id.split("_")[0]}/${id}`,
+    context: InvocationContext, caller?: string, path = "about",
 ) {
     try {
         await doSendPush({

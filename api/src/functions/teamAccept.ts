@@ -35,7 +35,7 @@ export async function teamAccept(request: HttpRequest, context: InvocationContex
         await push(
             [user],
             String(team.name),
-            "Your team membership has been approved",
+            "Your team membership has been accepted",
             `team/${teamId}`,
             context,
         );

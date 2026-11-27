@@ -6,7 +6,6 @@ import { doUpsertEntity } from "../services/doUpsertEntity";
 import { doUpsertAuth } from "../services/doUpsertAuth";
 import { doGuidsToPublic } from "../services/doGuidsToPublic";
 import { doAssetToPublic } from "../services/doAssetToPublic";
-import { doSendPush } from "../services/doSendPush";
 
 const maxImageBytes = 1024 * 1024;
 
@@ -151,14 +150,6 @@ export async function userUpdate(request: HttpRequest, context: InvocationContex
 
     // 5. Publish
     await doGuidsToPublic();
-
-    await doSendPush({
-        userIds: [userId],
-        heading: "Your Profile",
-        content: "Thanks for updating your profile, your new profile info will be published shortly",
-        path: `user/${userId}`,
-        collapseId: userId
-    }, context);
 
     context.log(`Updated user ${userId}`);
 

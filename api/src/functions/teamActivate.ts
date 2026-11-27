@@ -45,7 +45,7 @@ export async function teamActivate(request: HttpRequest, context: InvocationCont
         await push(
             graph.administrators,
             String(team.name),
-            "Your team is approved and active",
+            "Your team has been accepted and is now live",
             `team/${teamId}`,
             context,
         );

@@ -39,7 +39,7 @@ async function reject(
     await doGuidsToPublic();
     await sendRejection(
         id, String(entity.name), recipients,
-        `your pending request to create ${entity.name} was rejected, please review the club rules or reach out to your club admin`,
+        `Your pending request to create ${entity.name} was rejected. Please review the club rules or reach out to your club admin.`,
         context, caller, "about",
     );
     return reply(200, "Creation request rejected", caller);

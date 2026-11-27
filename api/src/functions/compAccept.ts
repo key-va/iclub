@@ -1,5 +1,6 @@
 import { app, HttpRequest, InvocationContext } from "@azure/functions";
-import { withOpenComp, entryUsers, get, notify, prepareCompPair, props, reply, saveMembership } from "../services/compActions";
+import { notificationName } from "../services/notificationName";
+import { client, withOpenComp, entryUsers, get, notify, prepareCompPair, props, reply, saveMembership } from "../services/compActions";
 
 export async function compAccept(request: HttpRequest, context: InvocationContext) {
     return withOpenComp(request, context, true, async ({ id, elim, caller, data, members }) => {
@@ -28,7 +29,7 @@ export async function compAccept(request: HttpRequest, context: InvocationContex
             );
             changes.set(pairId, { state: "accepted", is_participant: true });
             await saveMembership(id, changes);
-            await notify(context, ids, undefined, String(elim.name), "Your doubles pair has been accepted", `comp/${id}`, id);
+            await notify(context, ids, undefined, String(elim.name), `Your doubles pair ${await notificationName(client, pairId)} has been accepted`, `comp/${id}`, id);
             return reply(200, "Pair accepted", id);
         }
         const member = members.find(row => row.rowKey.startsWith("user_") && row.rowKey === data.user_id);
@@ -36,7 +37,7 @@ export async function compAccept(request: HttpRequest, context: InvocationContex
             return reply(409, "This player has no pending request");
         await saveMembership(id, new Map([[member.rowKey, { ...props(member), state: "accepted", is_participant: true }]]));
         if (member.state === "pending")
-            await notify(context, [member.rowKey], caller, String(elim.name), "Join request accepted", `comp/${id}`, id);
+            await notify(context, [member.rowKey], caller, String(elim.name), "Join request accepted. Ready up!", `comp/${id}`, id);
         return reply(200, "Join request accepted", id);
     });
 }

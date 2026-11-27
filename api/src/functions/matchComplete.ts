@@ -1,3 +1,4 @@
+import { notificationName } from "../services/notificationName";
 import { doCompetitorUsers } from "../services/doCompetitorUsers";
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
 import { DefaultAzureCredential } from "@azure/identity";
@@ -133,7 +134,7 @@ export async function matchComplete(request: HttpRequest, context: InvocationCon
         userIds: result.userIds!,
         exceptUserId: caller_id,
         heading: result.matchName!,
-        content: "Match scores have been submitted",
+        content: `${await notificationName(guidsClient, caller_id)} has submitted match scores`,
         path: `match/${matchId}`,
         collapseId: matchId
     }, context);

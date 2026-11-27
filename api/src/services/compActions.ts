@@ -10,6 +10,7 @@ import { doUpsertEntity } from "./doUpsertEntity";
 import { doUpsertRelation } from "./doUpsertRelation";
 import { doGuidsToPublic } from "./doGuidsToPublic";
 import { doCompetitorUsers } from "./doCompetitorUsers";
+import { notificationName } from "./notificationName";
 import { doSendPush } from "./doSendPush";
 import { elimBracketId, elimDraw, elimRoundName } from "./elimDraw";
 
@@ -264,7 +265,7 @@ async function notifyDrawnMatch(matchId: string, context: InvocationContext) {
     const players = competitors(await entryLinks(matchId));
     if (players.length !== 2) return;
     await notify(context, await matchUserIds(players), undefined, String(match.name),
-        "Get ready, your next comp match is drawn", `match/${matchId}`, matchId);
+        "You're up. Your next competition match is drawn.", `match/${matchId}`, matchId);
 }
 
 export async function publishDraw(id: string, context: InvocationContext, renewGuard: () => Promise<void>) {
@@ -419,10 +420,11 @@ export async function repairResult(id: string, pending: PendingResult, context: 
         for (const link of await links(pending.openedRoundId, "match"))
             await notifyDrawnMatch(link.rowKey, context);
     const match = await get("match", matchId);
-    const notice = pending.action === "forfeit" ? "The match was forfeited"
+    const callerName = await notificationName(client, pending.excludeUser);
+    const notice = pending.action === "forfeit" ? `${callerName} has forfeited the match`
         : pending.action === "walkover" ? "A walkover was recorded"
-        : pending.action === "correct" ? "The match score was corrected"
-        : "Match scores have been submitted";
+        : pending.action === "correct" ? `${callerName} has updated the match score`
+        : `${callerName} has submitted match scores`;
     await notify(context, await matchUserIds(players), pending.excludeUser,
         String(match?.name), notice, `match/${matchId}`, matchId);
     await updateComp(id, {}, ["pending_result"]);

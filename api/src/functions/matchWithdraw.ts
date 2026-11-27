@@ -1,3 +1,4 @@
+import { notificationName } from "../services/notificationName";
 import { app, HttpRequest, InvocationContext } from "@azure/functions";
 import { client, get, relations, reply } from "../services/clubEntityRequests";
 import { doCompetitorUsers } from "../services/doCompetitorUsers";
@@ -68,7 +69,7 @@ export async function matchWithdraw(request: HttpRequest, context: InvocationCon
             await doSendPush({
                 userIds: await doCompetitorUsers(client, defender),
                 heading: String(match.name),
-                content: "Your opponent withdrew the challenge",
+                content: `${await notificationName(client, caller_id)} withdrew their challenge`,
                 path: `match/${id}`,
                 collapseId: id,
             }, context);

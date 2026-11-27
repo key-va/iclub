@@ -1,3 +1,4 @@
+import { notificationName } from "../services/notificationName";
 import { doCompetitorUsers } from "../services/doCompetitorUsers";
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
 import { DefaultAzureCredential } from "@azure/identity";
@@ -107,7 +108,7 @@ export async function matchAccept(request: HttpRequest, context: InvocationConte
         userIds: await doCompetitorUsers(guidsClient, challengerId),
         exceptUserId: caller_id,
         heading: `${match.name}`,
-        content: "Your challenge has been accepted",
+        content: `${await notificationName(guidsClient, defenderId)} has accepted your challenge. Game on!`,
         path: `match/${matchId}`,
         collapseId: matchId
     }, context);

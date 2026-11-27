@@ -166,7 +166,7 @@ export async function ladderAccept(request: HttpRequest, context: InvocationCont
         }
         await doGuidsToPublic();
         await doSendPush({
-            userIds: ids, heading: String(ladder.name), content: "Your doubles pair has been accepted",
+            userIds: ids, heading: String(ladder.name), content: `Doubles pair ${name} has been accepted`,
             path: `ladder/${ladderId}`, collapseId: ladderId
         }, context);
         return { status: 200, jsonBody: {
@@ -213,7 +213,7 @@ export async function ladderAccept(request: HttpRequest, context: InvocationCont
     await doSendPush({
         userIds: [userId],
         heading: `${ladder.name}`,
-        content: "You have been accepted, go forth and play tennis",
+        content: "You have been accepted. Go forth and challenge!",
         path: `ladder/${ladderId}`,
         collapseId: `${ladderId}`
     }, context);

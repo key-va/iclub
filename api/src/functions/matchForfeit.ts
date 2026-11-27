@@ -1,3 +1,4 @@
+import { notificationName } from "../services/notificationName";
 import { doCompetitorUsers } from "../services/doCompetitorUsers";
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
 import { DefaultAzureCredential } from "@azure/identity";
@@ -97,7 +98,7 @@ export async function matchForfeit(request: HttpRequest, context: InvocationCont
         userIds: result.userIds!,
         exceptUserId: caller_id,
         heading: result.matchName!,
-        content: "Your opponent has forfeited the match",
+        content: `${await notificationName(guidsClient, caller_id)} has forfeited the match`,
         path: `match/${matchId}`,
         collapseId: matchId
     }, context);

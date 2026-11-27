@@ -1,3 +1,4 @@
+import { notificationName } from "../services/notificationName";
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
 import { DefaultAzureCredential } from "@azure/identity";
 import { TableClient, odata } from "@azure/data-tables";
@@ -45,6 +46,7 @@ export async function pairRetire(request: HttpRequest, context: InvocationContex
         return { status: 403, jsonBody: { success: false, message: "Only a pair member or ladder admin can retire the pair" } };
     }
     if (ladderLink.is_participant !== true) return { status: 409, jsonBody: { success: false, message: "Pair is already retired" } };
+    const [callerName, ladder] = await Promise.all([notificationName(client, caller_id), row("ladder", ladderId)]);
     // Finish every unresolved match before removing the ranked competitor; never delete history or membership.
     for (const link of links.filter(link => link.rowKey?.startsWith("match_"))) {
         const matchId = link.rowKey!;
@@ -53,7 +55,7 @@ export async function pairRetire(request: HttpRequest, context: InvocationContex
         const result = await doCompleteMatch({ matchId, forfeiterId: pairId }, context);
         if (!result.ok) return { status: result.status, jsonBody: { success: false, message: result.message } };
         await doSendPush({ userIds: result.userIds!, exceptUserId: caller_id, heading: result.matchName!,
-            content: "Pair retired; match forfeited", path: `match/${matchId}`, collapseId: matchId }, context);
+            content: `${callerName} retired. Match forfeited.`, path: `match/${matchId}`, collapseId: matchId }, context);
     }
     const current = await row(ladderId, pairId);
     const { rank, ...retired } = attributes(current!);
@@ -71,8 +73,8 @@ export async function pairRetire(request: HttpRequest, context: InvocationContex
         await doUpsertRelation(ladderId, userId, { ...membership, is_participant: false, state: "pending" });
     }
     await doGuidsToPublic();
-    await doSendPush({ userIds: users, exceptUserId: caller_id, heading: "Pair retired",
-        content: "You are waiting to be paired again", path: `ladder/${ladderId}`, collapseId: pairId }, context);
+    await doSendPush({ userIds: users, exceptUserId: caller_id, heading: String(ladder?.name ?? "Ladder"),
+        content: `${callerName} retired. You are waiting to be paired again.`, path: `ladder/${ladderId}`, collapseId: pairId }, context);
     return { status: 200, jsonBody: { success: true, message: "Okay, pair retired and both users returned to pending", subject: ladderId } };
 }
 app.http("pairRetire", { methods: ["POST"], route: "pair/{pair_id}/retire", authLevel: "anonymous", handler: pairRetire });

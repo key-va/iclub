@@ -755,7 +755,7 @@ test("Groups and competitions register one named POST endpoint per action", () =
 test("Drawn comp matches notify both players after publication, including on recovery", async () => {
     const id = await openElim();
     await enterElim(id, ["user_member", "user_applicant", "user_visitor"]);
-    const drawnNotices = () => pushes.filter(push => push.content === "Get ready, your next comp match is drawn");
+    const drawnNotices = () => pushes.filter(push => push.content === "You're up. Your next competition match is drawn.");
     const assertMatchNotice = (notice, matchId) => {
         assert.equal(notice.path, `match/${matchId}`);
         assert.equal(notice.heading, get("match", matchId).name);
@@ -913,7 +913,7 @@ test("Round Robin publishes fixtures, opens one round at a time and allows corre
         [1, 2].map(position => elimBracketId("match", id, i + 1, position)));
     const state = matchId => get("match", matchId).state;
     const scoreMatch = matchId => elimCall(id, "score", slot(matchId, 1), scores(matchId, 8, 3));
-    const notices = () => pushes.filter(push => push.content === "Get ready, your next comp match is drawn");
+    const notices = () => pushes.filter(push => push.content === "You're up. Your next competition match is drawn.");
     assert.deepEqual(matches.map(round => round.map(state)), [
         ["active", "active"], ["waiting", "waiting"], ["waiting", "waiting"],
     ]);
@@ -946,7 +946,8 @@ test("group admins can reject only pending applicants and notify them once", asy
     assert.equal(get(data.user_id, "group_g"), undefined);
     assert.deepEqual(pushes.at(-1).userIds, [data.user_id]);
     assert.equal(pushes.at(-1).content,
-        `your pending request was rejected, please review the ${get("group", "group_g").name} rules or reach out to your club admin`);
+        `Your pending request was rejected. Please review the ${get("group", "group_g").name} rules or reach out to your club admin.`);
+    assert.equal(pushes.at(-1).path, "about");
     const notified = pushes.length;
     assert.equal((await call("reject", "user_creator", data)).status, 409);
     assert.equal(pushes.length, notified);

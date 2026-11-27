@@ -127,7 +127,7 @@ export async function roundRole(
                                 r.rowKey.startsWith("user_") && isTeamAdmin(r),
                         )
                         .map((r) => r.rowKey),
-                    `Player out — ${team.name}`,
+                    String(team.name),
                     `${unavailablePlayer?.name || "A player"} is now out for ${roundName}. A replacement player is needed.`,
                     `round/${id}`,
                     context,
@@ -136,7 +136,7 @@ export async function roundRole(
                 await push(
                     [user],
                     String(team.name),
-                    `You are playing in ${roundName}.`,
+                    `You are selected to play in ${roundName}.`,
                     `round/${id}`,
                     context,
                 );
