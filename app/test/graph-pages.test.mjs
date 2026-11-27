@@ -119,7 +119,7 @@ test('team member roles and derived round details survive raw relation lookups',
     const html = await output('team', 'user_admin', undefined, items);
     assert.match(html, /Team A/);
     assert.match(html, /data-colour="red" data-white="true"[^>]*><a href="\/round\/round_test">Round 1<\/a><p>away • 1 playing • 1 available/);
-    assert.match(html, /1 available[\s\S]*aria-label="Leaderboard"[\s\S]*aria-label="Future Rounds"[\s\S]*Round 2[\s\S]*aria-label="refresh data"[\s\S]*aria-label="Team Members"[\s\S]*aria-label="Past Rounds"/);
+    assert.match(html, /aria-label="refresh data"[\s\S]*1 available[\s\S]*aria-label="Leaderboard"[\s\S]*aria-label="Future Rounds"[\s\S]*Round 2[\s\S]*aria-label="Team Members"[\s\S]*aria-label="Past Rounds"/);
     assert.match(html, /Round 1/);
     assert.match(html, /2026-11-27/);
     assert.equal((html.match(/href="\/round\/round_test"/g) ?? []).length, 1);
@@ -133,12 +133,15 @@ test('team member roles and derived round details survive raw relation lookups',
     const waiting = await output('team', 'user_admin', undefined, pendingRows);
     assert.match(waiting, /data-colour="orange" data-white="true"[^>]*><a href="\/round\/round_test">Round 1<\/a>/);
     const member = await output('team', 'user_alice');
+    assert.equal(hasAction(member, 'refresh data'), true);
+    assert.equal(hasAction(await output('team', 'user_bob'), 'refresh data'), false);
     assert.equal(hasAction(member, 'accept'), false);
     assert.equal(hasAction(member, 'playing'), false);
     const visitor = await output('team', 'user_visitor', undefined, items);
     for (const label of ['out', 'available'])
         assert.equal((visitor.match(new RegExp(`aria-label="${label}"[^>]*disabled`, 'g')) ?? []).length, 2);
     assert.equal(hasAction(visitor, 'playing'), false);
+    assert.equal(hasAction(visitor, 'refresh data'), false);
 });
 test('round roles drive availability and selection while names come from entities', async () => {
     const html = await output('round');

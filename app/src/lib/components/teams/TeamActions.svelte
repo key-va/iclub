@@ -2,16 +2,17 @@
 	import HelpText from '#lib/components/HelpText.svelte';
 	import RejectCreationRequest from '#lib/components/RejectCreationRequest.svelte';
 	import ActionLink from '../ActionLink.svelte';
-	import { teamDescription, isTeamAdmin } from '../rounds/roundRules.ts';
+	import { teamDescription, isTeamAdmin, isTeamMember } from '../rounds/roundRules.ts';
 	import EntityActions from '../EntityActions.svelte';
 	import ActionConfirmation from '../ActionConfirmation.svelte';
 	import { local } from '#lib/stores/local.ts';
 	import { relationsOf, type GuidRow } from '#lib/stores/guids.ts';
-	import { joinTeam, leaveTeam, activateTeam } from '#lib/stores/remote.ts';
+	import { joinTeam, leaveTeam, activateTeam, syncTeam } from '#lib/stores/remote.ts';
 	let {
 		team,
 		section = 'all'
 	}: { team: GuidRow; section?: 'all' | 'primary' | 'options' } = $props();
+	let syncMessage = $state('');
 	const mine = $derived(
 		relationsOf(team.rk).find(
 			(row) => row.rk === $local.caller_id && row.state !== 'left'
@@ -57,9 +58,24 @@
 			message={`Approve ${team.name} and import its rounds?`}
 			action={() => activateTeam(team.rk)}
 		/>
+	{:else if team.state === 'active' && isTeamMember(mine)}
+		<ActionConfirmation
+			inline
+			name="refresh data"
+			message={`refresh the ${team.name} schedules, results and standings?`}
+			navigate={false}
+			action={() => syncTeam(team.rk)}
+			onsuccess={(result) => { syncMessage = result.message; }}
+		/>
 	{:else if team.state === 'active' && (!mine || mine.state === 'pending')}
 		<ActionConfirmation inline arrow showLabel name="request to join" message={`request to join ${team.name}?`}
 			action={() => joinTeam(team.rk)}
 			disabled={!$local.caller_id || mine?.state === 'pending'} />
 	{/if}
 </EntityActions>
+
+{#if section !== 'options' && syncMessage}
+	<div class="row right">
+		<p role="status">{syncMessage}</p>
+	</div>
+{/if}

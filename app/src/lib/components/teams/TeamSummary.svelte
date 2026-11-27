@@ -20,8 +20,6 @@
 		roundView,
 		teamView
 	} from '#lib/components/rounds/roundRules.ts';
-	import ActionConfirmation from '#lib/components/ActionConfirmation.svelte';
-	import { syncTeam } from '#lib/stores/remote.ts';
 
 	import RouteLink from '#lib/components/routeLink.svelte';
 
@@ -66,7 +64,6 @@
 		typeof round.opponent === 'string' && !!round.opponent
 	));
 	const laterRounds = $derived(futureRounds.filter((round) => round.rk !== nextRound?.rk));
-	let syncMessage = $state('');
 </script>
 
 <TeamActions {team} section="primary" />
@@ -118,23 +115,6 @@
 			<HiddenOptions title={final.name} description={`pending • ${final.date}`} />
 		{/each}
 	</div>
-
-	{#if isTeamMember(mine)}
-		<ActionConfirmation
-			name="refresh data"
-			message={`refresh the ${team.name} schedules, results and standings?`}
-			navigate={false}
-			action={() => syncTeam(id)}
-			onsuccess={(result) => {
-				syncMessage = result.message;
-			}}
-		/>
-	{/if}
-	{#if syncMessage}
-		<div class="row right">
-			<p role="status">{syncMessage}</p>
-		</div>
-	{/if}
 
 	<HiddenOptions title="Team Members">
 		{#each members as user (user.rk)}
