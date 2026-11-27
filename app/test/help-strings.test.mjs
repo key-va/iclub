@@ -10,6 +10,9 @@ test('blob help retries, shares one request, and renders feature and option para
             name: 'open-form-help',
             enforce: 'pre',
             transform(source, id) {
+                if (id.endsWith('/components/hiddenOptions.svelte')) {
+                    return source.replace('let open = $state(false);', "let open = $state(title === 'Ladders');");
+                }
                 if (id.endsWith('/routes/ladder/create/+page.svelte') || id.endsWith('/routes/team/create/+page.svelte') ||
                     id.endsWith('/components/CompetitionCreate.svelte')) {
                     return source.replace('let showHelp = $state(false);', 'let showHelp = $state(true);');
@@ -62,6 +65,10 @@ test('blob help retries, shares one request, and renders feature and option para
     assert.match(render(Team, { context }).body, /aria-label="Association"[\s\S]*Team introduction[\s\S]*Association help[\s\S]*BRTA help/);
     const About = (await server.ssrLoadModule('/src/routes/about/+page.svelte')).default;
     const about = render(About, { context }).body;
-    assert.match(about, /<h2[^>]*>Features<\/h2>[\s\S]*Ladder introduction[\s\S]*Ladder paragraph one[\s\S]*Ladder paragraph two[\s\S]*About introduction[\s\S]*A topic with only long help[\s\S]*<h2[^>]*>Settings<\/h2>[\s\S]*Best of three help[\s\S]*Deciding set help/);
-    assert.equal((about.match(/Ladder paragraph one/g) ?? []).length, 1);
+    assert.match(about, /Intra Club helps you manage and participate in ladders, competitions, teams and groups/);
+    for (const title of ['Home', 'Users', 'Ladders', 'Comps', 'Teams', 'Groups', 'Rounds', 'Matches']) {
+        assert.match(about, new RegExp(`aria-label="${title}" aria-expanded="${title === 'Ladders'}"`));
+    }
+    assert.match(about, /Ladder introduction[\s\S]*aria-expanded="true"[\s\S]*Ladder introduction[\s\S]*Ladder paragraph one[\s\S]*Ladder paragraph two/);
+    assert.doesNotMatch(about, /About introduction|A topic with only long help|Best of three help/);
 });
