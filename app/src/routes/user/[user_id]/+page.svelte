@@ -70,7 +70,7 @@
 	{#if user_entity}
 		<EntityHeader entity={user_entity} />
 		<MatchRecord parentId={user_id}>
-			{#snippet help()}<HelpText topic={viewingOwnPage ? 'feature.home' : 'feature.user'} />{/snippet}
+			{#snippet help()}<HelpText topic="feature.user" />{/snippet}
 		</MatchRecord>
 
 		{#if adminClubs.length}

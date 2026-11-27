@@ -7,7 +7,6 @@
 	import { helpStrings, loadHelpStrings } from '#lib/stores/helpStrings.ts';
 
 	const features = [
-		{ title: 'Home', topic: 'feature.home' },
 		{ title: 'Users', topic: 'feature.user' },
 		{ title: 'Ladders', topic: 'feature.ladder' },
 		{ title: 'Comps', topic: 'feature.comp' },
