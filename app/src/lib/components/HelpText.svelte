@@ -1,4 +1,5 @@
 <script lang="ts">
+	import HelpInlineText from './HelpInlineText.svelte';
 	import StatusDot from './StatusDot.svelte';
 	import { onMount } from 'svelte';
 	import { helpStrings, loadHelpStrings } from '#lib/stores/helpStrings.ts';
@@ -41,10 +42,10 @@
 		{#if index === 0 && label}<strong>{label}</strong><br />{/if}
 		{#if block.dots.length}
 			{#each block.dots as { colour, text }, dotIndex}
-				{#if dotIndex > 0}<br />{/if}<StatusDot colour={colour.toLowerCase()} label={colour} />{text}
+				{#if dotIndex > 0}<br />{/if}<StatusDot colour={colour.toLowerCase()} label={colour} /><HelpInlineText {text} />
 			{/each}
 		{:else}
-			{block.text}
+			<HelpInlineText text={block.text} />
 		{/if}
 	</p>
 {:else}

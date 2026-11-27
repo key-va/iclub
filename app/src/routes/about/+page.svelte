@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import EntityHeader from '#lib/components/EntityHeader.svelte';
+	import HelpInlineText from '#lib/components/HelpInlineText.svelte';
 	import HelpText from '#lib/components/HelpText.svelte';
 	import HiddenOptions from '#lib/components/hiddenOptions.svelte';
 	import { branding } from '#lib/stores/branding.ts';
@@ -37,7 +38,7 @@
 				{@const paragraphs = Array.isArray(long) ? long.filter((paragraph) => paragraph.trim()) : []}
 				{#snippet belowRow()}
 					{#if typeof short === 'string' && short.trim()}
-						<p class="info feature-intro">{short}</p>
+						<p class="info feature-intro"><HelpInlineText text={short} /></p>
 					{/if}
 				{/snippet}
 				{#if paragraphs.length}

@@ -29,7 +29,7 @@ test('blob help retries, shares one request, and renders feature and option para
         'feature.ladder': 'Ladder introduction',
         'feature.about': 'About introduction',
         'feature.future.long': ['A topic with only long help'],
-        'feature.ladder.long': ['Ladder paragraph one', 'Ladder paragraph two', 'Red: player is away', 'Green: player can play', 'A green dot means active'],
+        'feature.ladder.long': ['Ladder paragraph one', 'Ladder paragraph two', 'Red: player is away', 'Green: player can play', 'A green dot means active', "Use 'out' or 'available' when you can't play."],
         'feature.comp': 'Competition introduction',
         'feature.group': 'Group introduction',
         'feature.team': 'Team introduction',
@@ -73,6 +73,7 @@ test('blob help retries, shares one request, and renders feature and option para
         assert.match(html, /player is away\s*<br\/>\s*<span[^>]*aria-label="Green"[^>]*><\/span>player can play\s*<\/p>/);
         assert.doesNotMatch(html, /Red: player is away|Green: player can play/);
         assert.match(html, /A green dot means active/);
+        assert.match(html, /Use <strong>out<\/strong> or <strong>available<\/strong> when you can't play\./);
     }
     assert.equal((about.match(/Ladder introduction/g) ?? []).length, 1);
     assert.match(about, /<strong>Teams<\/strong><\/p>[\s\S]*?aria-label="Teams" aria-expanded="false"[\s\S]*?M9 9a3[\s\S]*?<\/button><\/div>\s*<p[^>]*>Team introduction<\/p>/);
