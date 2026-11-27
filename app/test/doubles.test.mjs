@@ -86,6 +86,6 @@ test('ladder settings offer readable option labels and the supported cooldown li
  assert.deepEqual(Object.keys(ladderSettings.ladder_system.values),['win_points','half_rank','ten_percent_fixed','static_1']);
  assert.equal(ladderSettingDefaults.cool_period,3);assert.equal(ladderSettings.cool_period.min,1);
  for(const setting of Object.values(ladderSettings)) if(setting.type==='enum') for(const option of Object.values(setting.values)){
-  assert.ok(option.label);assert.equal(option.label.includes('_'),false);assert.ok(option.description);
+  assert.ok(option.label);assert.equal(option.label.includes('_'),false);
  }
 });

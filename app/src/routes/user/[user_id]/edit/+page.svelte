@@ -1,4 +1,5 @@
 <script lang="ts">
+	import HelpText from '#lib/components/HelpText.svelte';
 	import SummaryHelp from '#lib/components/SummaryHelp.svelte';
 	import { prepareSquareImage } from '#lib/components/images/prepareSquareImage.ts';
 	import ActionConfirmation from '#lib/components/ActionConfirmation.svelte';
@@ -108,7 +109,7 @@
 			image={image || imageOf(user.rk)}
 		/>
 		<SummaryHelp summary="profile details">
-			{#snippet help()}<p class="info">Profile image updates may take some time to show. Your email and phone number are used for login and account validation and are never shown in the app.</p>{/snippet}
+			{#snippet help()}<HelpText topic="feature.user.edit" />{/snippet}
 			{#snippet actions()}
 				<ActionConfirmation
 					inline

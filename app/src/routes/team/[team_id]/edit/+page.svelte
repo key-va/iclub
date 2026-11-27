@@ -1,4 +1,5 @@
 <script lang="ts">
+	import HelpText from '#lib/components/HelpText.svelte';
 	import SummaryHelp from '#lib/components/SummaryHelp.svelte';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
@@ -46,7 +47,7 @@
 			image={image || imageOf(team.rk)}
 		/>
 		<SummaryHelp summary="team details">
-			{#snippet help()}<p class="info">You can change the team icon. The team name is fixed by the competition source.</p>{/snippet}
+			{#snippet help()}<HelpText topic="feature.team.edit" />{/snippet}
 			{#snippet actions()}
 				<ActionConfirmation
 					inline

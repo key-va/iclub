@@ -1,4 +1,5 @@
 <script lang="ts">
+	import HelpText from '#lib/components/HelpText.svelte';
 	import SummaryHelp from '#lib/components/SummaryHelp.svelte';
 	import { prepareSquareImage } from '#lib/components/images/prepareSquareImage.ts';
 	import ActionConfirmation from '#lib/components/ActionConfirmation.svelte';
@@ -78,7 +79,7 @@
 			image={image || imageOf(ladder.rk)}
 		/>
 		<SummaryHelp summary="ladder details">
-			{#snippet help()}<p class="info">You can change the ladder name and image after creation.</p>{/snippet}
+			{#snippet help()}<HelpText topic="feature.ladder.edit" />{/snippet}
 			{#snippet actions()}
 				<ActionConfirmation
 					inline

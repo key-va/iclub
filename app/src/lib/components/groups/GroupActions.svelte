@@ -1,4 +1,5 @@
 <script lang="ts">
+	import HelpText from '#lib/components/HelpText.svelte';
 	import RejectCreationRequest from '#lib/components/RejectCreationRequest.svelte';
 	import ActionLink from '../ActionLink.svelte';
 	import EntityActions from '../EntityActions.svelte';
@@ -42,7 +43,7 @@
 	{summary}
 	options={(group.state === 'active' && mine) || mine?.is_admin === true ? membershipOptions : undefined}
 >
-	{#snippet help()}<p class="info">Use the group chat to arrange social hits and other club activities.</p>{/snippet}
+	{#snippet help()}<HelpText topic="feature.group" />{/snippet}
 	{#if group.state === 'rejected'}
 		<p class="description">creation request rejected</p>
 		{#if clubAdmin && group.rejection_club}<RejectCreationRequest id={group.rk} resuming />{/if}

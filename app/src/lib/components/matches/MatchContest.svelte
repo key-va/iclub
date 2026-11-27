@@ -1,4 +1,5 @@
 <script lang="ts">
+	import HelpText from '#lib/components/HelpText.svelte';
 	import SummaryHelp from '#lib/components/SummaryHelp.svelte';
 	import { competitionFinal, competitionSlots, nextCompetitionMatch } from '../competitions/competitionBracket.ts';
 	import { entrantIncludesUser } from '../competitions/competitionPlayers.ts';
@@ -10,7 +11,6 @@
 	import { completeMatch, recordElimResult } from '#lib/stores/remote.ts';
 
 	import { local } from '#lib/stores/local.ts';
-	import { ladderSettings } from '#lib/components/ladders/ladderSettings.ts';
 	import {
 		entityOf,
 		relationsOf,
@@ -91,12 +91,7 @@
 	const maxGames = $derived(
 		maxGamesByFormat[matchFormat] ?? 8
 	);
-	const formatRules = $derived.by(() => {
-		const setting = ladderSettings.match_format;
-		const rules =
-			setting.type === 'enum' ? setting.values[matchFormat]?.description : '';
-		return rules ? `Match format: ${rules}.` : '';
-	});
+
 	const isComplete = $derived(match?.state === 'complete');
 	// Recorded scores are a single number or comma-separated games per set, eg "6,4"
 	const recordedGames = (player?: Record<string, unknown>) =>
@@ -190,8 +185,8 @@
 </script>
 
 {#snippet help()}
-	<p class="info">Enter the games won by each player in each set played. Count a tiebreak as one game and leave unplayed sets empty.</p>
-	{#if formatRules}<p class="info">{formatRules}</p>{/if}
+	<HelpText topic="feature.match" />
+	<HelpText topic={`settings.match_format.${matchFormat}`} />
 {/snippet}
 
 <SummaryHelp {help}>

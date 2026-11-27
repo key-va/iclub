@@ -1,4 +1,5 @@
 <script lang="ts">
+	import HelpText from '#lib/components/HelpText.svelte';
 	import MatchRecord from '#lib/components/matches/MatchRecord.svelte';
 	import UserCompetition from '#lib/components/competitions/UserCompetition.svelte';
 	import MatchHistory from '#lib/components/matches/MatchHistory.svelte';
@@ -69,9 +70,7 @@
 	{#if user_entity}
 		<EntityHeader entity={user_entity} />
 		<MatchRecord parentId={user_id}>
-			{#snippet help()}<p class="info">{viewingOwnPage
-				? 'See what’s coming up and what needs your attention, including matches to play, challenges to respond to and rounds to mark your availability for'
-				: 'See this player’s upcoming matches and team rounds, along with any actions you can take.'}</p>{/snippet}
+			{#snippet help()}<HelpText topic={viewingOwnPage ? 'feature.home' : 'feature.user'} />{/snippet}
 		</MatchRecord>
 
 		{#if adminClubs.length}

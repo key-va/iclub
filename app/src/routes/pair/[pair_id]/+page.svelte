@@ -1,4 +1,5 @@
 <script lang="ts">
+	import HelpText from '#lib/components/HelpText.svelte';
 	import SummaryHelp from '#lib/components/SummaryHelp.svelte';
 	import { page } from '$app/state';
 	import {
@@ -29,7 +30,7 @@
 			image={comp ? imageOf(comp.rk) : ladderRow ? imageOf(ladderRow.rk) : null}
 		/>
 		<SummaryHelp summary="doubles partnership">
-			{#snippet help()}<p class="info">A pair is a doubles partnership. Open its ladder or a match to see current play and results.</p>{/snippet}
+			{#snippet help()}<HelpText topic="feature.pair" />{/snippet}
 		</SummaryHelp>
 		<MatchRecord parentId={id} />
 		{#if comp}

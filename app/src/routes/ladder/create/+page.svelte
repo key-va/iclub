@@ -1,4 +1,6 @@
 <script lang="ts">
+	import SettingHelp from '#lib/components/SettingHelp.svelte';
+	import HelpText from '#lib/components/HelpText.svelte';
 	import PageActions from '#lib/components/PageActions.svelte';
 	import { prepareSquareImage } from '#lib/components/images/prepareSquareImage.ts';
 	import ActionConfirmation from '#lib/components/ActionConfirmation.svelte';
@@ -123,6 +125,11 @@
 				onchange={pickImage}
 			/>
 		</div>
+		{#if showHelp}
+			<HelpText topic="feature.ladder" />
+			<SettingHelp setting="name" label="name" />
+			<SettingHelp setting="image" label="image" />
+		{/if}
 		{#if imageError}
 			<div class="row right"><p class="error">{imageError}</p></div>
 		{/if}
@@ -149,18 +156,8 @@
 				{/if}
 			</div>
 			{#if showHelp}
-				<div class="row left help">
-					<p>
-						<strong>{setting.label}</strong>: {setting.description}<br />
-						{#if setting.type === 'enum'}
-							{#each Object.entries(setting.values) as [option, details], i (option)}
-								{#if i > 0}<br />{/if}<strong>{details.label}</strong>: {details.description}
-							{/each}
-						{:else}
-							from {setting.min} to {setting.max}, default {setting.default}
-						{/if}
-					</p>
-				</div>
+				<SettingHelp setting={key} label={setting.label}
+					options={setting.type === 'enum' ? Object.entries(setting.values).map(([id, option]) => ({ id, name: option.label })) : []} />
 			{/if}
 			{#if setting.type === 'number' && !numberOk(key)}
 				<div class="row right">
@@ -186,8 +183,5 @@
 <style>
 	.page {
 		width: 100%;
-	}
-	.help p {
-		padding: 1em 2em;
 	}
 </style>

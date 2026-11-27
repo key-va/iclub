@@ -1,4 +1,6 @@
 <script lang="ts">
+	import SettingHelp from '#lib/components/SettingHelp.svelte';
+	import HelpText from '#lib/components/HelpText.svelte';
 	import PageActions from '#lib/components/PageActions.svelte';
 	import { prepareSquareImage } from '#lib/components/images/prepareSquareImage.ts';
 	import ActionConfirmation from '#lib/components/ActionConfirmation.svelte';
@@ -137,6 +139,11 @@
 				onchange={pickImage}
 			/>
 		</div>
+		{#if showHelp}
+			<HelpText topic="feature.team" />
+			<SettingHelp setting="association" label="association" options={[{ id: 'brta', name: 'BRTA' }]} />
+			<SettingHelp setting="image" label="image" />
+		{/if}
 		{#if association}<div class="row right">
 				<select
 					aria-label="Competition and season"
@@ -150,7 +157,12 @@
 							{option.name}
 						</option>{/each}
 				</select>
-			</div>{/if}
+			</div>
+			{#if showHelp}
+				<SettingHelp setting="competition" label="competition and season" options={competitions} />
+				<SettingHelp setting="season" label="season" />
+			{/if}
+		{/if}
 		{#if competition}<div class="row right">
 				<select
 					aria-label="Section"
@@ -164,7 +176,11 @@
 							{option.name}
 						</option>{/each}
 				</select>
-			</div>{/if}
+			</div>
+			{#if showHelp}
+				<SettingHelp setting="section" label="section" options={sections} />
+			{/if}
+		{/if}
 		{#if section}<div class="row right">
 				<select aria-label="Team" bind:value={team} disabled={loading}>
 					<option value="">Select team</option>{#each teams as option}<option
@@ -173,7 +189,11 @@
 							{option.name}
 						</option>{/each}
 				</select>
-			</div>{/if}
+			</div>
+			{#if showHelp}
+				<SettingHelp setting="team" label="team" options={teams} />
+			{/if}
+		{/if}
 		{#if loading}<div class="row right">
 				<p role="status">Loading options…</p>
 			</div>{/if}
@@ -190,11 +210,6 @@
 				</button>
 			</div>{/if}
 		{#if imageError}<p role="alert">{imageError}</p>{/if}
-		{#if showHelp}
-			<div class="row left">
-				<p class="info"><strong>team</strong>: import a team from an external competition data source</p>
-			</div>
-		{/if}
 	</div>
 	<PageActions open={showHelp} onclick={() => (showHelp = !showHelp)}>
 		<ActionConfirmation

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import HelpText from '#lib/components/HelpText.svelte';
 	import RejectCreationRequest from '#lib/components/RejectCreationRequest.svelte';
 	import ActionLink from '../ActionLink.svelte';
 	import EntityActions from '../EntityActions.svelte';
@@ -64,15 +65,14 @@
 	more={ladder.state === 'active' && associated && mine?.state !== 'pending'}
 >
 	{#snippet help()}
-		{#each Object.entries(ladderSettings) as [key, setting]}
+		<HelpText topic="feature.ladder" />
+		{#each Object.entries(ladderSettings) as [key, setting] (key)}
 			{@const value = ladder[key] ?? setting.default}
-			<p class="info description">
-				<strong>{setting.label}</strong>: {setting.type === 'enum'
-					? setting.values[String(value)]?.label
-					: `${value} days`}<br />{setting.type === 'enum'
-					? setting.values[String(value)]?.description
-					: setting.description}
-			</p>
+			{#if setting.type === 'enum'}
+				<HelpText topic={`settings.${key}.${value}`} label={setting.values[String(value)]?.label} />
+			{:else}
+				<HelpText topic={`settings.${key}`} label={`${setting.label} • ${value} days`} />
+			{/if}
 		{/each}
 	{/snippet}
 	{#if ladder.state === 'rejected'}

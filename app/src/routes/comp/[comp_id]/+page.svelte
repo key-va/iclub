@@ -1,4 +1,5 @@
 <script lang="ts">
+	import HelpText from '#lib/components/HelpText.svelte';
 	import RejectCreationRequest from '#lib/components/RejectCreationRequest.svelte';
 	import { matchFormatSetting } from '#lib/components/ladders/ladderSettings.ts';
 	import { page } from '$app/state';
@@ -75,7 +76,10 @@
 		<EntityHeader entity={elim} />
 		<EntityActions section="primary" summary={`${roundRobin ? 'round robin' : 'elimination'} • ${doubles ? 'doubles' : 'singles'} • ${matchFormat} • ${status}`}>
 			{#snippet help()}
-				<p class="info">{roundRobin ? 'Each entrant plays every other entrant once. The final standings decide the champion.' : 'The winner advances and the loser is eliminated.'}</p>
+				<HelpText topic="feature.comp" />
+				<HelpText topic={`settings.format.${doubles ? 'doubles' : 'singles'}`} />
+				<HelpText topic={`settings.match_format.${elim.match_format ?? matchFormatSetting.default}`} />
+				<HelpText topic={`settings.comp_system.${roundRobin ? 'round_robin' : 'elimination'}`} />
 			{/snippet}
 			{#if elim.state === 'pending' && canApprove}
 				<RejectCreationRequest {id} />

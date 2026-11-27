@@ -1,4 +1,5 @@
 <script lang="ts">
+	import HelpText from '#lib/components/HelpText.svelte';
 	import SummaryHelp from '#lib/components/SummaryHelp.svelte';
 	import EntityHeader from '#lib/components/EntityHeader.svelte';
 	import { page } from '$app/state';
@@ -13,9 +14,7 @@
 	{#if bot}
 		<SummaryHelp>
 			<p class="info center">{bot.name} is a system automation account.</p>
-			{#snippet help()}
-				<p class="info">This account takes automated actions to enforce rules such as match time limits and forfeits.</p>
-			{/snippet}
+			{#snippet help()}<HelpText topic="feature.bot" />{/snippet}
 		</SummaryHelp>
 	{/if}
 </div>

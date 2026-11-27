@@ -1,4 +1,5 @@
 <script lang="ts">
+	import HelpText from '#lib/components/HelpText.svelte';
 	import SummaryHelp from '#lib/components/SummaryHelp.svelte';
 	import { onMount } from 'svelte';
 	import HiddenOptions from '../hiddenOptions.svelte';
@@ -63,7 +64,7 @@
 
 <SummaryHelp>
 	{#snippet actions()}<RoundActions {round} {team} />{/snippet}
-	{#snippet help()}<p class="info">Check the fixture and mark your availability. Team administrators select available players.</p>{/snippet}
+	{#snippet help()}<HelpText topic="feature.round" />{/snippet}
 	{#if complete}
 		<p class="info center"><strong>{fixtureName}</strong></p>
 		<p class="info center">

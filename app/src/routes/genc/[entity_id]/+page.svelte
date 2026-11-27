@@ -1,4 +1,5 @@
 <script lang="ts">
+	import HelpText from '#lib/components/HelpText.svelte';
 	import SummaryHelp from '#lib/components/SummaryHelp.svelte';
 	import EntityHeader from '#lib/components/EntityHeader.svelte';
 	import { page } from '$app/state';
@@ -26,7 +27,7 @@
 	{#if entity}
 		<EntityHeader {entity} />
 		<SummaryHelp summary="related items">
-			{#snippet help()}<p class="info">Open a linked row to view a related item.</p>{/snippet}
+			{#snippet help()}<HelpText topic="feature.genc" />{/snippet}
 		</SummaryHelp>
 	{:else}
 		<div class="row right">

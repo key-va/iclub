@@ -10,6 +10,7 @@ if (!PREFIX) {
 // Public Blob Storage container
 export const PUBLIC_URL = `https://${PREFIX}xsa.blob.core.windows.net/public`;
 export const GUIDS_URL = `${PUBLIC_URL}/guids.json`;
+export const STRINGS_URL = `https://${PREFIX}xsa.blob.core.windows.net/static/strings.json`;
 
 // Function App hosting the API
 export const API_URL: string = import.meta.env.VITE_API_URL ?? `https://${PREFIX}xfa.azurewebsites.net/api`;

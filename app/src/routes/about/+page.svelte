@@ -1,4 +1,5 @@
 <script lang="ts">
+	import HelpText from '#lib/components/HelpText.svelte';
 	import SummaryHelp from '#lib/components/SummaryHelp.svelte';
 	import { branding } from '#lib/stores/branding.ts';
 	import EntityHeader from '#lib/components/EntityHeader.svelte';
@@ -12,9 +13,7 @@
 
 	<SummaryHelp summary={$branding.name}>
 		<p class="info center">Intra Club helps you manage and participate in ladders, events, and teams.</p>
-		{#snippet help()}
-			<p class="info">Open Browse to find your club’s activities, or sign in to join and see what needs your attention.</p>
-		{/snippet}
+		{#snippet help()}<HelpText topic="feature.about" />{/snippet}
 	</SummaryHelp>
 
 </div>

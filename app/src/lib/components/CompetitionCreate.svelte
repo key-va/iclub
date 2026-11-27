@@ -1,6 +1,8 @@
 <script lang="ts">
+	import SettingHelp from '#lib/components/SettingHelp.svelte';
+	import HelpText from '#lib/components/HelpText.svelte';
 	import PageActions from '#lib/components/PageActions.svelte';
-	import { matchFormatSetting } from './ladders/ladderSettings.ts';
+	import { playerFormatSetting, matchFormatSetting } from './ladders/ladderSettings.ts';
 	import { prepareSquareImage } from '#lib/components/images/prepareSquareImage.ts';
 	import ActionConfirmation from '#lib/components/ActionConfirmation.svelte';
 	import { createCompetition, createGroup } from '#lib/stores/remote.ts';
@@ -15,21 +17,13 @@
 	let { type }: { type: 'group' | 'comp' } = $props();
 	const isCompetition = $derived(type === 'comp');
 	const settings = {
-		format: {
-			label: 'format',
-			description: 'whether players compete alone or in pairs',
-			values: {
-				singles: { label: 'Singles', description: 'one player per side' },
-				doubles: { label: 'Doubles', description: 'two players per side' }
-			}
-		},
-		match_format: { ...matchFormatSetting, description: 'how a comp match is played' },
+		format: playerFormatSetting,
+		match_format: matchFormatSetting,
 		comp_system: {
 			label: 'comp system',
-			description: 'how match results determine who advances',
 			values: {
-				elimination: { label: 'Elimination', description: 'the winner advances and the loser is eliminated' },
-				round_robin: { label: 'Round Robin', description: 'each entrant plays every other entrant once. Final standings decide the champion' }
+				elimination: { label: 'Elimination' },
+				round_robin: { label: 'Round Robin' }
 			}
 		}
 	};
@@ -122,6 +116,11 @@
 				onchange={pickImage}
 			/>
 		</div>
+		{#if showHelp}
+			<HelpText topic={`feature.${type}`} />
+			<SettingHelp setting="name" label="name" />
+			<SettingHelp setting="image" label="image" />
+		{/if}
 		{#if imageError}
 			<div class="row right"><p class="error">{imageError}</p></div>
 		{/if}
@@ -136,20 +135,10 @@
 					</select>
 				</div>
 				{#if showHelp}
-					<div class="row left help">
-						<p>
-							<strong>{setting.label}</strong>: {setting.description}<br />
-							{#each Object.entries(setting.values) as [option, details], i (option)}
-								{#if i > 0}<br />{/if}<strong>{details.label}</strong>: {details.description}
-							{/each}
-						</p>
-					</div>
+					<SettingHelp setting={key} label={setting.label}
+						options={Object.entries(setting.values).map(([id, option]) => ({ id, name: option.label }))} />
 				{/if}
 			{/each}
-		{:else if showHelp}
-			<div class="row left">
-				<p class="info"><strong>group</strong>: create a group to facilitate a chat space to arrange social hits and activities</p>
-			</div>
 		{/if}
 	</div>
 
@@ -167,8 +156,5 @@
 <style>
 	.page {
 		width: 100%;
-	}
-	.help p {
-		padding: 1em 2em;
 	}
 </style>
