@@ -46,48 +46,51 @@
 			entity={team}
 			image={image || imageOf(team.rk)}
 		/>
-		<div class="row right">
-			<input
-				type="text"
-				aria-label="team name"
-				value={team.name ?? ''}
-				readonly
-			/>
-			<button
-				class="blue"
-				aria-label="change icon"
-				onclick={() => fileInput?.click()}
-			>
-				<svg
-					viewBox="0 0 24 24"
-					width="1rem"
-					height="1rem"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="3"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-					aria-hidden="true"
+		<div class="group">
+			<div class="row right">
+				<input
+					type="text"
+					aria-label="team name"
+					value={team.name ?? ''}
+					readonly
+				/>
+				<button
+					class="blue"
+					aria-label="change icon"
+					onclick={() => fileInput?.click()}
 				>
-					<path d="M2.5 7h4l1.5-3h8l1.5 3h4v13h-19z" /><circle
-						cx="12"
-						cy="13.5"
-						r="4"
-					/>
-				</svg>
-			</button>
-			<input
-				type="file"
-				accept="image/*"
-				aria-label="team icon"
-				hidden
-				bind:this={fileInput}
-				onchange={pickImage}
-			/>
+					<svg
+						viewBox="0 0 24 24"
+						width="1rem"
+						height="1rem"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="3"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						aria-hidden="true"
+					>
+						<path d="M2.5 7h4l1.5-3h8l1.5 3h4v13h-19z" /><circle
+							cx="12"
+							cy="13.5"
+							r="4"
+						/>
+					</svg>
+				</button>
+				<input
+					type="file"
+					accept="image/*"
+					aria-label="team icon"
+					hidden
+					bind:this={fileInput}
+					onchange={pickImage}
+				/>
+			</div>
+			{#if imageError}<div class="row right">
+					<p class="error">{imageError}</p>
+				</div>{/if}
 		</div>
-		{#if imageError}<div class="row right">
-				<p class="error">{imageError}</p>
-			</div>{/if}
+
 		<SummaryHelp>
 			{#snippet help()}<HelpText topic="feature.team.edit" />{/snippet}
 			{#snippet actions()}
