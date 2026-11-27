@@ -27,6 +27,9 @@ export async function teamCreate(request: HttpRequest, context: InvocationContex
             )
         )
             return reply(400, "Complete all competition selections");
+        const minToField = data.min_to_field === undefined ? 4 : data.min_to_field;
+        if (typeof minToField !== "number" || !Number.isSafeInteger(minToField) || minToField < 1)
+            return reply(400, "Minimum to field must be a positive whole number");
         const brand = await doClubForOrigin(
             request.headers.get("origin") ?? "",
         );
@@ -130,6 +133,7 @@ export async function teamCreate(request: HttpRequest, context: InvocationContex
             await doUpsertEntity("team", id, {
                 ...teamExternalFields(mapping),
                 name: mapping.name,
+                min_to_field: minToField,
                 state: "pending",
                 external_key: externalTeamKey(mapping),
                 operation_guard: 0,

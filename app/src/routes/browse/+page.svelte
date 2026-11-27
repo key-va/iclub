@@ -13,7 +13,8 @@
 		filter = '';
 	}
 
-	const browsable = $derived($entities.filter(isBrowsableEntity));
+	const browsable = $derived($entities.filter(isBrowsableEntity)
+		.sort((a, b) => (a.name ?? 'no name').localeCompare(b.name ?? 'no name')));
 
 	const filtered = $derived.by(() => {
 		const q = filter.trim().toLowerCase();
@@ -59,25 +60,7 @@
 		</div>
 	</div>
 
-	{#each filtered.filter((e) => e.pk === 'ladder') as entity (entity.rk)}
-		<RouteLink
-			href={hrefOf(entity.rk)}
-			title={entity.name ?? 'no name'}
-			description={entity.pk}
-			image={imageOf(entity.rk)}
-		/>
-	{/each}
-
-	{#each filtered.filter((e) => e.pk === 'team') as entity (entity.rk)}
-		<RouteLink
-			href={hrefOf(entity.rk)}
-			title={entity.name ?? 'no name'}
-			description={entity.pk}
-			image={imageOf(entity.rk)}
-		/>
-	{/each}
-
-	{#each filtered.filter((entity) => ['group', 'comp'].includes(entity.pk)) as entity (entity.rk)}
+	{#each filtered as entity (entity.rk)}
 		<RouteLink
 			href={hrefOf(entity.rk)}
 			title={entity.name ?? 'no name'}

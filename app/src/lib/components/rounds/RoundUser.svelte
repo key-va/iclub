@@ -8,9 +8,7 @@
 		type GuidRow
 	} from '#lib/stores/guids.ts';
 	import { roundRoleColour, roundRoleLabel, isTeamAdmin, isTeamMember } from './roundRules.ts';
-	import { setRoundRole } from '#lib/stores/remote.ts';
 	import RouteLinkHiddenAction from '../RouteLinkHiddenAction.svelte';
-	import ActionQuick from '../ActionQuick.svelte';
 	import RoundQuickOptions from './RoundQuickOptions.svelte';
 	let { round, team, user }: { round: GuidRow; team: GuidRow; user: GuidRow } =
 		$props();
@@ -22,14 +20,7 @@
 </script>
 
 {#snippet rowActions()}
-	{#if canEditOwn}
-		<RoundQuickOptions roundId={round.rk} role={user.role} editable={true} allowSelection={admin} />
-	{:else}
-		<ActionQuick inline name="playing" disabled={user.role !== 'available'}
-			action={() => setRoundRole(round.rk, 'selected', user.rk)} />
-		<ActionQuick inline name="available" disabled={user.role !== 'selected'}
-			action={() => setRoundRole(round.rk, 'available', user.rk)} />
-	{/if}
+	<RoundQuickOptions roundId={round.rk} role={user.role} editable={true} userId={user.rk} {admin} allowSelection={admin} />
 {/snippet}
 <RouteLinkHiddenAction
 	href={hrefOf(user.rk)}

@@ -16,6 +16,7 @@
 		entityOf,
 		hrefOf,
 		imageOf,
+		nameOf,
 		isBrowsableEntity,
 		relationsOf,
 		typeOf,
@@ -52,7 +53,8 @@
 			.map(row => entityOf(row.rk))
 			.filter((row): row is GuidRow => row?.state === 'pending' && !pendingApprovals.some(item => item.rk === row.rk))
 		: []);
-	const activeMemberships = $derived(relatedRows.filter((row) => isBrowsableEntity(entityOf(row.rk))));
+	const activeMemberships = $derived(relatedRows.filter((row) => isBrowsableEntity(entityOf(row.rk)))
+		.sort((a, b) => nameOf(a.rk).localeCompare(nameOf(b.rk))));
 	const groups = $derived(activeMemberships.filter((row) => typeOf(row.rk) === 'group'));
 	const competitions = $derived(activeMemberships.filter((row) =>
 		typeOf(row.rk) === 'comp' && (row.is_admin === true || row.state !== 'closed')
@@ -102,16 +104,16 @@
 			{/if}
 		{/each}
 
+		{#each competitions as competition (competition.rk)}
+			<UserCompetition user={user_entity} {competition} />
+		{/each}
+
 		{#each teams as team (team.rk)}
 			<UserTeam user={user_entity} {team} />
 		{/each}
 
 		{#each groups as group (group.rk)}
 			<UserGroup user={user_entity} {group} />
-		{/each}
-
-		{#each competitions as competition (competition.rk)}
-			<UserCompetition user={user_entity} {competition} />
 		{/each}
 
 		<MatchHistory parentId={user_id} />

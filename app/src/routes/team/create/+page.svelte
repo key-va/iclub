@@ -13,6 +13,8 @@
 
 	import EntityHeader from '#lib/components/EntityHeader.svelte';
 	type Option = { id: string; name: string };
+	let minToField = $state<number | undefined>(4);
+	const validMinimum = $derived(typeof minToField === 'number' && Number.isSafeInteger(minToField) && minToField >= 1);
 	let association = $state('');
 	let competition = $state('');
 	let section = $state('');
@@ -194,6 +196,11 @@
 				<SettingHelp setting="team" label="team" options={teams} />
 			{/if}
 		{/if}
+		<div class="row right">
+			<label for="min-to-field">Minimum to field</label>
+			<input id="min-to-field" type="number" min="1" step="1" required bind:value={minToField} />
+		</div>
+		{#if showHelp}<SettingHelp setting="team.min_to_field" label="Minimum to field" />{/if}
 		{#if loading}<div class="row right">
 				<p role="status">Loading options…</p>
 			</div>{/if}
@@ -222,9 +229,10 @@
 					competition,
 					section,
 					team,
+					min_to_field: minToField,
 					...(image ? { image } : {})
 				})}
-			disabled={!team || loading || !$branding.clubId}
+			disabled={!team || !validMinimum || loading || !$branding.clubId}
 		/>
 	</PageActions>
 </div>

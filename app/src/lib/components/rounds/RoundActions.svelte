@@ -2,19 +2,16 @@
 	import ActionConfirmation from '../ActionConfirmation.svelte';
 	import { local } from '#lib/stores/local.ts';
 	import { relationsOf, type GuidRow } from '#lib/stores/guids.ts';
-	import { availabilityOptions, roundRoleLabel, isTeamMember } from './roundRules.ts';
+	import { availabilityOptions, roundRoleLabel, isTeamMember, isTeamAdmin } from './roundRules.ts';
 	import { confirmRoundRole } from '#lib/stores/remote.ts';
 	let { round, team }: { round: GuidRow; team: GuidRow } = $props();
 	const mine = $derived(
 		relationsOf(round.rk).find((row) => row.rk === $local.caller_id)
 	);
-	const member = $derived(
-		isTeamMember(
-			relationsOf(team.rk).find((row) => row.rk === $local.caller_id)
-		)
-	);
+	const membership = $derived(relationsOf(team.rk).find((row) => row.rk === $local.caller_id));
+	const member = $derived(isTeamMember(membership));
 	const roles = ['unavailable', 'available'] as const;
-	const options = $derived(availabilityOptions(mine?.role));
+	const options = $derived(availabilityOptions(mine?.role, isTeamAdmin(membership)));
 	const showActions = $derived(member && !!mine && !['complete', 'eliminated'].includes(String(round.state)));
 </script>
 

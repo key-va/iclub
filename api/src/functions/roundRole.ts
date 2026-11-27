@@ -80,8 +80,9 @@ export async function roundRole(
                     "Only approved team players have round roles",
                 );
             const old = previous.role;
+            const admin = isTeamAdmin(caller);
             if (role === "selected") {
-                if (!isTeamAdmin(caller))
+                if (!admin)
                     return reply(
                         403,
                         "Only an administrator can mark a player as playing",
@@ -89,10 +90,12 @@ export async function roundRole(
                 if (old !== "available" && old !== "selected")
                     return reply(409, "Only available players can be marked as playing");
             } else if (old === "selected" && role === "available") {
-                if (!isTeamAdmin(caller))
+                if (!admin)
                     return reply(403, "Only an administrator can return a player marked as playing to available");
-            } else if (user !== caller_id)
+            } else if (user !== caller_id && (!admin || role === "pending"))
                 return reply(403, "You may only update your own availability");
+            if (admin && old === "selected" && role === "unavailable")
+                return reply(409, "Return the player to available before marking them out");
             if (old === role) {
                 await doUpsertRelation(id, user, { role });
                 await doGuidsToPublic();

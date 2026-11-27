@@ -18,10 +18,23 @@ export function roundAvailability(roundId: string) {
 	return { playing, available, pending };
 }
 
-export function roundAvailabilityColour({ playing, available, pending }: ReturnType<typeof roundAvailability>) {
-	if (playing >= 4) return 'green';
-	if (playing + available >= 4) return 'blue';
-	return playing + available + pending >= 4 ? 'orange' : 'red';
+export const roundAvailabilityLabel = {
+	red: 'Short of players to field a team',
+	orange: 'Short of players, with availability replies pending',
+	blue: 'Lineup to be picked',
+	green: 'Lineup ready'
+} as const;
+
+export function roundAvailabilityColour(
+	{ playing, available, pending }: ReturnType<typeof roundAvailability>,
+	minToField: unknown = 4
+) {
+	const minimum = typeof minToField === 'number' && Number.isSafeInteger(minToField) && minToField > 0
+		? minToField
+		: 4;
+	if (playing >= minimum) return 'green';
+	if (playing + available >= minimum) return 'blue';
+	return playing + available + pending >= minimum ? 'orange' : 'red';
 }
 
 export function roundRoleLabel(role: unknown): string {
@@ -47,19 +60,20 @@ export const isTeamMember = (relation?: Record<string, unknown>) =>
 	relation?.is_member === true ||
 	relation?.role === 'is_member';
 export function availabilityOptions(
-	role: unknown
+	role: unknown,
+	admin = false
 ): ('available' | 'unavailable')[] {
 	if (role === 'pending') return ['unavailable', 'available'];
-	if (role === 'available' || role === 'selected') return ['unavailable'];
+	if (role === 'selected') return admin ? ['available'] : ['unavailable'];
+	if (role === 'available') return ['unavailable'];
 	if (role === 'unavailable') return ['available'];
 	return [];
 }
 export const roundQuickRoles = ['unavailable', 'available', 'selected'] as const;
 
 export function roundQuickOptions(role: unknown, admin: boolean): (typeof roundQuickRoles)[number][] {
-	const options: (typeof roundQuickRoles)[number][] = availabilityOptions(role);
+	const options: (typeof roundQuickRoles)[number][] = availabilityOptions(role, admin);
 	if (admin && role === 'available') options.push('selected');
-	if (admin && role === 'selected') options.push('available');
 	return options;
 }
 

@@ -4,8 +4,10 @@
 	import {
 		roundAvailability,
 		roundAvailabilityColour,
+		roundAvailabilityLabel,
 		futureRoundDescription,
-		isTeamMember
+		isTeamMember,
+		isTeamAdmin
 	} from '#lib/components/rounds/roundRules.ts';
 	import RoundQuickOptions from '../rounds/RoundQuickOptions.svelte';
 	import RouteLink from '../routeLink.svelte';
@@ -26,6 +28,7 @@
 			: undefined
 	);
 	const counts = $derived(roundAvailability(round.rk));
+	const colour = $derived(roundAvailabilityColour(counts, team.min_to_field));
 	const description = $derived(
 		featured
 			? [
@@ -48,13 +51,14 @@
 	/>
 {:else}
 	{#snippet actions()}
-		<RoundQuickOptions roundId={round.rk} {role} {editable} />
+		<RoundQuickOptions roundId={round.rk} {role} {editable} admin={isTeamAdmin(mine)} />
 	{/snippet}
 	<RouteLinkHiddenAction
 		href={hrefOf(round.rk)}
 		title={round.name}
 		{description}
-		colour={roundAvailabilityColour(counts)}
+		{colour}
+		dotLabel={roundAvailabilityLabel[colour]}
 		isWhite={featured}
 		children={actions}
 	/>

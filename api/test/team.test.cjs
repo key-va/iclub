@@ -241,11 +241,13 @@ test("options do not write; signed creation resolves host club, validates select
         club_id: "club_wrong",
     };
     get("user", A).name = "Alice Admin";
+    assert.equal((await call("create", A, { ...data, min_to_field: 1.5 })).status, 400);
     const result = await call("create", A, data);
     assert.equal(result.status, 201);
     assert.equal(pushes.at(-1).content, "Alice Admin has requested to create this team");
     const id = result.jsonBody.subject;
     assert.equal(get("team", id).state, "pending");
+    assert.equal(get("team", id).min_to_field, 4);
     assert.equal(get("team", id).ext_provider, "trols");
     assert.equal(get("team", id).ext_competition, "TN");
     assert.equal(get("team", id).ext_team, "TN004");
@@ -396,9 +398,13 @@ test("selection authority allows admin self-selection while rejecting outsiders,
     assert.equal((await role(A, U, "available")).status, 200);
     assert.equal(pushes.length, 1);
     assert.equal((await role(A, U, "selected")).status, 200);
-    assert.equal((await role(A, U, "unavailable")).status, 403);
+    assert.equal((await role(A, U, "unavailable")).status, 409);
     assert.equal((await role(U, U, "unavailable")).status, 200);
     assert.deepEqual(pushes[2].userIds, [A]);
+    assert.equal(get(U, "round_r").role, "unavailable");
+    assert.equal((await role(A, U, "available")).status, 200);
+    assert.equal(get(U, "round_r").role, "available");
+    assert.equal((await role(A, U, "unavailable")).status, 200);
     assert.equal(get(U, "round_r").role, "unavailable");
     assert.equal((await role(A, OUT, "selected")).status, 403);
     assert.equal((await role(U, U, "anything")).status, 400);
@@ -1085,11 +1091,13 @@ test("new team requests and approval use club/admin relations and leave only tea
         competition: "TN",
         section: "TN001",
         team: "TN004",
+        min_to_field: 6,
     });
     assert.equal(created.status, 201);
     const id = created.jsonBody.subject;
     const pending = get("team", id);
     assert.equal(pending.state, "pending");
+    assert.equal(pending.min_to_field, 6);
     assert.equal(pending.club_id, undefined);
     assert.equal(pending.requested_by, undefined);
     assert.equal(pending.operation_until, undefined);
@@ -1122,6 +1130,7 @@ test("new team requests and approval use club/admin relations and leave only tea
     assert.equal((await role(U, U, "available", round.rowKey)).status, 200);
     assert.equal((await role(A, U, "selected", round.rowKey)).status, 200);
     const team = get("team", id);
+    assert.equal(team.min_to_field, 6);
     for (const field of Object.keys(team).filter(
         (k) => !["partitionKey", "rowKey", "etag"].includes(k),
     ))
@@ -1132,6 +1141,7 @@ test("new team requests and approval use club/admin relations and leave only tea
                 "external_key",
                 "last_synced",
                 "operation_guard",
+                "min_to_field",
             ].includes(field) || field.startsWith("ext_"),
             field,
         );

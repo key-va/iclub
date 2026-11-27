@@ -70,7 +70,7 @@ test("round quick options match self-service and admin role transitions", () => 
     assert.deepEqual(rounds.roundQuickOptions("available", false), ["unavailable"]);
     assert.deepEqual(rounds.roundQuickOptions("available", true), ["unavailable", "selected"]);
     assert.deepEqual(rounds.roundQuickOptions("selected", false), ["unavailable"]);
-    assert.deepEqual(rounds.roundQuickOptions("selected", true), ["unavailable", "available"]);
+    assert.deepEqual(rounds.roundQuickOptions("selected", true), ["available"]);
     assert.deepEqual(rounds.roundQuickOptions("unavailable", true), ["available"]);
 });
 test("role colours and result summaries match the contract, including zero scores and unknown result state", () => {
@@ -279,6 +279,10 @@ test('team summaries include association, section and rank, omitting competition
 });
 
 test("team round dots include pending responses when judging lineup readiness", () => {
+    const counts = { playing: 2, available: 1, pending: 1 };
+    for (const [minimum, colour] of [[2, "green"], [3, "blue"], [4, "orange"], [5, "red"]]) {
+        assert.equal(rounds.roundAvailabilityColour(counts, minimum), colour);
+    }
     for (const [playing, available, pending, colour] of [
         [4, 0, 0, "green"], [5, 1, 2, "green"], [3, 1, 2, "blue"],
         [0, 4, 0, "blue"], [1, 1, 2, "orange"], [0, 0, 4, "orange"],

@@ -9,6 +9,7 @@
 		description = '',
 		image = '',
 		colour = 'var(--brand-foreground, #FF1493)',
+		dotLabel,
 		isWhite = false,
 		detail,
 		currentSelection,
@@ -19,6 +20,7 @@
 		description?: string;
 		image?: string;
 		colour?: string;
+		dotLabel?: string;
 		isWhite?: boolean;
 		detail?: Snippet;
 		children?: Snippet;
@@ -153,7 +155,7 @@
 					bind:this={dotButton}
 					type="button"
 					class="dot-button"
-					aria-label={`Actions for ${title}`}
+					aria-label={dotLabel ? `${dotLabel}. Actions for ${title}` : `Actions for ${title}`}
 					aria-expanded={false}
 					aria-controls={optionsId}
 					onclick={reveal}

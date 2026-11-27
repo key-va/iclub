@@ -11,7 +11,8 @@
 		roundView,
 		futureRoundDescription,
 		roundRoleColour,
-		isTeamMember
+		isTeamMember,
+		isTeamAdmin
 	} from './roundRules.ts';
 	import RoundQuickOptions from './RoundQuickOptions.svelte';
 	import RouteLinkHiddenAction from '../RouteLinkHiddenAction.svelte';
@@ -31,7 +32,7 @@
 </script>
 
 {#snippet actions()}
-	<RoundQuickOptions roundId={round.rk} role={round.role} {editable} />
+	<RoundQuickOptions roundId={round.rk} role={round.role} {editable} admin={isTeamAdmin(team)} />
 {/snippet}
 <RouteLinkHiddenAction
 	href={hrefOf(round.rk)}
