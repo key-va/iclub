@@ -10,6 +10,7 @@
 		// text shown in the round icon instead of the dots/dash glyph
 		badge?: string | number;
 		isWhite?: boolean;
+		helpIcon?: boolean;
 		// true shows the content in place of the title (action buttons); false shows it below the row (help text)
 		inline?: boolean;
 		// ms of inactivity before the content hides again; 0 keeps it until tapped again
@@ -24,6 +25,7 @@
 		detail,
 		badge,
 		isWhite = false,
+		helpIcon = false,
 		inline = false,
 		timeout,
 		children
@@ -89,7 +91,13 @@
 			stroke-linejoin="round"
 			role="img"
 		>
-			{#if children && !open}
+			{#if helpIcon && children}
+				{#if open}
+					<path d="M18 6 6 18M6 6l12 12" />
+				{:else}
+					<path d="M9 9a3 3 0 1 1 4.5 2.6c-1 .6-1.5 1.2-1.5 2.4M12 18h.01" />
+				{/if}
+			{:else if children && !open}
 				<path d="M5 12h.01M12 12h.01M19 12h.01" stroke-width="4" />
 			{:else}
 				<path d="M5 12h14" />

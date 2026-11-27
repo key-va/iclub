@@ -69,6 +69,8 @@ test('blob help retries, shares one request, and renders feature and option para
     for (const title of ['Home', 'Users', 'Ladders', 'Comps', 'Teams', 'Groups', 'Rounds', 'Matches']) {
         assert.match(about, new RegExp(`aria-label="${title}" aria-expanded="${title === 'Ladders'}"`));
     }
-    assert.match(about, /Ladder introduction[\s\S]*aria-expanded="true"[\s\S]*Ladder introduction[\s\S]*Ladder paragraph one[\s\S]*Ladder paragraph two/);
-    assert.doesNotMatch(about, /About introduction|A topic with only long help|Best of three help/);
+    assert.match(about, /aria-expanded="true"[\s\S]*M18 6 6 18M6 6l12 12[\s\S]*Ladder introduction[\s\S]*Ladder paragraph one[\s\S]*Ladder paragraph two/);
+    assert.match(about, /aria-expanded="false"[\s\S]*M9 9a3/);
+    assert.equal((about.match(/class="group"/g) ?? []).length, 2);
+    assert.doesNotMatch(about, /row-description|About introduction|A topic with only long help|Best of three help|Team introduction/);
 });

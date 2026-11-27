@@ -31,12 +31,13 @@
 	</div>
 
 	{#if $helpStrings.status === 'ready'}
-		{#each features as { title, topic } (topic)}
-			{@const description = $helpStrings.strings[topic]}
-			<HiddenOptions {title} description={typeof description === 'string' ? description : undefined} isWhite>
-				<HelpText {topic} />
-			</HiddenOptions>
-		{/each}
+		<div class="group">
+			{#each features as { title, topic } (topic)}
+				<HiddenOptions {title} helpIcon>
+					<HelpText {topic} />
+				</HiddenOptions>
+			{/each}
+		</div>
 	{:else if $helpStrings.status === 'error'}
 		<div class="group"><p class="info" role="status">Help is unavailable.</p></div>
 	{:else}
