@@ -67,14 +67,14 @@ test('blob help retries, shares one request, and renders feature and option para
     const About = (await server.ssrLoadModule('/src/routes/about/+page.svelte')).default;
     const about = render(About, { context }).body.replace(/<!--.*?-->/g, "");
     assert.match(about, /Intra Club helps you manage and participate in ladders, competitions, teams and groups/);
-    assert.match(about, /<strong>Ladders<\/strong>[\s\S]*?row-description">Ladder introduction<\/span>[\s\S]*?aria-label="Ladders" aria-expanded="true"[\s\S]*?M18 6 6 18M6 6l12 12[\s\S]*?Ladder paragraph one[\s\S]*?Ladder paragraph two/);
+    assert.match(about, /<strong>Ladders<\/strong><\/p>[\s\S]*?aria-label="Ladders" aria-expanded="true"[\s\S]*?M18 6 6 18M6 6l12 12[\s\S]*?<\/button><\/div>\s*<p[^>]*>Ladder introduction<\/p>[\s\S]*?Ladder paragraph one[\s\S]*?Ladder paragraph two/);
     for (const html of [ladder, about]) {
         assert.match(html, /role="img" aria-label="Red" style="background: red;"><\/span>[\s\S]*?player is away/);
         assert.doesNotMatch(html, /Red: player is away/);
         assert.match(html, /A green dot means active/);
     }
     assert.equal((about.match(/Ladder introduction/g) ?? []).length, 1);
-    assert.match(about, /<strong>Teams<\/strong>[\s\S]*?row-description">Team introduction<\/span>[\s\S]*?aria-label="Teams" aria-expanded="false"[\s\S]*?M9 9a3/);
+    assert.match(about, /<strong>Teams<\/strong><\/p>[\s\S]*?aria-label="Teams" aria-expanded="false"[\s\S]*?M9 9a3[\s\S]*?<\/button><\/div>\s*<p[^>]*>Team introduction<\/p>/);
     assert.doesNotMatch(about, /aria-label="Groups"|More about teams|About introduction|A topic with only long help|Best of three help/);
     assert.equal((about.match(/class="group"/g) ?? []).length, 2);
 });

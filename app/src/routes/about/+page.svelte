@@ -35,13 +35,17 @@
 				{@const short = $helpStrings.strings[topic]}
 				{@const long = $helpStrings.strings[`${topic}.long`]}
 				{@const paragraphs = Array.isArray(long) ? long.filter((paragraph) => paragraph.trim()) : []}
-				{@const description = typeof short === 'string' ? short : undefined}
+				{#snippet belowRow()}
+					{#if typeof short === 'string' && short.trim()}
+						<p class="info feature-intro">{short}</p>
+					{/if}
+				{/snippet}
 				{#if paragraphs.length}
-					<HiddenOptions {title} {description} helpIcon>
+					<HiddenOptions {title} {belowRow} helpIcon>
 						<HelpText {topic} longOnly />
 					</HiddenOptions>
 				{:else}
-					<HiddenOptions {title} {description} />
+					<HiddenOptions {title} {belowRow} />
 				{/if}
 			{/each}
 		</div>
@@ -54,4 +58,5 @@
 
 <style>
 	.page { width: 100%; }
+	.feature-intro { padding: 0.5em 2em; }
 </style>

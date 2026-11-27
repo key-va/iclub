@@ -17,6 +17,7 @@
 		timeout?: number;
 		// the hidden content; without it the row is plain information
 		children?: Snippet;
+		belowRow?: Snippet;
 	}
 
 	let {
@@ -28,7 +29,8 @@
 		helpIcon = false,
 		inline = false,
 		timeout,
-		children
+		children,
+		belowRow
 	}: Props = $props();
 
 	const moreOptions = $derived(title === 'More Options' || title === 'More');
@@ -148,6 +150,8 @@
 			</div>
 		{/if}
 	</div>
+
+	{@render belowRow?.()}
 
 	{#if open && !replaceRow}
 		<div
