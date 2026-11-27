@@ -24,6 +24,8 @@ test('blob help retries, shares one request, and renders feature and option para
 
     const catalog = {
         'feature.ladder': 'Ladder introduction',
+        'feature.about': 'About introduction',
+        'feature.future.long': ['A topic with only long help'],
         'feature.ladder.long': ['Ladder paragraph one', 'Ladder paragraph two'],
         'feature.comp': 'Competition introduction',
         'feature.group': 'Group introduction',
@@ -58,4 +60,8 @@ test('blob help retries, shares one request, and renders feature and option para
         /Competition introduction[\s\S]*Singles help[\s\S]*Doubles help/);
     assert.match(render(Competition, { props: { type: 'group' }, context }).body, /Group introduction/);
     assert.match(render(Team, { context }).body, /aria-label="Association"[\s\S]*Team introduction[\s\S]*Association help[\s\S]*BRTA help/);
+    const About = (await server.ssrLoadModule('/src/routes/about/+page.svelte')).default;
+    const about = render(About, { context }).body;
+    assert.match(about, /<h2[^>]*>Features<\/h2>[\s\S]*Ladder introduction[\s\S]*Ladder paragraph one[\s\S]*Ladder paragraph two[\s\S]*About introduction[\s\S]*A topic with only long help[\s\S]*<h2[^>]*>Settings<\/h2>[\s\S]*Best of three help[\s\S]*Deciding set help/);
+    assert.equal((about.match(/Ladder paragraph one/g) ?? []).length, 1);
 });
