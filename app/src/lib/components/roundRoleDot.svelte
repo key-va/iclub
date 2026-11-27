@@ -1,22 +1,7 @@
 <script lang="ts">
+	import StatusDot from './StatusDot.svelte';
 	import { roundRoleColour } from '#lib/components/rounds/roundRules.ts';
 	let { role }: { role: unknown } = $props();
 </script>
 
-<span
-	class="dot"
-	style:background={roundRoleColour[String(role)] ?? 'grey'}
-	role="img"
-	aria-label={String(role ?? 'no status')}
-></span>
-
-<style>
-	.dot {
-		display: inline-block;
-		width: 0.7em;
-		height: 0.7em;
-		margin: 0 0.35em;
-		border: 2px solid white;
-		border-radius: 50%;
-	}
-</style>
+<StatusDot colour={roundRoleColour[String(role)] ?? 'grey'} label={String(role ?? 'no status')} />

@@ -33,9 +33,17 @@
 	{#if $helpStrings.status === 'ready'}
 		<div class="group">
 			{#each features as { title, topic } (topic)}
-				<HiddenOptions {title} helpIcon>
-					<HelpText {topic} />
-				</HiddenOptions>
+				{@const short = $helpStrings.strings[topic]}
+				{@const long = $helpStrings.strings[`${topic}.long`]}
+				{@const paragraphs = Array.isArray(long) ? long.filter((paragraph) => paragraph.trim()) : []}
+				{@const description = typeof short === 'string' ? short : undefined}
+				{#if paragraphs.length}
+					<HiddenOptions {title} {description} helpIcon>
+						<HelpText {topic} longOnly />
+					</HiddenOptions>
+				{:else}
+					<HiddenOptions {title} {description} />
+				{/if}
 			{/each}
 		</div>
 	{:else if $helpStrings.status === 'error'}
