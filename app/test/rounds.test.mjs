@@ -278,11 +278,12 @@ test('team summaries include association, section and rank, omitting competition
  assert.equal(rounds.teamDescription(), '');
 });
 
-test("team round dots follow total nominations and availability", () => {
-    for (const [playing, available, colour] of [
-        [4, 0, "green"], [5, 1, "green"], [3, 1, "blue"],
-        [0, 4, "blue"], [0, 3, "orange"], [0, 0, "orange"], [1, 2, "red"],
+test("team round dots include pending responses when judging lineup readiness", () => {
+    for (const [playing, available, pending, colour] of [
+        [4, 0, 0, "green"], [5, 1, 2, "green"], [3, 1, 2, "blue"],
+        [0, 4, 0, "blue"], [1, 1, 2, "orange"], [0, 0, 4, "orange"],
+        [0, 3, 0, "red"], [0, 0, 0, "red"], [1, 1, 1, "red"],
     ]) {
-        assert.equal(rounds.roundAvailabilityColour({ playing, available }), colour);
+        assert.equal(rounds.roundAvailabilityColour({ playing, available, pending }), colour);
     }
 });

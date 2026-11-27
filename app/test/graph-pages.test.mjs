@@ -126,6 +126,12 @@ test('team member roles and derived round details survive raw relation lookups',
     assert.match(html, /href="\/user\/user_alice">Alice/);
     assert.equal(hasAction(html, 'accept'), true);
     assert.equal(hasAction(html, 'playing'), false);
+    const pendingRows = [...items,
+        { pk: 'round_test', rk: 'user_admin', role: 'pending' },
+        { pk: 'round_test', rk: 'user_waiting', role: 'pending' }
+    ];
+    const waiting = await output('team', 'user_admin', undefined, pendingRows);
+    assert.match(waiting, /data-colour="orange" data-white="true"[^>]*><a href="\/round\/round_test">Round 1<\/a>/);
     const member = await output('team', 'user_alice');
     assert.equal(hasAction(member, 'accept'), false);
     assert.equal(hasAction(member, 'playing'), false);

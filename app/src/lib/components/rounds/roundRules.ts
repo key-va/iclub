@@ -14,13 +14,14 @@ export function roundAvailability(roundId: string) {
 	const players = relationsOf(roundId).filter((row) => typeOf(row.rk) === 'user');
 	const playing = players.filter((row) => row.role === 'selected').length;
 	const available = players.filter((row) => row.role === 'available').length;
-	return { playing, available };
+	const pending = players.filter((row) => row.role === 'pending').length;
+	return { playing, available, pending };
 }
 
-export function roundAvailabilityColour({ playing, available }: ReturnType<typeof roundAvailability>) {
+export function roundAvailabilityColour({ playing, available, pending }: ReturnType<typeof roundAvailability>) {
 	if (playing >= 4) return 'green';
 	if (playing + available >= 4) return 'blue';
-	return playing === 0 ? 'orange' : 'red';
+	return playing + available + pending >= 4 ? 'orange' : 'red';
 }
 
 export function roundRoleLabel(role: unknown): string {

@@ -70,7 +70,7 @@ test('hostname selects branding without user/club relations, with safe fallback 
 
 test('fixed ten percent counts current ranked entries, not the challenger rank or unrelated relations',async()=>{
  for(const prefix of ['user','pair']) for(const [count,rank,target,expected] of [[60,20,14,true],[60,20,13,false],[60,50,44,true],[60,50,43,false],[69,20,13,false],[70,20,13,true],[70,20,12,false],[9,9,8,false],[10,9,8,true]]){
-  const ladder={pk:'ladder',rk:'ladder_fixed',format:prefix==='pair'?'doubles':'singles',ladder_system:'the_percent_fixed'};
+  const ladder={pk:'ladder',rk:'ladder_fixed',format:prefix==='pair'?'doubles':'singles',ladder_system:'ten_percent_fixed'};
   const rows=Array.from({length:count},(_,i)=>({pk:ladder.rk,rk:`${prefix}_${i}`,is_participant:true,rank:i+1,state:i%2?'away':'cooling'}));
   rows.push({pk:ladder.rk,rk:`${prefix}_pending`,state:'pending'}, {pk:ladder.rk,rk:`${prefix}_left`,is_participant:false}, {pk:ladder.rk,rk:'user_admin',is_admin:true});
   if(prefix==='pair') for(let i=0;i<count*2;i++)rows.push({pk:ladder.rk,rk:`user_member_${i}`,is_participant:true});
@@ -83,7 +83,7 @@ test('fixed ten percent counts current ranked entries, not the challenger rank o
 
 test('ladder settings offer readable option labels and the supported cooldown limits',async()=>{
  const {ladderSettings,ladderSettingDefaults}=await server.ssrLoadModule('/src/lib/components/ladders/ladderSettings.ts');
- assert.deepEqual(Object.keys(ladderSettings.ladder_system.values),['win_points','half_rank','the_percent_fixed','static_1']);
+ assert.deepEqual(Object.keys(ladderSettings.ladder_system.values),['win_points','half_rank','ten_percent_fixed','static_1']);
  assert.equal(ladderSettingDefaults.cool_period,3);assert.equal(ladderSettings.cool_period.min,1);
  for(const setting of Object.values(ladderSettings)) if(setting.type==='enum') for(const option of Object.values(setting.values)){
   assert.ok(option.label);assert.equal(option.label.includes('_'),false);assert.ok(option.description);

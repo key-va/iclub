@@ -145,7 +145,7 @@ export async function matchCreate(request: HttpRequest, context: InvocationConte
 
         if (system === "win_points") {
             inReach = Number(challenger.points) >= steps;
-        } else if (system === "the_percent_fixed") {
+        } else if (system === "ten_percent_fixed") {
             let count = 0;
             for await (const row of guidsClient.listEntities({ queryOptions: { filter: odata`PartitionKey eq ${ladderId}` } })) {
                 if (row.rowKey.startsWith(`${competitorType}_`) && row.is_participant === true) count++;

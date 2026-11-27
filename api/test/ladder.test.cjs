@@ -215,8 +215,8 @@ test('singles joining, acceptance, challenges, scoring, messaging and forfeit re
 });
 
 test('doubles completion uses the supported rank-based rules, including rank shifts',async()=>{
-    for(const system of ['half_rank','the_percent_fixed','static_1']){
-        rows.clear();doubles(system);if(system==='the_percent_fixed')for(let i=0;i<8;i++)pair(`pair_filler_${i}`,[`user_filler_${i}_a`,`user_filler_${i}_b`],i+3);const id=await challenge();await call(matchAccept,A,undefined,{match_id:id});
+    for(const system of ['half_rank','ten_percent_fixed','static_1']){
+        rows.clear();doubles(system);if(system==='ten_percent_fixed')for(let i=0;i<8;i++)pair(`pair_filler_${i}`,[`user_filler_${i}_a`,`user_filler_${i}_b`],i+3);const id=await challenge();await call(matchAccept,A,undefined,{match_id:id});
         await call(complete,D,{challenger_score:6,defender_score:0},{match_id:id});
         assert.equal(get(L,'pair_bottom').rank,1);assert.equal(get(L,'pair_bottom').points,2);assert.equal(get(L,'pair_top').rank,2);
     }
@@ -274,7 +274,7 @@ test('singles deadline processing and away still work; doubles away is pair-awar
 
 test('fixed ten percent enforces the same ladder-size range for singles and doubles',async()=>{
  for(const format of ['singles','doubles']) for(const [count,rank,target,expected] of [[60,20,14,201],[60,20,13,409],[60,50,44,201],[60,50,43,409],[69,20,13,409],[70,20,13,201],[70,20,12,409],[9,9,8,409],[10,9,8,201]]){
-  rows.clear();seed(format,'the_percent_fixed');
+  rows.clear();seed(format,'ten_percent_fixed');
   const challenger=format==='doubles'?'pair_bottom':C,defender=format==='doubles'?'pair_top':A;
   if(format==='doubles'){pair(challenger,[C,D],rank);pair(defender,[A,B],target);}
   else {relation(L,challenger,{is_participant:true,rank,state:'active'});relation(L,defender,{is_participant:true,rank:target,state:'active'});}

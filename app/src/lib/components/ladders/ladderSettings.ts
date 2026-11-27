@@ -69,7 +69,7 @@ export const ladderSettings: Record<string, LadderSetting> = {
 				description:
 					'players can challenge up to half their own rank up the ladder'
 			},
-			the_percent_fixed: {
+			ten_percent_fixed: {
 				label: 'Ten percent fixed',
 				description:
 					'players can challenge up to 10% of the ladder ahead of their own ranking'

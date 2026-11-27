@@ -62,7 +62,7 @@ test('ladder creation notification names the requesting player and links to the 
 test('ladder defaults use three cooling days and only supported systems can be created',async()=>{
  const defaults=await create();assert.equal(defaults.status,201);
  assert.equal(rows.get(key('ladder',defaults.jsonBody.subject)).cool_period,3);
- for(const system of ['win_points','half_rank','the_percent_fixed','static_1']){
+ for(const system of ['win_points','half_rank','ten_percent_fixed','static_1']){
   const r=await create('https://next.intra.club',{ladder_system:system,cool_period:1});
   assert.equal(r.status,201);assert.equal(rows.get(key('ladder',r.jsonBody.subject)).ladder_system,system);
  }

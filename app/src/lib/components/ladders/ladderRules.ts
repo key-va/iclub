@@ -30,7 +30,7 @@ export function inReach(
 		ladder?.ladder_system ?? ladderSettingDefaults.ladder_system
 	);
 	if (system === 'win_points') return Number(me.points) >= steps;
-	if (system === 'the_percent_fixed') {
+	if (system === 'ten_percent_fixed') {
 		const competitorType = ladder?.format === 'doubles' ? 'pair' : 'user';
 		const count = relationsOf(String(ladder?.rk ?? '')).filter(
 			(row) => typeOf(row.rk) === competitorType && row.is_participant === true
