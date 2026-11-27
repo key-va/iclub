@@ -112,7 +112,7 @@
 
 <MatchHistory parentId={pairId} />
 {#if !retired && canRetire}
-	<HiddenOptions inline title="More Options" description="retire partnership">
+	<HiddenOptions inline title="More Options">
 		<ActionConfirmation
 			inline
 			name="retire"

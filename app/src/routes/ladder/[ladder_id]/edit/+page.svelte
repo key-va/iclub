@@ -78,19 +78,6 @@
 			entity={ladder}
 			image={image || imageOf(ladder.rk)}
 		/>
-		<SummaryHelp summary="ladder details">
-			{#snippet help()}<HelpText topic="feature.ladder.edit" />{/snippet}
-			{#snippet actions()}
-				<ActionConfirmation
-					inline
-					name="update"
-					message={updateMessage}
-					action={() => updateLadder(ladderId, updateData)}
-					disabled={!changed}
-					onsuccess={clearForm}
-				/>
-			{/snippet}
-		</SummaryHelp>
 
 		<div class="row right">
 			<input
@@ -133,15 +120,21 @@
 			<div class="row right"><p class="error">{imageError}</p></div>
 		{/if}
 
-		<div class="row center">
-			<p>
-				Only the <strong>ladder name</strong> and <strong>image</strong> can be modified
-				after creation
-			</p>
-		</div>
+		<SummaryHelp>
+			{#snippet help()}<HelpText topic="feature.ladder.edit" />{/snippet}
+			{#snippet actions()}
+				<ActionConfirmation
+					inline
+					name="update"
+					message={updateMessage}
+					action={() => updateLadder(ladderId, updateData)}
+					disabled={!changed}
+					onsuccess={clearForm}
+				/>
+			{/snippet}
+		</SummaryHelp>
 
-
-		<HiddenOptions inline title="More" description="delete ladder">
+		<HiddenOptions inline title="More Options">
 			<ActionConfirmation
 				inline
 				name="delete"

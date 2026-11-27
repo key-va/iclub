@@ -88,19 +88,6 @@
 			{entity}
 			image={image || imageOf(entity.rk)}
 		/>
-		<SummaryHelp summary="name and image">
-			{#snippet help()}<HelpText topic={`feature.${type}.edit`} />{/snippet}
-			{#snippet actions()}
-				<ActionConfirmation
-					inline
-					name="update"
-					message={updateMessage}
-					action={() => (type === 'comp' ? updateComp : updateGroup)(id, updateData)}
-					disabled={!changed}
-					onsuccess={clearForm}
-				/>
-			{/snippet}
-		</SummaryHelp>
 
 		<div class="row right">
 			<input
@@ -143,12 +130,19 @@
 			<div class="row right"><p class="error">{imageError}</p></div>
 		{/if}
 
-		<div class="row center">
-			<p>
-				Only the <strong>{type} name</strong> and <strong>image</strong> can be modified
-				after creation
-			</p>
-		</div>
+		<SummaryHelp>
+			{#snippet help()}<HelpText topic={`feature.${type}.edit`} />{/snippet}
+			{#snippet actions()}
+				<ActionConfirmation
+					inline
+					name="update"
+					message={updateMessage}
+					action={() => (type === 'comp' ? updateComp : updateGroup)(id, updateData)}
+					disabled={!changed}
+					onsuccess={clearForm}
+				/>
+			{/snippet}
+		</SummaryHelp>
 
 	{:else}
 		<div class="row right">

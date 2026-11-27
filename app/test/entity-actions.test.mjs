@@ -68,6 +68,8 @@ test('team editor shows a read-only name and limits editing to team admins',asyn
  await loadGraph(graph,rows);local.set({caller_id:'user_me',device_id:null,connect_key:null});
  const context=new Map([['__request__',{page:{params:{team_id:'team_test'}}}]]);
  const html=render(views.teamEdit,{context}).body;
+ assert.match(html,/aria-label="team icon"[\s\S]*aria-label="update"[\s\S]*aria-label="help"/);
+ assert.doesNotMatch(html,/team details|The team name is fixed/);
  assert.match(html,/<input[^>]*aria-label="team name"[^>]*readonly/);assert.match(html,/value="Lobs"/);assert.equal(has(html,'update'),true);
  local.set({caller_id:'user_other',device_id:null,connect_key:null});const blocked=render(views.teamEdit,{context}).body;
  assert.match(blocked,/Only a team admin can edit this team/);assert.equal(has(blocked,'update'),false);assert.doesNotMatch(blocked,/aria-label="team name"/);

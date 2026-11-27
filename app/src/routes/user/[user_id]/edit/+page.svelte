@@ -108,19 +108,6 @@
 			entity={user}
 			image={image || imageOf(user.rk)}
 		/>
-		<SummaryHelp summary="profile details">
-			{#snippet help()}<HelpText topic="feature.user.edit" />{/snippet}
-			{#snippet actions()}
-				<ActionConfirmation
-					inline
-					name="update"
-					message={updateMessage}
-					action={() => updateUser(userId, updateData)}
-					disabled={!changed}
-					onsuccess={clearForm}
-				/>
-			{/snippet}
-		</SummaryHelp>
 
 		<div class="group">
 			<div class="row right">
@@ -200,6 +187,19 @@
 			{/if}
 		</div>
 
+		<SummaryHelp>
+			{#snippet help()}<HelpText topic="feature.user.edit" />{/snippet}
+			{#snippet actions()}
+				<ActionConfirmation
+					inline
+					name="update"
+					message={updateMessage}
+					action={() => updateUser(userId, updateData)}
+					disabled={!changed}
+					onsuccess={clearForm}
+				/>
+			{/snippet}
+		</SummaryHelp>
 
 		<HiddenOptions inline title="More Options">
 			<button class="blue" aria-label="logout" onclick={logout}>

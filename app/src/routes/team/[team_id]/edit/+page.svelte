@@ -46,19 +46,6 @@
 			entity={team}
 			image={image || imageOf(team.rk)}
 		/>
-		<SummaryHelp summary="team details">
-			{#snippet help()}<HelpText topic="feature.team.edit" />{/snippet}
-			{#snippet actions()}
-				<ActionConfirmation
-					inline
-					name="update"
-					message={`update the ${team.name} icon?`}
-					action={() => updateTeam(teamId, { image })}
-					disabled={!image}
-					onsuccess={clearForm}
-				/>
-			{/snippet}
-		</SummaryHelp>
 		<div class="row right">
 			<input
 				type="text"
@@ -101,7 +88,19 @@
 		{#if imageError}<div class="row right">
 				<p class="error">{imageError}</p>
 			</div>{/if}
-		<p class="info center">The team name is fixed. You can change its icon.</p>
+		<SummaryHelp>
+			{#snippet help()}<HelpText topic="feature.team.edit" />{/snippet}
+			{#snippet actions()}
+				<ActionConfirmation
+					inline
+					name="update"
+					message={`update the ${team.name} icon?`}
+					action={() => updateTeam(teamId, { image })}
+					disabled={!image}
+					onsuccess={clearForm}
+				/>
+			{/snippet}
+		</SummaryHelp>
 	{:else}
 		<div class="row right">
 			<p>

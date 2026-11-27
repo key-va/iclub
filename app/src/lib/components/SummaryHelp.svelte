@@ -5,10 +5,12 @@
 	let open = $state(false);
 </script>
 
-<div class="group">
-	{#if summary}<p class="info center description">{summary}</p>{/if}
-	{@render children?.()}
-</div>
+{#if summary || children}
+	<div class="group">
+		{#if summary}<p class="info center description">{summary}</p>{/if}
+		{@render children?.()}
+	</div>
+{/if}
 {#if open && help}
 	<div class="group help">{@render help()}</div>
 {/if}
