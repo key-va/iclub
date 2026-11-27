@@ -1,7 +1,8 @@
 <script lang="ts">
 	import HelpText from '#lib/components/HelpText.svelte';
 	import RejectCreationRequest from '#lib/components/RejectCreationRequest.svelte';
-	import { matchFormatSetting } from '#lib/components/ladders/ladderSettings.ts';
+	import { matchFormatSetting, playerFormatSetting } from '#lib/components/ladders/ladderSettings.ts';
+	import { compSystemSetting } from '#lib/components/competitions/compSystemSetting.ts';
 	import { page } from '$app/state';
 	import { local } from '#lib/stores/local.ts';
 	import { entityOf, guids, hrefOf, imageOf, nameOf, relationsOf, typeOf } from '#lib/stores/guids.ts';
@@ -23,7 +24,8 @@
 
 	const id = $derived(page.params.comp_id ?? '');
 	const elim = $derived(entityOf(id));
-	const matchFormat = $derived(String(elim?.match_format ?? matchFormatSetting.default).replaceAll('_', ' '));
+	const matchFormatKey = $derived(String(elim?.match_format ?? matchFormatSetting.default));
+	const matchFormat = $derived(matchFormatKey.replaceAll('_', ' '));
 	const links = $derived(relationsOf(id));
 	const pairIcon = $derived(imageOf(links.find((row) => typeOf(row.rk) === 'club')?.rk ?? id));
 	const caller = $derived($local.caller_id);
@@ -35,7 +37,9 @@
 	);
 	const roundRobin = $derived(elim?.comp_system === 'round_robin');
 	const standings = $derived(roundRobin ? roundRobinStandings(id) : []);
-	const doubles = $derived(elim?.format === 'doubles');
+	const compSystem = $derived(roundRobin ? 'round_robin' : 'elimination');
+	const format = $derived(elim?.format === 'doubles' ? 'doubles' : 'singles');
+	const doubles = $derived(format === 'doubles');
 	const canEdit = $derived(admin && elim?.state === 'pending');
 	const open = $derived(elim?.state === 'open');
 	const drawing = $derived(elim?.state === 'drawing');
@@ -77,9 +81,9 @@
 		<EntityActions section="primary" summary={`${roundRobin ? 'round robin' : 'elimination'} • ${doubles ? 'doubles' : 'singles'} • ${matchFormat} • ${status}`}>
 			{#snippet help()}
 				<HelpText topic="feature.comp" />
-				<HelpText topic={`settings.format.${doubles ? 'doubles' : 'singles'}`} />
-				<HelpText topic={`settings.match_format.${elim.match_format ?? matchFormatSetting.default}`} />
-				<HelpText topic={`settings.comp_system.${roundRobin ? 'round_robin' : 'elimination'}`} />
+				<HelpText topic={`settings.format.${format}`} label={playerFormatSetting.values[format].label} />
+				<HelpText topic={`settings.match_format.${matchFormatKey}`} label={matchFormatSetting.values[matchFormatKey as keyof typeof matchFormatSetting.values]?.label} />
+				<HelpText topic={`settings.comp_system.${compSystem}`} label={compSystemSetting.values[compSystem].label} />
 			{/snippet}
 			{#if elim.state === 'pending' && canApprove}
 				<RejectCreationRequest {id} />

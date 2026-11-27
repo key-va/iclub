@@ -29,7 +29,7 @@ test('blob help retries, shares one request, and renders feature and option para
         'feature.ladder': 'Ladder introduction',
         'feature.about': 'About introduction',
         'feature.future.long': ['A topic with only long help'],
-        'feature.ladder.long': ['Ladder paragraph one', 'Ladder paragraph two', 'Red: player is away', 'A green dot means active'],
+        'feature.ladder.long': ['Ladder paragraph one', 'Ladder paragraph two', 'Red: player is away', 'Green: player can play', 'A green dot means active'],
         'feature.comp': 'Competition introduction',
         'feature.group': 'Group introduction',
         'feature.team': 'Team introduction',
@@ -70,7 +70,8 @@ test('blob help retries, shares one request, and renders feature and option para
     assert.match(about, /<strong>Ladders<\/strong><\/p>[\s\S]*?aria-label="Ladders" aria-expanded="true"[\s\S]*?M18 6 6 18M6 6l12 12[\s\S]*?<\/button><\/div>\s*<p[^>]*>Ladder introduction<\/p>[\s\S]*?Ladder paragraph one[\s\S]*?Ladder paragraph two/);
     for (const html of [ladder, about]) {
         assert.match(html, /role="img" aria-label="Red" style="background: red;"><\/span>[\s\S]*?player is away/);
-        assert.doesNotMatch(html, /Red: player is away/);
+        assert.match(html, /player is away\s*<br\/>\s*<span[^>]*aria-label="Green"[^>]*><\/span>player can play\s*<\/p>/);
+        assert.doesNotMatch(html, /Red: player is away|Green: player can play/);
         assert.match(html, /A green dot means active/);
     }
     assert.equal((about.match(/Ladder introduction/g) ?? []).length, 1);

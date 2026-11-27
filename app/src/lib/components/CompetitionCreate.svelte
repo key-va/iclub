@@ -3,6 +3,7 @@
 	import HelpText from '#lib/components/HelpText.svelte';
 	import PageActions from '#lib/components/PageActions.svelte';
 	import { playerFormatSetting, matchFormatSetting } from './ladders/ladderSettings.ts';
+	import { compSystemSetting } from './competitions/compSystemSetting.ts';
 	import { prepareSquareImage } from '#lib/components/images/prepareSquareImage.ts';
 	import ActionConfirmation from '#lib/components/ActionConfirmation.svelte';
 	import { createCompetition, createGroup } from '#lib/stores/remote.ts';
@@ -19,13 +20,7 @@
 	const settings = {
 		format: playerFormatSetting,
 		match_format: matchFormatSetting,
-		comp_system: {
-			label: 'comp system',
-			values: {
-				elimination: { label: 'Elimination' },
-				round_robin: { label: 'Round Robin' }
-			}
-		}
+		comp_system: compSystemSetting
 	};
 	let values = $state<Record<string, string>>({
 		format: 'singles', match_format: matchFormatSetting.default, comp_system: 'elimination'
